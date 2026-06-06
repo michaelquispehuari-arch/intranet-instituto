@@ -1,9 +1,10 @@
+import bcrypt from "bcrypt";
 import { PrismaClient, Rol } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = "$2b$12$seed.hash.placeholder.until.auth.step";
+  const passwordHash = await bcrypt.hash("Password123!", 12);
 
   const admin = await prisma.usuario.upsert({
     where: { email: "admin@instituto.test" },
@@ -145,7 +146,7 @@ async function main() {
     profesores: [profesorA.email, profesorB.email],
     estudiantes: estudiantes.length,
     cursos: [matematica.nombre, comunicacion.nombre],
-    nota: "El hash real de contrasena se generara al implementar autenticacion con bcrypt.",
+    passwordPrueba: "Password123!",
   });
 }
 
