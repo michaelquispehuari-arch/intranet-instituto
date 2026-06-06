@@ -1,0 +1,361 @@
+import { Rol, TipoPregunta } from "@prisma/client";
+import type { AuthUser } from "../types/auth.js";
+import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
+import { prisma } from "../utils/prisma.js";
+import type { CreateExamInput, SubmitExamInput } from "../schemas/exam.schema.js";
+
+const examListSelect = {
+  id: true,
+  titulo: true,
+  descripcion: true,
+  cursoId: true,
+  duracionMinutos: true,
+  publicadoEn: true,
+  disponibleDesde: true,
+  disponibleHasta: true,
+  activo: true,
+  creadoEn: true,
+  curso: {
+    select: {
+      id: true,
+      nombre: true,
+      profesorId: true,
+      profesor: {
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          email: true,
+        },
+      },
+    },
+  },
+  _count: {
+    select: {
+      preguntas: true,
+      envios: true,
+    },
+  },
+};
+
+export async function listExams(user: AuthUser) {
+  if (user.rol === Rol.ADMIN) {
+    return prisma.examen.findMany({
+      orderBy: { creadoEn: "desc" },
+      select: examListSelect,
+    });
+  }
+
+  if (user.rol === Rol.PROFESOR) {
+    return prisma.examen.findMany({
+      where: {
+        curso: {
+          profesorId: user.id,
+          activo: true,
+        },
+      },
+      orderBy: { creadoEn: "desc" },
+      select: examListSelect,
+    });
+  }
+
+  return prisma.examen.findMany({
+    where: {
+      activo: true,
+      publicadoEn: { not: null },
+      curso: {
+        activo: true,
+        inscripciones: {
+          some: {
+            estudianteId: user.id,
+          },
+        },
+      },
+    },
+    orderBy: { creadoEn: "desc" },
+    select: examListSelect,
+  });
+}
+
+export async function getExamById(examId: string, user: AuthUser) {
+  const exam = await prisma.examen.findUnique({
+    where: { id: examId },
+    include: {
+      curso: {
+        include: {
+          profesor: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+              email: true,
+            },
+          },
+          inscripciones: {
+            select: { estudianteId: true },
+          },
+        },
+      },
+      preguntas: {
+        orderBy: { orden: "asc" },
+      },
+    },
+  });
+
+  if (!exam) {
+    throw new NotFoundError("Examen no encontrado");
+  }
+
+  if (user.rol === Rol.ADMIN || (user.rol === Rol.PROFESOR && exam.curso.profesorId === user.id)) {
+    return exam;
+  }
+
+  const isEnrolled = exam.curso.inscripciones.some(
+    (inscripcion) => inscripcion.estudianteId === user.id,
+  );
+
+  if (user.rol !== Rol.ESTUDIANTE || !isEnrolled || !isExamAvailable(exam)) {
+    throw new ForbiddenError();
+  }
+
+  return {
+    ...exam,
+    preguntas: exam.preguntas.map(({ respuestaCorrecta: _respuestaCorrecta, ...question }) => question),
+  };
+}
+
+export async function createExam(input: CreateExamInput, user: AuthUser) {
+  await ensureProfessorOwnsCourse(input.cursoId, user.id);
+
+  return prisma.examen.create({
+    data: {
+      titulo: input.titulo,
+      descripcion: input.descripcion,
+      cursoId: input.cursoId,
+      duracionMinutos: input.duracionMinutos,
+      disponibleDesde: input.disponibleDesde,
+      disponibleHasta: input.disponibleHasta,
+      preguntas: {
+        create: input.preguntas.map((question, index) => ({
+          texto: question.texto,
+          tipo: question.tipo ?? TipoPregunta.OPCION_MULTIPLE,
+          opciones: question.opciones,
+          respuestaCorrecta: question.respuestaCorrecta,
+          puntaje: question.puntaje,
+          orden: index + 1,
+        })),
+      },
+    },
+    select: examListSelect,
+  });
+}
+
+export async function publishExam(examId: string, user: AuthUser) {
+  await ensureProfessorOwnsExam(examId, user.id);
+
+  return prisma.examen.update({
+    where: { id: examId },
+    data: {
+      publicadoEn: new Date(),
+      activo: true,
+    },
+    select: examListSelect,
+  });
+}
+
+export async function submitExam(examId: string, input: SubmitExamInput, user: AuthUser) {
+  const exam = await prisma.examen.findUnique({
+    where: { id: examId },
+    include: {
+      curso: {
+        select: {
+          activo: true,
+          inscripciones: {
+            where: { estudianteId: user.id },
+            select: { id: true },
+          },
+        },
+      },
+      preguntas: {
+        orderBy: { orden: "asc" },
+      },
+    },
+  });
+
+  if (!exam) {
+    throw new NotFoundError("Examen no encontrado");
+  }
+
+  if (user.rol !== Rol.ESTUDIANTE || exam.curso.inscripciones.length === 0 || !isExamAvailable(exam)) {
+    throw new ForbiddenError();
+  }
+
+  const existingSubmission = await prisma.examenEnvio.findUnique({
+    where: {
+      estudianteId_examenId: {
+        estudianteId: user.id,
+        examenId: examId,
+      },
+    },
+    select: {
+      id: true,
+      completado: true,
+    },
+  });
+
+  if (existingSubmission?.completado) {
+    return getSubmissionResult(existingSubmission.id);
+  }
+
+  const answerMap = new Map(input.respuestas.map((answer) => [answer.preguntaId, answer.respuesta]));
+
+  if (answerMap.size !== input.respuestas.length || answerMap.size !== exam.preguntas.length) {
+    throw new ForbiddenError("Debes enviar una respuesta por cada pregunta");
+  }
+
+  const responses = exam.preguntas.map((question) => {
+    const studentAnswer = answerMap.get(question.id);
+
+    if (!studentAnswer) {
+      throw new ForbiddenError("Debes enviar una respuesta por cada pregunta");
+    }
+
+    const isCorrect = studentAnswer === question.respuestaCorrecta;
+
+    return {
+      preguntaId: question.id,
+      respuesta: studentAnswer,
+      esCorrecta: isCorrect,
+      puntajeObtenido: isCorrect ? question.puntaje : 0,
+    };
+  });
+
+  const totalScore = responses.reduce((sum, response) => sum + response.puntajeObtenido, 0);
+
+  const submission = await prisma.$transaction(async (tx) => {
+    const envio = existingSubmission
+      ? await tx.examenEnvio.update({
+          where: { id: existingSubmission.id },
+          data: {
+            enviadoEn: new Date(),
+            puntajeTotal: totalScore,
+            completado: true,
+          },
+          select: { id: true },
+        })
+      : await tx.examenEnvio.create({
+          data: {
+            estudianteId: user.id,
+            examenId: exam.id,
+            enviadoEn: new Date(),
+            puntajeTotal: totalScore,
+            completado: true,
+          },
+          select: { id: true },
+        });
+
+    await tx.respuestaEstudiante.deleteMany({
+      where: { envioId: envio.id },
+    });
+
+    await tx.respuestaEstudiante.createMany({
+      data: responses.map((response) => ({
+        envioId: envio.id,
+        ...response,
+      })),
+    });
+
+    return envio;
+  });
+
+  return getSubmissionResult(submission.id);
+}
+
+async function getSubmissionResult(submissionId: string) {
+  const submission = await prisma.examenEnvio.findUnique({
+    where: { id: submissionId },
+    include: {
+      examen: {
+        select: {
+          id: true,
+          titulo: true,
+          duracionMinutos: true,
+        },
+      },
+      respuestas: {
+        include: {
+          pregunta: {
+            select: {
+              id: true,
+              texto: true,
+              respuestaCorrecta: true,
+              puntaje: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!submission) {
+    throw new NotFoundError("Envio no encontrado");
+  }
+
+  return submission;
+}
+
+async function ensureProfessorOwnsCourse(courseId: string, professorId: string) {
+  const course = await prisma.curso.findFirst({
+    where: {
+      id: courseId,
+      profesorId: professorId,
+      activo: true,
+    },
+    select: { id: true },
+  });
+
+  if (!course) {
+    throw new ForbiddenError("Curso no encontrado o no asignado al profesor");
+  }
+}
+
+async function ensureProfessorOwnsExam(examId: string, professorId: string) {
+  const exam = await prisma.examen.findFirst({
+    where: {
+      id: examId,
+      curso: {
+        profesorId: professorId,
+        activo: true,
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!exam) {
+    throw new ForbiddenError("Examen no encontrado o no asignado al profesor");
+  }
+}
+
+function isExamAvailable(exam: {
+  activo: boolean;
+  publicadoEn: Date | null;
+  disponibleDesde: Date | null;
+  disponibleHasta: Date | null;
+  curso: { activo: boolean };
+}) {
+  const now = new Date();
+
+  if (!exam.activo || !exam.curso.activo || !exam.publicadoEn) {
+    return false;
+  }
+
+  if (exam.disponibleDesde && exam.disponibleDesde > now) {
+    return false;
+  }
+
+  if (exam.disponibleHasta && exam.disponibleHasta < now) {
+    return false;
+  }
+
+  return true;
+}
