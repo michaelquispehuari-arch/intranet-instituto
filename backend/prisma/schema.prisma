@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  nombre       String
+  apellido     String
+  rol          Rol      @default(ESTUDIANTE)
+  activo       Boolean  @default(true)
+  creadoEn     DateTime @default(now())
+
+  cursosComoProfesor Curso[]        @relation("ProfesorCurso")
+  inscripciones      Inscripcion[]
+  examenesSub        ExamenEnvio[]
+  notasComoEstudiante NotaManual[]  @relation("NotaManualEstudiante")
+  notasComoProfesor  NotaManual[]   @relation("NotaManualProfesor")
+  asistencias        Asistencia[]
+  materialesSubidos  Material[]     @relation("ProfesorMaterial")
+}
+
+enum Rol {
+  ADMIN
+  PROFESOR
+  ESTUDIANTE
+}
+
+model Curso {
+  id          String  @id @default(cuid())
+  nombre      String
+  descripcion String?
+  ciclo       Int
+  anio        Int
+  profesorId  String
+  activo      Boolean @default(true)
+
+  profesor      Usuario       @relation("ProfesorCurso", fields: [profesorId], references: [id])
+  inscripciones Inscripcion[]
+  examenes      Examen[]
+  materiales    Material[]
+  notasManuales NotaManual[]
+  asistencias   Asistencia[]
+  config        ConfigCurso?
+}
+
+model Inscripcion {
+  id           String   @id @default(cuid())
+  estudianteId String
+  cursoId      String
+  creadoEn     DateTime @default(now())
+
+  estudiante Usuario @relation(fields: [estudianteId], references: [id])
+  curso      Curso   @relation(fields: [cursoId], references: [id])
+
+  @@unique([estudianteId, cursoId])
+}
+
+model Examen {
+  id              String    @id @default(cuid())
+  titulo          String
+  descripcion     String?
+  cursoId         String
+  duracionMinutos Int
+  publicadoEn     DateTime?
+  disponibleDesde DateTime?
+  disponibleHasta DateTime?
+  activo          Boolean   @default(true)
+  creadoEn        DateTime  @default(now())
+
+  curso     Curso         @relation(fields: [cursoId], references: [id])
+  preguntas Pregunta[]
+  envios    ExamenEnvio[]
+}
+
+model Pregunta {
+  id                String       @id @default(cuid())
+  examenId          String
+  texto             String
+  tipo              TipoPregunta @default(OPCION_MULTIPLE)
+  opciones          Json
+  respuestaCorrecta String
+  puntaje           Float        @default(1)
+  orden             Int
+
+  examen     Examen                @relation(fields: [examenId], references: [id])
+  respuestas RespuestaEstudiante[]
+}
+
+enum TipoPregunta {
+  OPCION_MULTIPLE
+  VERDADERO_FALSO
+}
+
+model ExamenEnvio {
+  id           String    @id @default(cuid())
+  estudianteId String
+  examenId     String
+  iniciadoEn   DateTime  @default(now())
+  enviadoEn    DateTime?
+  puntajeTotal Float?
+  completado   Boolean   @default(false)
+
+  estudiante Usuario               @relation(fields: [estudianteId], references: [id])
+  examen     Examen                @relation(fields: [examenId], references: [id])
+  respuestas RespuestaEstudiante[]
+
+  @@unique([estudianteId, examenId])
+}
+
+model RespuestaEstudiante {
+  id              String  @id @default(cuid())
+  envioId         String
+  preguntaId      String
+  respuesta       String
+  esCorrecta      Boolean
+  puntajeObtenido Float
+
+  envio    ExamenEnvio @relation(fields: [envioId], references: [id])
+  pregunta Pregunta    @relation(fields: [preguntaId], references: [id])
+}
+
+model Material {
+  id          String   @id @default(cuid())
+  nombre      String
+  descripcion String?
+  cursoId     String
+  profesorId  String
+  urlR2       String
+  tipoArchivo String
+  tamanoBytes BigInt
+  creadoEn    DateTime @default(now())
+
+  curso    Curso   @relation(fields: [cursoId], references: [id])
+  profesor Usuario @relation("ProfesorMaterial", fields: [profesorId], references: [id])
+}
+
+model NotaManual {
+  id           String   @id @default(cuid())
+  estudianteId String
+  cursoId      String
+  profesorId   String
+  valor        Float
+  descripcion  String?
+  fecha        DateTime @default(now())
+
+  estudiante Usuario @relation("NotaManualEstudiante", fields: [estudianteId], references: [id])
+  profesor   Usuario @relation("NotaManualProfesor", fields: [profesorId], references: [id])
+  curso      Curso   @relation(fields: [cursoId], references: [id])
+}
+
+model Asistencia {
+  id           String           @id @default(cuid())
+  estudianteId String
+  cursoId      String
+  fecha        DateTime
+  estado       EstadoAsistencia
+
+  estudiante Usuario @relation(fields: [estudianteId], references: [id])
+  curso      Curso   @relation(fields: [cursoId], references: [id])
+
+  @@unique([estudianteId, cursoId, fecha])
+}
+
+enum EstadoAsistencia {
+  PRESENTE
+  AUSENTE
+  TARDANZA
+}
+
+model ConfigCurso {
+  id                String @id @default(cuid())
+  cursoId           String @unique
+  pesoExamenes      Float  @default(0.7)
+  pesoNotasManuales Float  @default(0.3)
+  notaAprobatoria   Float  @default(11)
+
+  curso Curso @relation(fields: [cursoId], references: [id])
+}
