@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import multer from "multer";
 import { ZodError } from "zod";
 import { HttpError } from "../utils/http-error.js";
 
@@ -17,6 +18,11 @@ export function errorHandler(
       message: "Datos invalidos",
       errors: error.flatten().fieldErrors,
     });
+    return;
+  }
+
+  if (error instanceof multer.MulterError) {
+    res.status(400).json({ message: error.message });
     return;
   }
 

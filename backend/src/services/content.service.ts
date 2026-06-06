@@ -1,0 +1,222 @@
+import fs from "node:fs";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Prisma, Rol } from "@prisma/client";
+import { env } from "../config/env.js";
+import type { UploadContentInput, ListContentQuery } from "../schemas/content.schema.js";
+import type { AuthUser } from "../types/auth.js";
+import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
+import { prisma } from "../utils/prisma.js";
+import { r2Client } from "../utils/r2.js";
+
+const allowedExtensions = new Set(["pdf", "mp4", "mp3", "docx", "pptx", "xlsx", "jpg", "jpeg", "png"]);
+
+const materialInclude = {
+  curso: {
+    select: {
+      id: true,
+      nombre: true,
+      profesorId: true,
+    },
+  },
+  profesor: {
+    select: {
+      id: true,
+      nombre: true,
+      apellido: true,
+      email: true,
+    },
+  },
+} satisfies Prisma.MaterialInclude;
+
+type MaterialWithRelations = Prisma.MaterialGetPayload<{
+  include: typeof materialInclude;
+}>;
+
+export async function listContent(query: ListContentQuery, user: AuthUser) {
+  const courseFilter = query.cursoId ? { cursoId: query.cursoId } : {};
+
+  const materials = await prisma.material.findMany({
+    where: {
+      ...courseFilter,
+      ...(user.rol === Rol.PROFESOR
+        ? { curso: { profesorId: user.id, activo: true } }
+        : {}),
+      ...(user.rol === Rol.ESTUDIANTE
+        ? {
+            curso: {
+              activo: true,
+              inscripciones: {
+                some: {
+                  estudianteId: user.id,
+                },
+              },
+            },
+          }
+        : {}),
+    },
+    orderBy: { creadoEn: "desc" },
+    include: materialInclude,
+  });
+
+  return materials.map(serializeMaterial);
+}
+
+export async function getContentById(contentId: string, user: AuthUser) {
+  const material = await findAccessibleMaterial(contentId, user);
+  return serializeMaterial(material);
+}
+
+export async function uploadContent(input: UploadContentInput, file: Express.Multer.File, user: AuthUser) {
+  await ensureProfessorOwnsCourse(input.cursoId, user.id);
+
+  const extension = getFileExtension(file.originalname);
+
+  if (!allowedExtensions.has(extension)) {
+    await removeLocalFile(file.path);
+    throw new ForbiddenError("Tipo de archivo no permitido");
+  }
+
+  const objectKey = `materials/${input.cursoId}/${Date.now()}-${sanitizeFileName(file.originalname)}`;
+
+  try {
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: env.CLOUDFLARE_R2_BUCKET_NAME,
+        Key: objectKey,
+        Body: fs.createReadStream(file.path),
+        ContentType: file.mimetype,
+      }),
+    );
+
+    const material = await prisma.material.create({
+      data: {
+        nombre: input.nombre ?? file.originalname,
+        descripcion: input.descripcion,
+        cursoId: input.cursoId,
+        profesorId: user.id,
+        urlR2: objectKey,
+        tipoArchivo: extension,
+        tamanoBytes: BigInt(file.size),
+      },
+      include: materialInclude,
+    });
+
+    return serializeMaterial(material);
+  } finally {
+    await removeLocalFile(file.path);
+  }
+}
+
+export async function createDownloadUrl(contentId: string, user: AuthUser) {
+  const material = await findAccessibleMaterial(contentId, user);
+
+  const url = await getSignedUrl(
+    r2Client,
+    new GetObjectCommand({
+      Bucket: env.CLOUDFLARE_R2_BUCKET_NAME,
+      Key: material.urlR2,
+    }),
+    { expiresIn: 15 * 60 },
+  );
+
+  return {
+    material: serializeMaterial(material),
+    url,
+    expiresInSeconds: 15 * 60,
+  };
+}
+
+export async function deleteContent(contentId: string, user: AuthUser) {
+  const material = await findAccessibleMaterial(contentId, user);
+
+  if (user.rol !== Rol.ADMIN && material.profesorId !== user.id) {
+    throw new ForbiddenError();
+  }
+
+  await r2Client.send(
+    new DeleteObjectCommand({
+      Bucket: env.CLOUDFLARE_R2_BUCKET_NAME,
+      Key: material.urlR2,
+    }),
+  );
+
+  await prisma.material.delete({
+    where: { id: material.id },
+  });
+
+  return serializeMaterial(material);
+}
+
+async function findAccessibleMaterial(contentId: string, user: AuthUser) {
+  const material = await prisma.material.findUnique({
+    where: { id: contentId },
+    include: {
+      ...materialInclude,
+      curso: {
+        include: {
+          inscripciones: {
+            select: { estudianteId: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!material) {
+    throw new NotFoundError("Material no encontrado");
+  }
+
+  if (user.rol === Rol.ADMIN) {
+    return material;
+  }
+
+  if (user.rol === Rol.PROFESOR && material.profesorId === user.id) {
+    return material;
+  }
+
+  const isEnrolled = material.curso.inscripciones.some(
+    (inscripcion) => inscripcion.estudianteId === user.id,
+  );
+
+  if (user.rol === Rol.ESTUDIANTE && isEnrolled) {
+    return material;
+  }
+
+  throw new ForbiddenError();
+}
+
+async function ensureProfessorOwnsCourse(courseId: string, professorId: string) {
+  const course = await prisma.curso.findFirst({
+    where: {
+      id: courseId,
+      profesorId: professorId,
+      activo: true,
+    },
+    select: { id: true },
+  });
+
+  if (!course) {
+    throw new ForbiddenError("Curso no encontrado o no asignado al profesor");
+  }
+}
+
+function serializeMaterial(material: MaterialWithRelations) {
+  return {
+    ...material,
+    tamanoBytes: material.tamanoBytes.toString(),
+  };
+}
+
+function getFileExtension(filename: string) {
+  const extension = filename.split(".").pop()?.toLowerCase();
+  return extension ?? "";
+}
+
+function sanitizeFileName(filename: string) {
+  return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+async function removeLocalFile(filePath: string) {
+  await fs.promises.rm(filePath, { force: true });
+}
