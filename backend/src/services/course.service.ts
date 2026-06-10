@@ -2,7 +2,7 @@ import { Rol } from "@prisma/client";
 import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
-import type { CreateCourseInput, UpdateCourseInput } from "../schemas/course.schema.js";
+import type { CreateCourseInput, EnrollStudentInput, UpdateCourseInput } from "../schemas/course.schema.js";
 
 const courseSelect = {
   id: true,
@@ -145,6 +145,61 @@ export async function deactivateCourse(courseId: string) {
   });
 }
 
+export async function enrollStudent(courseId: string, input: EnrollStudentInput) {
+  await ensureCourseExists(courseId);
+  await ensureActiveStudent(input.estudianteId);
+
+  return prisma.inscripcion.upsert({
+    where: {
+      estudianteId_cursoId: {
+        estudianteId: input.estudianteId,
+        cursoId: courseId,
+      },
+    },
+    update: {},
+    create: {
+      estudianteId: input.estudianteId,
+      cursoId: courseId,
+    },
+    include: {
+      estudiante: {
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          email: true,
+        },
+      },
+      curso: {
+        select: {
+          id: true,
+          nombre: true,
+        },
+      },
+    },
+  });
+}
+
+export async function unenrollStudent(courseId: string, studentId: string) {
+  await ensureCourseExists(courseId);
+
+  const result = await prisma.inscripcion.deleteMany({
+    where: {
+      cursoId: courseId,
+      estudianteId: studentId,
+    },
+  });
+
+  if (result.count === 0) {
+    throw new NotFoundError("Inscripcion no encontrada");
+  }
+
+  return {
+    cursoId: courseId,
+    estudianteId: studentId,
+  };
+}
+
 async function ensureCourseExists(courseId: string) {
   const course = await prisma.curso.findUnique({
     where: { id: courseId },
@@ -153,6 +208,21 @@ async function ensureCourseExists(courseId: string) {
 
   if (!course) {
     throw new NotFoundError("Curso no encontrado");
+  }
+}
+
+async function ensureActiveStudent(estudianteId: string) {
+  const student = await prisma.usuario.findFirst({
+    where: {
+      id: estudianteId,
+      rol: Rol.ESTUDIANTE,
+      activo: true,
+    },
+    select: { id: true },
+  });
+
+  if (!student) {
+    throw new NotFoundError("Estudiante no encontrado o inactivo");
   }
 }
 

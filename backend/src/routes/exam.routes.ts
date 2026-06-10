@@ -9,6 +9,7 @@ export const examRoutes = Router();
 examRoutes.use(authMiddleware);
 
 examRoutes.get("/", examController.list);
+examRoutes.get("/:id/results", examController.results);
 examRoutes.get("/:id", examController.getById);
 examRoutes.post("/", requireRole(Rol.PROFESOR), examController.create);
 examRoutes.patch("/:id/publish", requireRole(Rol.PROFESOR), examController.publish);

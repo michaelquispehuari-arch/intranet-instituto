@@ -1,0 +1,386 @@
+# Validacion y cambios — sesion actual
+
+Fecha: 2026-06-06
+
+---
+
+## Cambio aplicado
+
+Archivo: `backend/src/services/content.service.ts` — funcion `deleteContent`
+
+Problema: el borrado de R2 ocurria antes del borrado en Postgres. Si R2 tenia exito pero Prisma fallaba, el registro quedaba en la BD apuntando a un objeto que ya no existia en R2.
+
+Correccion: invertido el orden. Ahora se borra primero en Postgres y luego en R2. Si Postgres falla el archivo sigue en R2 y el usuario puede reintentar. Si R2 falla despues del borrado en Postgres, el objeto queda huerfano en R2 pero el sistema no queda en estado inconsistente visible al usuario.
+
+---
+
+## Validaciones ejecutadas y resultado
+
+```
+backend: npm.cmd run typecheck       -> OK
+backend: npm.cmd run build           -> OK
+backend: npm.cmd run prisma:validate -> OK (schema valido)
+backend: npm.cmd run test:integration -> 1/1 pass
+
+frontend: npm.cmd run typecheck      -> OK
+frontend: npm.cmd run build          -> OK (12 rutas generadas)
+frontend: npm.cmd audit --omit=dev   -> 0 vulnerabilities
+```
+
+---
+
+## Estado confirmado listo para continuar
+
+Los Pasos 1 a 4 de la arquitectura estan completos y validados:
+
+- Paso 1: repositorio, ramas, .gitignore, .env.example — completo
+- Paso 2: Prisma schema, migracion, seed — completo
+- Paso 3: autenticacion JWT, bcrypt, middleware de roles — completo
+- Paso 4: modulos backend cursos, examenes, materiales, calificaciones — completo y probado
+
+El Paso 5 (frontend) tiene base funcional:
+
+- Login con NextAuth Credentials conectado al backend
+- Dashboard con modulos segun rol
+- Pagina /grades conectada a GET /api/grades
+- Middleware de rutas por rol funcionando
+- Rutas base creadas pero sin conexion real: /exams, /exams/create, /content, /content/upload, /users, /settings
+
+---
+
+## Pendientes segun arquitectura
+
+Paso 5 — completar frontend:
+- Conectar /exams a GET /api/exams
+- Crear pagina /exams/[id] para rendir examen individual
+- Crear pagina /exams/[id]/results para ver resultado
+- Conectar /exams/create a POST /api/exams
+- Conectar /content a GET /api/content
+- Conectar /content/upload a POST /api/content
+- Conectar /users a gestion real de usuarios (ADMIN)
+- Conectar /settings a configuracion (ADMIN)
+- Completar /grades con acciones segun rol (PROFESOR crea notas, ADMIN configura pesos)
+
+Paso 6 — servicios de soporte:
+- Redis
+- Bull Queue
+- Email SMTP (Resend + nodemailer)
+- Sentry en backend
+- UptimeRobot
+
+Paso 7: Nginx y Cloudflare
+Paso 8: CI/CD GitHub Actions
+Paso 9: lanzamiento
+Paso 10: post-lanzamiento
+
+---
+
+## Reglas para continuar
+
+- Trabajar siempre desde `C:\intranet-instituto`
+- No usar carpeta de OneDrive
+- No borrar ni revertir cambios locales sin autorizacion
+- No subir archivos `.env` reales
+- Ejecutar las 7 validaciones del bloque anterior antes de declarar algo como hecho
+- El backend es la autoridad de seguridad — el frontend nunca calcula notas ni decide permisos reales
+- Fuente de verdad de arquitectura: `C:\intranet-instituto\arquitectura_intranet_educativa.md`
+- Estado consolidado del proyecto: `C:\intranet-instituto\DOCUMENTACION_CONSOLIDADA_AVANCE_ACTUAL.md`
+
+---
+
+## Avance aplicado - 2026-06-08
+
+Paso 5 frontend - modulo de examenes:
+
+- `/exams` conectado a `GET /api/exams`.
+- `/exams/create` conectado a creacion real de examenes mediante proxy interno del frontend.
+- `/exams/[id]` creado para ver/rendir examen individual.
+- `/exams/[id]/results` creado para consultar resultados.
+- Proxy interno agregado en Next para enviar creacion y respuestas sin exponer el token backend al navegador.
+- Estilos agregados para formularios, preguntas, opciones, resultados y estados vacios.
+
+Backend:
+
+- Agregado `GET /api/exams/:id/results`.
+- ADMIN y PROFESOR autorizado ven envios completados del examen.
+- ESTUDIANTE solo ve su propio resultado si esta inscrito y ya envio el examen.
+
+Validaciones ejecutadas:
+
+```text
+backend: npm.cmd run typecheck       -> OK
+backend: npm.cmd run build           -> OK
+backend: npm.cmd run prisma:validate -> OK
+frontend: npm.cmd run typecheck      -> OK
+frontend: npm.cmd run build          -> OK (15 rutas generadas)
+frontend: npm.cmd audit --omit=dev   -> 0 vulnerabilities
+```
+
+Validacion pendiente:
+
+```text
+backend: npm.cmd run test:integration -> NO ejecutable correctamente porque PostgreSQL local no respondio en localhost:5432.
+```
+
+Servidor local:
+
+```text
+Frontend dev server iniciado en http://localhost:3000
+GET /login -> 200
+```
+
+Nota:
+
+```text
+No se pudo usar el navegador integrado porque la instancia iab no estaba disponible.
+```
+
+---
+
+## Avance aplicado - continuacion 2026-06-08
+
+Paso 5 frontend - modulos conectados:
+
+- `/content` conectado a `GET /api/content`.
+- `/content/upload` conectado a `POST /api/content` mediante proxy interno Next con `multipart/form-data`.
+- Descarga de materiales conectada a `GET /api/content/:id/download`, redirigiendo a la URL firmada generada por backend.
+- Eliminacion de materiales conectada a `DELETE /api/content/:id` para ADMIN y PROFESOR.
+- `/users` conectado a gestion real de usuarios para ADMIN.
+- `/settings` conectado a configuracion real de calificaciones por curso.
+- `/grades` ampliado para registrar notas manuales y asistencia desde el rol PROFESOR.
+- `/courses` creado y conectado a `GET /api/courses`, `POST /api/courses`, `PATCH /api/courses/:id` y `DELETE /api/courses/:id`.
+- Dashboard y middleware actualizados para incluir `/courses`.
+- Filtros visuales agregados en `/courses`, `/content` y `/users`.
+
+Backend:
+
+- Agregado modulo administrativo de usuarios:
+  - `GET /api/users`
+  - `POST /api/users`
+  - `PATCH /api/users/:id`
+  - `DELETE /api/users/:id`
+- Agregadas inscripciones administrativas en cursos:
+  - `POST /api/courses/:id/enrollments`
+  - `DELETE /api/courses/:id/enrollments/:studentId`
+- El borrado de usuarios y cursos sigue siendo logico cuando aplica, evitando perdida innecesaria de historial.
+- Integrado Sentry opcional en backend con `@sentry/node`.
+- `SENTRY_DSN` ahora es opcional en `backend/src/config/env.ts`.
+- Si no existe `SENTRY_DSN`, Sentry no se inicializa y el entorno local sigue funcionando igual.
+- Los errores 500 se capturan con Sentry cuando el DSN esta configurado.
+
+Archivos nuevos principales:
+
+```text
+backend/src/config/sentry.ts
+backend/src/controllers/user.controller.ts
+backend/src/routes/user.routes.ts
+backend/src/schemas/user.schema.ts
+backend/src/services/user.service.ts
+frontend/src/app/courses/page.tsx
+frontend/src/components/search-form.tsx
+```
+
+Dependencias agregadas:
+
+```text
+backend: @sentry/node
+```
+
+Validaciones ejecutadas:
+
+```text
+backend: npm.cmd run typecheck       -> OK
+backend: npm.cmd run build           -> OK
+backend: npm.cmd run prisma:validate -> OK
+backend: npm.cmd audit --omit=dev    -> 0 vulnerabilities
+frontend: npm.cmd run typecheck      -> OK
+frontend: npm.cmd run build          -> OK (15 rutas generadas)
+frontend: npm.cmd audit --omit=dev   -> 0 vulnerabilities
+```
+
+Validacion pendiente:
+
+```text
+backend: npm.cmd run test:integration -> pendiente de reintentar cuando PostgreSQL local este respondiendo.
+```
+
+Pendientes inmediatos actualizados:
+
+```text
+1. Probar flujo funcional completo con PostgreSQL local levantado.
+2. Probar subida y descarga real a Cloudflare R2 con credenciales reales.
+3. Implementar reset de password cuando existan Redis/email.
+4. Implementar Bull Queue y email SMTP.
+5. Continuar CI/CD, Cloudflare/Nginx y despliegue.
+```
+
+---
+
+## Avance aplicado - Paso 6 inicial 2026-06-08
+
+Servicios de soporte backend:
+
+- Redis agregado con cliente reutilizable para datos temporales.
+- BullMQ agregado como cola de tareas asincronas sobre Redis.
+- Worker de email agregado:
+  - `npm.cmd run dev:email-worker`
+  - `npm.cmd run start:email-worker`
+- Nodemailer agregado para envio SMTP.
+- Variables SMTP completadas en `backend/.env.example`.
+- `SENTRY_DSN` acepta valor vacio sin romper validacion local.
+
+Reset de password:
+
+- `POST /api/auth/forgot-password` creado.
+- `POST /api/auth/reset-password` creado.
+- El token temporal se guarda en Redis con expiracion de 1 hora.
+- El correo de recuperacion se envia por cola, no de forma sincrona.
+- El token se consume con `GETDEL` para evitar reutilizacion.
+- La nueva contrasena se guarda con `bcrypt.hash(..., 12)`.
+
+Frontend:
+
+- `/forgot-password` creado para solicitar enlace de recuperacion.
+- `/reset-password?token=...` creado para definir nueva contrasena.
+- Proxies internos agregados:
+  - `POST /api/password/forgot`
+  - `POST /api/password/reset`
+- Login actualizado con enlace a recuperacion.
+
+Dependencias agregadas:
+
+```text
+backend: bullmq, ioredis, nodemailer
+backend dev: @types/nodemailer
+```
+
+Decision tecnica:
+
+```text
+Se uso BullMQ en lugar de Bull clasico porque Bull 4 introducia vulnerabilidad moderada transitiva via uuid.
+BullMQ mantiene el modelo de cola Redis de la arquitectura sin dejar npm audit con alertas.
+```
+
+Validaciones ejecutadas:
+
+```text
+backend: npm.cmd run typecheck        -> OK
+backend: npm.cmd run build            -> OK
+backend: npm.cmd run prisma:validate  -> OK
+backend: npm.cmd run test:integration -> OK (1/1 pass, con permiso elevado por EPERM del sandbox)
+backend: npm.cmd audit --omit=dev     -> 0 vulnerabilities
+frontend: npm.cmd run typecheck       -> OK
+frontend: npm.cmd run build           -> OK (19 rutas generadas)
+frontend: npm.cmd audit --omit=dev    -> 0 vulnerabilities
+```
+
+Pendientes inmediatos actualizados:
+
+```text
+1. Probar reset de password con Redis y SMTP reales levantados.
+2. Probar flujo funcional completo en navegador.
+3. Probar subida y descarga real a Cloudflare R2 con credenciales reales.
+4. Agregar UptimeRobot cuando exista URL publica.
+5. Continuar CI/CD, Cloudflare/Nginx y despliegue.
+```
+
+---
+
+## Avance aplicado - Paso 7 y 8 inicial 2026-06-08
+
+Infraestructura versionada:
+
+- Agregado `.github/workflows/ci.yml`.
+- El CI valida backend y frontend en push/pull request hacia `dev` y `main`.
+- Backend CI usa PostgreSQL 15 y Redis 7 como servicios.
+- Backend CI ejecuta:
+  - `npm ci`
+  - `npm run prisma:validate`
+  - `npx prisma migrate deploy`
+  - `npm run prisma:seed`
+  - `npm run typecheck`
+  - `npm run build`
+  - `npm run test:integration`
+  - `npm audit --omit=dev`
+- Frontend CI ejecuta:
+  - `npm ci`
+  - `npm run typecheck`
+  - `npm run build`
+  - `npm audit --omit=dev`
+
+Nginx:
+
+- Agregado `infra/nginx/intranet.conf`.
+- Proxy configurado para:
+  - Frontend en `127.0.0.1:3000`.
+  - Backend `/api/` y `/health` en `127.0.0.1:4000`.
+  - `client_max_body_size 500m` para coincidir con materiales educativos.
+- Agregado `infra/README.md` con notas minimas de uso.
+
+Legal:
+
+- Agregada ruta publica `/privacy`.
+- Login enlaza a politica de privacidad.
+- La pagina cubre datos tratados, finalidad, roles de acceso, seguridad, menores y conservacion.
+
+Validaciones ejecutadas:
+
+```text
+frontend: npm.cmd run typecheck    -> OK
+frontend: npm.cmd run build        -> OK (20 rutas generadas)
+frontend: npm.cmd audit --omit=dev -> 0 vulnerabilities
+```
+
+Pendientes inmediatos actualizados:
+
+```text
+1. Probar CI en GitHub despues de subir cambios.
+2. Definir proveedor de deploy y secretos reales para CD.
+3. Probar reset de password con Redis y SMTP reales levantados.
+4. Probar subida y descarga real a Cloudflare R2 con credenciales reales.
+5. Configurar Cloudflare, Nginx real y UptimeRobot cuando exista dominio/URL publica.
+```
+
+---
+
+## Checklist pendiente para lanzar la pagina
+
+Pruebas locales completas:
+
+```text
+Login con ADMIN, PROFESOR y ESTUDIANTE.
+Dashboard por rol.
+Cursos: crear, editar, desactivar y matricular estudiantes.
+Examenes: crear, publicar, rendir y ver resultados.
+Materiales: listar, subir, descargar y eliminar.
+Calificaciones: notas manuales, asistencia y configuracion de pesos.
+Usuarios: crear, editar y desactivar cuentas.
+Settings: configuracion academica desde ADMIN.
+Politica de privacidad publica.
+Reset de password con Redis y SMTP.
+```
+
+Servicios reales necesarios:
+
+```text
+PostgreSQL real.
+Redis real.
+SMTP real.
+Cloudflare R2 real.
+Sentry real.
+Dominio real en Cloudflare.
+Hosting para frontend, backend y worker de email.
+```
+
+Produccion y operacion:
+
+```text
+Variables .env reales configuradas en el hosting.
+Nginx con dominio real si se usa servidor propio.
+Cloudflare con HTTPS activo.
+CI pasando en GitHub.
+Deploy automatizado cuando se defina Railway/Render.
+UptimeRobot apuntando a la URL publica.
+Backups automaticos de PostgreSQL verificados.
+Prueba final movil y escritorio.
+```

@@ -124,6 +124,95 @@ export async function getExamById(examId: string, user: AuthUser) {
   };
 }
 
+export async function getExamResults(examId: string, user: AuthUser) {
+  const exam = await prisma.examen.findUnique({
+    where: { id: examId },
+    select: {
+      id: true,
+      titulo: true,
+      descripcion: true,
+      duracionMinutos: true,
+      curso: {
+        select: {
+          id: true,
+          nombre: true,
+          profesorId: true,
+          inscripciones: {
+            where: { estudianteId: user.id },
+            select: { estudianteId: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!exam) {
+    throw new NotFoundError("Examen no encontrado");
+  }
+
+  const canViewAll =
+    user.rol === Rol.ADMIN || (user.rol === Rol.PROFESOR && exam.curso.profesorId === user.id);
+  const isEnrolledStudent = user.rol === Rol.ESTUDIANTE && exam.curso.inscripciones.length > 0;
+
+  if (!canViewAll && !isEnrolledStudent) {
+    throw new ForbiddenError();
+  }
+
+  const submissions = await prisma.examenEnvio.findMany({
+    where: {
+      examenId: examId,
+      completado: true,
+      ...(isEnrolledStudent ? { estudianteId: user.id } : {}),
+    },
+    orderBy: { enviadoEn: "desc" },
+    include: {
+      estudiante: {
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          email: true,
+        },
+      },
+      respuestas: {
+        orderBy: {
+          pregunta: {
+            orden: "asc",
+          },
+        },
+        include: {
+          pregunta: {
+            select: {
+              id: true,
+              texto: true,
+              respuestaCorrecta: true,
+              puntaje: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (isEnrolledStudent && submissions.length === 0) {
+    throw new NotFoundError("Resultado no encontrado");
+  }
+
+  return {
+    exam: {
+      id: exam.id,
+      titulo: exam.titulo,
+      descripcion: exam.descripcion,
+      duracionMinutos: exam.duracionMinutos,
+      curso: {
+        id: exam.curso.id,
+        nombre: exam.curso.nombre,
+      },
+    },
+    submissions,
+  };
+}
+
 export async function createExam(input: CreateExamInput, user: AuthUser) {
   await ensureProfessorOwnsCourse(input.cursoId, user.id);
 

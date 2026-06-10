@@ -11,5 +11,7 @@ courseRoutes.use(authMiddleware);
 courseRoutes.get("/", courseController.list);
 courseRoutes.get("/:id", courseController.getById);
 courseRoutes.post("/", requireRole(Rol.ADMIN), courseController.create);
+courseRoutes.post("/:id/enrollments", requireRole(Rol.ADMIN), courseController.enroll);
 courseRoutes.patch("/:id", requireRole(Rol.ADMIN), courseController.update);
+courseRoutes.delete("/:id/enrollments/:studentId", requireRole(Rol.ADMIN), courseController.unenroll);
 courseRoutes.delete("/:id", requireRole(Rol.ADMIN), courseController.remove);

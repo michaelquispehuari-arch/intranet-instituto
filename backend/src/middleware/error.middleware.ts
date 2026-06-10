@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
 import { ZodError } from "zod";
+import { captureException } from "../config/sentry.js";
 import { HttpError } from "../utils/http-error.js";
 
 export function notFoundHandler(req: Request, _res: Response, next: NextFunction) {
@@ -32,5 +33,6 @@ export function errorHandler(
   }
 
   console.error(error);
+  captureException(error);
   res.status(500).json({ message: "Error interno del servidor" });
 }

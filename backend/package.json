@@ -8,26 +8,33 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "dev:email-worker": "tsx watch src/workers/email.worker.ts",
     "build": "tsc",
     "start": "node dist/src/server.js",
+    "start:email-worker": "node dist/src/workers/email.worker.js",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
+    "test:integration": "node --import tsx --test --test-timeout=120000 tests/integration/grades.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.758.0",
     "@aws-sdk/s3-request-presigner": "^3.758.0",
     "@prisma/client": "^5.22.0",
+    "@sentry/node": "^10.56.0",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.78.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^4.22.2",
     "helmet": "^8.2.0",
+    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
+    "nodemailer": "^8.0.10",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -38,6 +45,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.1.0",
     "@types/node": "^20.19.0",
+    "@types/nodemailer": "^8.0.0",
     "prisma": "^5.22.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"

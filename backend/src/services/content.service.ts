@@ -1,13 +1,11 @@
 import fs from "node:fs";
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Prisma, Rol } from "@prisma/client";
 import { env } from "../config/env.js";
 import type { UploadContentInput, ListContentQuery } from "../schemas/content.schema.js";
 import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
-import { r2Client } from "../utils/r2.js";
+import { getR2Client } from "../utils/r2.js";
 
 const allowedExtensions = new Set(["pdf", "mp4", "mp3", "docx", "pptx", "xlsx", "jpg", "jpeg", "png"]);
 
@@ -80,6 +78,9 @@ export async function uploadContent(input: UploadContentInput, file: Express.Mul
   const objectKey = `materials/${input.cursoId}/${Date.now()}-${sanitizeFileName(file.originalname)}`;
 
   try {
+    const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+    const r2Client = await getR2Client();
+
     await r2Client.send(
       new PutObjectCommand({
         Bucket: env.CLOUDFLARE_R2_BUCKET_NAME,
@@ -110,6 +111,11 @@ export async function uploadContent(input: UploadContentInput, file: Express.Mul
 
 export async function createDownloadUrl(contentId: string, user: AuthUser) {
   const material = await findAccessibleMaterial(contentId, user);
+  const [{ GetObjectCommand }, { getSignedUrl }, r2Client] = await Promise.all([
+    import("@aws-sdk/client-s3"),
+    import("@aws-sdk/s3-request-presigner"),
+    getR2Client(),
+  ]);
 
   const url = await getSignedUrl(
     r2Client,
@@ -134,16 +140,19 @@ export async function deleteContent(contentId: string, user: AuthUser) {
     throw new ForbiddenError();
   }
 
+  await prisma.material.delete({
+    where: { id: material.id },
+  });
+
+  const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+  const r2Client = await getR2Client();
+
   await r2Client.send(
     new DeleteObjectCommand({
       Bucket: env.CLOUDFLARE_R2_BUCKET_NAME,
       Key: material.urlR2,
     }),
   );
-
-  await prisma.material.delete({
-    where: { id: material.id },
-  });
 
   return serializeMaterial(material);
 }

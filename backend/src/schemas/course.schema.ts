@@ -4,6 +4,15 @@ export const courseIdParamSchema = z.object({
   id: z.string().min(1),
 });
 
+export const courseEnrollmentParamSchema = z.object({
+  id: z.string().min(1),
+  studentId: z.string().min(1),
+});
+
+export const enrollStudentSchema = z.object({
+  estudianteId: z.string().min(1),
+});
+
 export const createCourseSchema = z.object({
   nombre: z.string().trim().min(3).max(120),
   descripcion: z.string().trim().max(500).optional(),
@@ -18,3 +27,4 @@ export const updateCourseSchema = createCourseSchema.partial().extend({
 
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;
 export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;
+export type EnrollStudentInput = z.infer<typeof enrollStudentSchema>;

@@ -34,6 +34,16 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function results(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = examIdParamSchema.parse(req.params);
+    const data = await examService.getExamResults(id, getRequestUser(req));
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const input = createExamSchema.parse(req.body);
