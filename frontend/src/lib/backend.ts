@@ -7,6 +7,29 @@ type BackendRequestOptions = {
   formData?: FormData;
 };
 
+export class BackendRequestError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+async function readBackendError(response: Response) {
+  try {
+    const data = (await response.json()) as { message?: unknown };
+
+    if (typeof data.message === "string" && data.message.trim().length > 0) {
+      return data.message;
+    }
+  } catch {
+    // The backend may return an empty body for infrastructure errors.
+  }
+
+  return `Backend respondio ${response.status}`;
+}
+
 async function backendRequest<T>(
   path: string,
   session: Session,
@@ -23,7 +46,7 @@ async function backendRequest<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Backend respondio ${response.status}`);
+    throw new BackendRequestError(response.status, await readBackendError(response));
   }
 
   return response.json() as Promise<T>;

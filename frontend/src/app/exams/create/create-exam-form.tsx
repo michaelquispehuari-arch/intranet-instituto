@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { readApiError } from "@/lib/api-error";
 import type { CourseOption } from "../types";
 
 type QuestionForm = {
@@ -89,7 +90,7 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
     setIsSubmitting(false);
 
     if (!response.ok) {
-      setError("No se pudo crear el examen. Revisa los campos.");
+      setError(await readApiError(response, "No se pudo crear el examen. Revisa los campos."));
       return;
     }
 

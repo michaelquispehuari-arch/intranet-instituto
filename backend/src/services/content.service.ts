@@ -1,11 +1,10 @@
 import fs from "node:fs";
 import { Prisma, Rol } from "@prisma/client";
-import { env } from "../config/env.js";
 import type { UploadContentInput, ListContentQuery } from "../schemas/content.schema.js";
 import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
-import { getR2Client } from "../utils/r2.js";
+import { getR2Client, getR2Config } from "../utils/r2.js";
 
 const allowedExtensions = new Set(["pdf", "mp4", "mp3", "docx", "pptx", "xlsx", "jpg", "jpeg", "png"]);
 
@@ -78,12 +77,13 @@ export async function uploadContent(input: UploadContentInput, file: Express.Mul
   const objectKey = `materials/${input.cursoId}/${Date.now()}-${sanitizeFileName(file.originalname)}`;
 
   try {
+    const r2Config = getR2Config();
     const { PutObjectCommand } = await import("@aws-sdk/client-s3");
     const r2Client = await getR2Client();
 
     await r2Client.send(
       new PutObjectCommand({
-        Bucket: env.CLOUDFLARE_R2_BUCKET_NAME,
+        Bucket: r2Config.bucketName,
         Key: objectKey,
         Body: fs.createReadStream(file.path),
         ContentType: file.mimetype,
@@ -111,6 +111,7 @@ export async function uploadContent(input: UploadContentInput, file: Express.Mul
 
 export async function createDownloadUrl(contentId: string, user: AuthUser) {
   const material = await findAccessibleMaterial(contentId, user);
+  const r2Config = getR2Config();
   const [{ GetObjectCommand }, { getSignedUrl }, r2Client] = await Promise.all([
     import("@aws-sdk/client-s3"),
     import("@aws-sdk/s3-request-presigner"),
@@ -120,7 +121,7 @@ export async function createDownloadUrl(contentId: string, user: AuthUser) {
   const url = await getSignedUrl(
     r2Client,
     new GetObjectCommand({
-      Bucket: env.CLOUDFLARE_R2_BUCKET_NAME,
+      Bucket: r2Config.bucketName,
       Key: material.urlR2,
     }),
     { expiresIn: 15 * 60 },
@@ -140,16 +141,17 @@ export async function deleteContent(contentId: string, user: AuthUser) {
     throw new ForbiddenError();
   }
 
+  const r2Config = getR2Config();
+  const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+  const r2Client = await getR2Client();
+
   await prisma.material.delete({
     where: { id: material.id },
   });
 
-  const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
-  const r2Client = await getR2Client();
-
   await r2Client.send(
     new DeleteObjectCommand({
-      Bucket: env.CLOUDFLARE_R2_BUCKET_NAME,
+      Bucket: r2Config.bucketName,
       Key: material.urlR2,
     }),
   );

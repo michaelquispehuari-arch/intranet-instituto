@@ -11,6 +11,7 @@ import { examRoutes } from "./routes/exam.routes.js";
 import { contentRoutes } from "./routes/content.routes.js";
 import { gradeRoutes } from "./routes/grade.routes.js";
 import { userRoutes } from "./routes/user.routes.js";
+import { getReadinessStatus } from "./services/health.service.js";
 
 export const app = express();
 
@@ -28,6 +29,15 @@ app.use(cookieParser());
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
+});
+
+app.get("/health/ready", async (_req, res, next) => {
+  try {
+    const readiness = await getReadinessStatus();
+    res.status(readiness.status === "ready" ? 200 : 503).json(readiness);
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use("/api/auth", authRoutes);

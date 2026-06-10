@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
-import { backendGet } from "@/lib/backend";
+import { BackendRequestError, backendGet } from "@/lib/backend";
 import type { MaterialItem } from "@/app/content/types";
 
 type RouteContext = {
@@ -24,7 +24,15 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
-  const data = await backendGet<DownloadResponse>(`/api/content/${id}/download`, session);
+  try {
+    const data = await backendGet<DownloadResponse>(`/api/content/${id}/download`, session);
 
-  return NextResponse.redirect(data.url);
+    return NextResponse.redirect(data.url);
+  } catch (error) {
+    if (error instanceof BackendRequestError) {
+      return NextResponse.json({ message: error.message }, { status: error.statusCode });
+    }
+
+    throw error;
+  }
 }

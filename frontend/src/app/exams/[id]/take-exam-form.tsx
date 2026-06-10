@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { readApiError } from "@/lib/api-error";
 import type { ExamDetail } from "../types";
 
 type TakeExamFormProps = {
@@ -37,7 +38,12 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
     setIsSubmitting(false);
 
     if (!response.ok) {
-      setError("No se pudo enviar el examen. Verifica si ya fue enviado o si sigue disponible.");
+      setError(
+        await readApiError(
+          response,
+          "No se pudo enviar el examen. Verifica si ya fue enviado o si sigue disponible.",
+        ),
+      );
       return;
     }
 

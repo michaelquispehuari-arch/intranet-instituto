@@ -1745,3 +1745,81 @@ UptimeRobot queda pendiente hasta decidir URL final.
 7. Configurar UptimeRobot apuntando al frontend y backend health.
 8. Comprar dominio solo cuando el demo ya este validado.
 ```
+
+---
+
+## Actualizacion 2026-06-10 - servicios externos y diagnostico
+
+Cambios aplicados:
+
+```text
+R2 ahora es opcional al iniciar backend.
+Si R2 falta, materiales devuelve 503 solo al subir, descargar o eliminar archivos.
+Se agrego GET /health/ready para diagnosticar PostgreSQL, Redis, R2, SMTP y Sentry.
+GET /health sigue siendo el endpoint liviano para Railway.
+BullMQ soporta REDIS_URL con rediss:// para Redis con TLS.
+El backend cierra la cola de email al apagar.
+El email-worker inicializa Sentry y valida SMTP al iniciar.
+Los proxies internos de Next preservan mensajes de error del backend.
+/settings muestra al ADMIN el estado de PostgreSQL, Redis, R2, SMTP y Sentry.
+```
+
+Endpoint nuevo:
+
+```text
+Backend readiness:
+https://intranet-instituto-production.up.railway.app/health/ready
+
+Este endpoint devuelve 200 solo cuando PostgreSQL, Redis, R2, SMTP y Sentry estan configurados.
+Si falta alguno, devuelve 503 con el detalle por servicio.
+```
+
+Validacion:
+
+```text
+backend typecheck: OK
+backend build: OK
+backend prisma validate: OK
+backend test integration: OK
+backend audit --omit=dev: 0 vulnerabilities
+frontend typecheck: OK
+frontend build: OK (20 rutas)
+frontend audit --omit=dev: 0 vulnerabilities
+```
+
+Siguiente paso real:
+
+```text
+Configurar Redis, SMTP y R2 reales en Railway.
+Desplegar email-worker como servicio separado.
+Revisar /health/ready hasta que cambie de degraded a ready.
+```
+
+Estado de variables reportado por el propietario - 2026-06-10:
+
+```text
+Render frontend:
+BACKEND_URL configurado.
+NEXTAUTH_URL configurado.
+NEXTAUTH_SECRET configurado.
+
+Railway backend:
+DATABASE_URL configurado, pero su valor real fue expuesto en chat y debe rotarse.
+JWT_SECRET configurado para demo.
+FRONTEND_URL configurado.
+NODE_ENV=production.
+PORT=4000.
+
+Pendientes reales en Railway:
+REDIS_URL sigue pendiente.
+Cloudflare R2 usa placeholders temporales.
+SMTP usa placeholders temporales.
+SENTRY_DSN esta vacio.
+```
+
+Decision tecnica:
+
+```text
+El codigo detecta placeholders como temporal, pendiente y smtp.example.com.
+Estos valores se muestran como missing en /health/ready y no se tratan como configuracion valida.
+```

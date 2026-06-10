@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { readApiError } from "@/lib/api-error";
 import type { CourseOption } from "../types";
 
 type UploadContentFormProps = {
@@ -27,7 +28,12 @@ export function UploadContentForm({ courses }: UploadContentFormProps) {
     setIsSubmitting(false);
 
     if (!response.ok) {
-      setError("No se pudo subir el material. Revisa el archivo, curso y credenciales R2.");
+      setError(
+        await readApiError(
+          response,
+          "No se pudo subir el material. Revisa el archivo, curso y credenciales R2.",
+        ),
+      );
       return;
     }
 

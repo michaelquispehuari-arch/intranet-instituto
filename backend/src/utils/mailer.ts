@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport/index.js";
 import { env } from "../config/env.js";
 import { HttpError } from "./http-error.js";
+import { getConfiguredValue } from "./service-config.js";
 
 type EmailMessage = {
   to: string;
@@ -13,22 +14,39 @@ type EmailMessage = {
 let transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo> | null = null;
 
 export function assertSmtpConfig() {
-  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
+  if (!getSmtpConfig()) {
     throw new HttpError(503, "Servicio de email no configurado");
   }
 }
 
+function getSmtpConfig() {
+  const host = getConfiguredValue(env.SMTP_HOST);
+  const user = getConfiguredValue(env.SMTP_USER);
+  const pass = getConfiguredValue(env.SMTP_PASS);
+
+  if (!host || !user || !pass) {
+    return null;
+  }
+
+  return { host, user, pass };
+}
+
 function getTransporter() {
   assertSmtpConfig();
+  const config = getSmtpConfig();
+
+  if (!config) {
+    throw new HttpError(503, "Servicio de email no configurado");
+  }
 
   if (!transporter) {
     transporter = nodemailer.createTransport({
-      host: env.SMTP_HOST,
+      host: config.host,
       port: env.SMTP_PORT,
       secure: env.SMTP_PORT === 465,
       auth: {
-        user: env.SMTP_USER,
-        pass: env.SMTP_PASS,
+        user: config.user,
+        pass: config.pass,
       },
     });
   }

@@ -445,6 +445,66 @@ textarea {
   font-weight: 700;
 }
 
+.service-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.service-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.service-list dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.service-list dd {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  text-align: right;
+}
+
+.service-list small {
+  color: var(--muted);
+}
+
+.status-pill {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.status-pill.ok {
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--primary-dark);
+}
+
+.status-pill.missing,
+.status-pill.warning {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.status-pill.error {
+  background: #fef3f2;
+  color: var(--danger);
+}
+
 .enrollment-block {
   border-top: 1px solid var(--border);
   padding-top: 14px;
@@ -517,6 +577,13 @@ textarea {
   }
 
   .mini-stats div {
+    text-align: left;
+  }
+
+  .service-list div,
+  .service-list dd {
+    align-items: flex-start;
+    flex-direction: column;
     text-align: left;
   }
 

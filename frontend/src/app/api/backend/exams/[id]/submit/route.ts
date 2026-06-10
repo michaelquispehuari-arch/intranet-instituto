@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
-import { backendPost } from "@/lib/backend";
+import { BackendRequestError, backendPost } from "@/lib/backend";
 
 type RouteContext = {
   params: Promise<{
@@ -17,8 +17,16 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
-  const body = await request.json();
-  const data = await backendPost(`/api/exams/${id}/submit`, session, body);
+  try {
+    const body = await request.json();
+    const data = await backendPost(`/api/exams/${id}/submit`, session, body);
 
-  return NextResponse.json(data);
+    return NextResponse.json(data);
+  } catch (error) {
+    if (error instanceof BackendRequestError) {
+      return NextResponse.json({ message: error.message }, { status: error.statusCode });
+    }
+
+    throw error;
+  }
 }

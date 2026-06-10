@@ -35,3 +35,12 @@ export async function enqueueEmail(data: EmailJobData) {
   const queue = getEmailQueue();
   await queue.add("send-email", data);
 }
+
+export async function closeEmailQueue() {
+  if (!emailQueue) {
+    return;
+  }
+
+  await emailQueue.close();
+  emailQueue = null;
+}

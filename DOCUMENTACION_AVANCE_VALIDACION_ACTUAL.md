@@ -514,3 +514,75 @@ Configurar Sentry real.
 Configurar UptimeRobot.
 Comprar dominio solo despues de validar el demo.
 ```
+
+---
+
+## Avance aplicado - robustez de servicios externos 2026-06-10
+
+Backend:
+
+- Cloudflare R2 dejo de ser obligatorio para iniciar la API.
+- Si R2 no esta configurado, las operaciones de materiales que lo necesitan devuelven 503 con mensaje claro.
+- Agregado `GET /health/ready` para diagnosticar PostgreSQL, Redis, Cloudflare R2, SMTP y Sentry.
+- `GET /health` se mantiene liviano para el healthcheck del hosting.
+- BullMQ ahora respeta URLs Redis con TLS (`rediss://`), necesarias en algunos proveedores.
+- El backend cierra la cola de email al apagar para evitar conexiones abiertas.
+- El email-worker inicializa Sentry y valida SMTP al iniciar.
+
+Frontend:
+
+- Los proxies internos preservan `status` y `message` del backend.
+- Los formularios de crear examen, enviar examen y subir material muestran el error real devuelto por la API.
+- `/settings` muestra al ADMIN el estado de PostgreSQL, Redis, R2, SMTP y Sentry usando `/health/ready`.
+
+Validaciones ejecutadas:
+
+```text
+backend: npm.cmd run typecheck        -> OK
+backend: npm.cmd run build            -> OK
+backend: npm.cmd run prisma:validate  -> OK
+backend: npm.cmd run test:integration -> OK (1/1 pass)
+backend: npm.cmd audit --omit=dev     -> 0 vulnerabilities
+frontend: npm.cmd run typecheck       -> OK
+frontend: npm.cmd run build           -> OK (20 rutas generadas)
+frontend: npm.cmd audit --omit=dev    -> 0 vulnerabilities
+```
+
+Pendiente real para que todo funcione en demo/produccion:
+
+```text
+Configurar Redis real.
+Configurar SMTP real.
+Configurar R2 real.
+Desplegar email-worker como servicio separado.
+Probar /health/ready en la URL publica del backend.
+```
+
+Estado de variables reportado por el propietario - 2026-06-10:
+
+```text
+Render frontend:
+BACKEND_URL configurado.
+NEXTAUTH_URL configurado.
+NEXTAUTH_SECRET configurado.
+
+Railway backend:
+DATABASE_URL configurado, pero su valor real fue expuesto en chat y debe rotarse.
+JWT_SECRET configurado para demo.
+FRONTEND_URL configurado.
+NODE_ENV=production.
+PORT=4000.
+
+Pendientes reales en Railway:
+REDIS_URL sigue pendiente.
+R2 usa placeholders temporales.
+SMTP usa placeholders temporales.
+SENTRY_DSN esta vacio.
+```
+
+Regla:
+
+```text
+No documentar valores reales de DATABASE_URL, JWT_SECRET, NEXTAUTH_SECRET, SMTP_PASS, R2 ni tokens.
+Los placeholders como temporal, pendiente y smtp.example.com no cuentan como configuracion valida.
+```

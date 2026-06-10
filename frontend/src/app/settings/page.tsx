@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { LogoutButton } from "@/app/dashboard/logout-button";
 import { authOptions } from "@/lib/auth";
 import { backendGet, backendPatch } from "@/lib/backend";
+import { env } from "@/lib/env";
 
 type CourseItem = {
   id: string;
@@ -30,6 +31,28 @@ type GradeConfig = {
   pesoNotasManuales: number;
   notaAprobatoria: number;
 };
+
+type ServiceStatus = {
+  status: "ok" | "missing" | "error";
+  message?: string;
+};
+
+type ReadinessStatus = {
+  status: "ready" | "degraded";
+  services: Record<string, ServiceStatus>;
+};
+
+async function getReadinessStatus(): Promise<ReadinessStatus | null> {
+  try {
+    const response = await fetch(`${env.BACKEND_URL}/health/ready`, {
+      cache: "no-store",
+    });
+
+    return (await response.json()) as ReadinessStatus;
+  } catch {
+    return null;
+  }
+}
 
 async function updateGradeConfig(formData: FormData) {
   "use server";
@@ -62,6 +85,7 @@ export default async function SettingsPage() {
   }
 
   const { courses } = await backendGet<{ courses: CourseItem[] }>("/api/courses", session);
+  const readiness = await getReadinessStatus();
   const configs = await Promise.all(
     courses.map(async (course) => {
       const data = await backendGet<{ config: GradeConfig }>(`/api/grades/config/${course.id}`, session);
@@ -85,6 +109,37 @@ export default async function SettingsPage() {
           <span className="badge">ADMIN</span>
           <h1>Parametros academicos</h1>
           <p className="muted">Pesos de calificacion y nota aprobatoria por curso.</p>
+        </section>
+
+        <section className="panel result-card" aria-label="Estado de servicios">
+          <div className="result-header">
+            <div>
+              <span className="badge">Produccion</span>
+              <h2>Estado de servicios</h2>
+              <p className="muted">Diagnostico real de backend y servicios externos.</p>
+            </div>
+            <span className={`status-pill ${readiness?.status === "ready" ? "ok" : "warning"}`}>
+              {readiness?.status === "ready" ? "Listo" : "Pendiente"}
+            </span>
+          </div>
+
+          {readiness ? (
+            <dl className="service-list">
+              {Object.entries(readiness.services).map(([name, service]) => (
+                <div key={name}>
+                  <dt>{name.toUpperCase()}</dt>
+                  <dd>
+                    <span className={`status-pill ${service.status}`}>
+                      {service.status}
+                    </span>
+                    {service.message ? <small>{service.message}</small> : null}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p className="error">No se pudo consultar /health/ready del backend.</p>
+          )}
         </section>
 
         {courses.length === 0 ? (

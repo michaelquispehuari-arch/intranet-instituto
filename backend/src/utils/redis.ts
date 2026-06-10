@@ -1,12 +1,16 @@
 import { Redis } from "ioredis";
 import type { ConnectionOptions } from "bullmq";
 import { env } from "../config/env.js";
+import { HttpError } from "./http-error.js";
+import { cleanConfigValue, isConfiguredRedisUrl } from "./service-config.js";
 
 let redisClient: Redis | null = null;
 
 export function getRedisClient() {
+  assertRedisConfig();
+
   if (!redisClient) {
-    redisClient = new Redis(env.REDIS_URL, {
+    redisClient = new Redis(cleanConfigValue(env.REDIS_URL), {
       maxRetriesPerRequest: null,
     });
   }
@@ -24,7 +28,9 @@ export async function disconnectRedis() {
 }
 
 export function getBullRedisConnectionOptions(): ConnectionOptions {
-  const redisUrl = new URL(env.REDIS_URL);
+  assertRedisConfig();
+
+  const redisUrl = new URL(cleanConfigValue(env.REDIS_URL));
   const db = redisUrl.pathname ? Number(redisUrl.pathname.slice(1)) : 0;
 
   return {
@@ -33,6 +39,13 @@ export function getBullRedisConnectionOptions(): ConnectionOptions {
     username: redisUrl.username ? decodeURIComponent(redisUrl.username) : undefined,
     password: redisUrl.password ? decodeURIComponent(redisUrl.password) : undefined,
     db: Number.isNaN(db) ? 0 : db,
+    tls: redisUrl.protocol === "rediss:" ? {} : undefined,
     maxRetriesPerRequest: null,
   };
+}
+
+export function assertRedisConfig() {
+  if (!isConfiguredRedisUrl(env.REDIS_URL)) {
+    throw new HttpError(503, "Redis no configurado");
+  }
 }
