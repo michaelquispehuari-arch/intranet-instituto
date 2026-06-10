@@ -384,3 +384,133 @@ UptimeRobot apuntando a la URL publica.
 Backups automaticos de PostgreSQL verificados.
 Prueba final movil y escritorio.
 ```
+
+---
+
+## Avance aplicado - despliegue demo publico 2026-06-09 America/Lima
+
+Repositorio:
+
+```text
+https://github.com/michaelquispehuari-arch/intranet-instituto.git
+Rama: dev
+Commit: 9bdb8c5 Completar frontend e infraestructura inicial
+```
+
+Servicios:
+
+```text
+Railway:
+  - backend
+  - PostgreSQL
+
+Render:
+  - frontend
+```
+
+URLs:
+
+```text
+Frontend:
+https://intranet-instituto-frontend.onrender.com
+
+Backend health:
+https://intranet-instituto-production.up.railway.app/health
+```
+
+Backend Railway:
+
+```text
+Root Directory: backend
+Build Command: npm ci && npm run build
+Start Command: npm run start
+Healthcheck Path: /health
+```
+
+Frontend Render:
+
+```text
+Root Directory: frontend
+Build Command: npm ci && npm run build
+Start Command: npm run start
+Language: Node
+Region: Oregon US West
+```
+
+Variables backend necesarias:
+
+```text
+NODE_ENV
+PORT
+JWT_SECRET
+FRONTEND_URL
+DATABASE_URL
+REDIS_URL
+CLOUDFLARE_R2_ACCOUNT_ID
+CLOUDFLARE_R2_ACCESS_KEY_ID
+CLOUDFLARE_R2_SECRET_ACCESS_KEY
+CLOUDFLARE_R2_BUCKET_NAME
+SMTP_HOST
+SMTP_PORT
+SMTP_USER
+SMTP_PASS
+SMTP_FROM
+SENTRY_DSN
+```
+
+Variables frontend necesarias:
+
+```text
+BACKEND_URL
+NEXTAUTH_URL
+NEXTAUTH_SECRET
+```
+
+Nota importante:
+
+```text
+No documentar valores reales de DATABASE_URL, JWT_SECRET, NEXTAUTH_SECRET,
+R2, SMTP_PASS ni tokens.
+Railway fallo con P1001 usando la URL interna postgres.railway.internal.
+Para el demo se uso el valor de DATABASE_PUBLIC_URL de Railway PostgreSQL como valor de DATABASE_URL en backend.
+```
+
+Comandos ejecutados en Railway backend Console:
+
+```bash
+npx prisma migrate deploy
+npm run prisma:seed
+```
+
+Credenciales seed para demo:
+
+```text
+admin@instituto.test
+profesor.matematica@instituto.test
+profesor.comunicacion@instituto.test
+estudiante1@instituto.test
+
+Password:
+Password123!
+```
+
+Validacion real:
+
+```text
+Frontend Render desplegado correctamente.
+Backend Railway desplegado correctamente.
+PostgreSQL Railway migrado y seed aplicado.
+Login desde el frontend publico probado correctamente con credenciales seed.
+```
+
+Pendientes posteriores al demo:
+
+```text
+Configurar Cloudflare R2 real.
+Configurar Redis real compatible con BullMQ.
+Configurar SMTP real.
+Desplegar worker de email cuando haya servicio disponible.
+Configurar Sentry real.
+Configurar UptimeRobot.
+Comprar dominio solo despues de validar el demo.
+```

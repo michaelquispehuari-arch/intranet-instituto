@@ -33,7 +33,7 @@ Paso 5 - Frontend: avanzado con modulos principales conectados
 Paso 6 - Servicios de soporte: iniciado con Sentry opcional, Redis, cola de email y reset de password
 Paso 7 - Cloudflare y Nginx: iniciado con plantilla Nginx versionada
 Paso 8 - CI/CD y backups: iniciado con workflow CI versionado
-Paso 9 - Lanzamiento: pendiente
+Paso 9 - Lanzamiento: demo publico iniciado con Railway + Render
 Paso 10 - Post-lanzamiento: pendiente
 ```
 
@@ -1562,5 +1562,186 @@ Sentry backend integrado de forma opcional.
 Reset de password integrado con Redis, BullMQ y SMTP.
 Politica de privacidad publica agregada.
 CI y plantilla Nginx versionados.
-Proyecto listo para pruebas funcionales completas con PostgreSQL local, Redis/SMTP y credenciales R2 reales.
+Demo publico desplegado parcialmente: backend en Railway, frontend en Render y PostgreSQL en Railway.
+Proyecto listo para pruebas funcionales del demo publico; Redis/SMTP/R2/Sentry/UptimeRobot siguen pendientes.
+```
+
+---
+
+## Despliegue demo publico - 2026-06-09 America/Lima
+
+Objetivo:
+
+```text
+Mostrar el producto funcionando sin comprar dominio todavia.
+Usar URLs temporales de plataformas hasta validar el flujo completo.
+```
+
+Repositorio usado:
+
+```text
+https://github.com/michaelquispehuari-arch/intranet-instituto.git
+Rama desplegada: dev
+Commit desplegado: 9bdb8c5 Completar frontend e infraestructura inicial
+```
+
+Servicios creados:
+
+```text
+Railway:
+  - backend Express
+  - PostgreSQL
+
+Render:
+  - frontend Next.js
+```
+
+URLs publicas actuales:
+
+```text
+Frontend demo:
+https://intranet-instituto-frontend.onrender.com
+
+Backend health:
+https://intranet-instituto-production.up.railway.app/health
+```
+
+Credenciales seed para demo:
+
+```text
+admin@instituto.test
+profesor.matematica@instituto.test
+profesor.comunicacion@instituto.test
+estudiante1@instituto.test
+
+Password comun:
+Password123!
+```
+
+Regla de seguridad:
+
+```text
+Estas credenciales son solo datos seed de demostracion.
+No usar Password123! en produccion real.
+No documentar DATABASE_URL, JWT_SECRET, NEXTAUTH_SECRET, claves R2, SMTP_PASS ni tokens reales.
+```
+
+### Railway - Backend
+
+Servicio:
+
+```text
+Root Directory: backend
+Build Command: npm ci && npm run build
+Start Command: npm run start
+Healthcheck Path: /health
+```
+
+Variables necesarias en Railway backend:
+
+```text
+NODE_ENV=production
+PORT=4000
+JWT_SECRET=<secreto_largo_real>
+FRONTEND_URL=https://intranet-instituto-frontend.onrender.com
+DATABASE_URL=<valor_de_DATABASE_PUBLIC_URL_de_PostgreSQL_en_Railway>
+REDIS_URL=<pendiente>
+CLOUDFLARE_R2_ACCOUNT_ID=<pendiente_real>
+CLOUDFLARE_R2_ACCESS_KEY_ID=<pendiente_real>
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=<pendiente_real>
+CLOUDFLARE_R2_BUCKET_NAME=<pendiente_real>
+SMTP_HOST=<pendiente_real>
+SMTP_PORT=587
+SMTP_USER=<pendiente_real>
+SMTP_PASS=<pendiente_real>
+SMTP_FROM=no-reply@instituto.com
+SENTRY_DSN=<opcional_pendiente>
+```
+
+Nota real del despliegue:
+
+```text
+Railway mostro error P1001 al usar DATABASE_URL interna con host postgres.railway.internal:5432.
+Para desbloquear el demo se copio el valor de DATABASE_PUBLIC_URL del servicio PostgreSQL
+en la variable DATABASE_URL del backend.
+No pegar esa URL real en documentacion ni chats.
+```
+
+Comandos ejecutados en Railway backend > Console:
+
+```bash
+npx prisma migrate deploy
+npm run prisma:seed
+```
+
+Resultado:
+
+```text
+Backend desplegado correctamente.
+/health responde OK.
+Login desde frontend Render probado correctamente con usuario seed.
+```
+
+### Render - Frontend
+
+Servicio:
+
+```text
+Name: intranet-instituto-frontend
+Branch: dev
+Language: Node
+Region: Oregon US West
+Root Directory: frontend
+Build Command: npm ci && npm run build
+Start Command: npm run start
+```
+
+Variables necesarias en Render frontend:
+
+```text
+BACKEND_URL=https://intranet-instituto-production.up.railway.app
+NEXTAUTH_URL=https://intranet-instituto-frontend.onrender.com
+NEXTAUTH_SECRET=<secreto_largo_real>
+```
+
+Resultado:
+
+```text
+Build OK.
+Deploy OK.
+URL publica disponible en Render.
+Login con admin@instituto.test probado correctamente.
+```
+
+Advertencia Render Free:
+
+```text
+La instancia gratuita puede dormir por inactividad.
+La primera carga puede tardar 50 segundos o mas.
+```
+
+### Limitaciones actuales del demo
+
+```text
+No hay dominio propio todavia.
+No hay worker de email desplegado porque Railway solo quedo con backend + PostgreSQL.
+Reset de password por correo queda pendiente.
+Redis real queda pendiente.
+Cloudflare R2 real queda pendiente; subida/descarga real de materiales puede fallar hasta configurarlo.
+Sentry real queda pendiente.
+UptimeRobot queda pendiente hasta decidir URL final.
+```
+
+### Flujo para continuar desde aqui
+
+```text
+1. Probar modulos desde el frontend Render:
+   login, dashboard, cursos, examenes, notas, usuarios, settings y contenido.
+2. Configurar Cloudflare R2 real y reemplazar variables R2 del backend.
+3. Configurar Redis real compatible con BullMQ.
+4. Configurar SMTP real.
+5. Desplegar email-worker cuando exista cupo/servicio adicional o mover todo a un proveedor con mas servicios.
+6. Configurar Sentry.
+7. Configurar UptimeRobot apuntando al frontend y backend health.
+8. Comprar dominio solo cuando el demo ya este validado.
 ```
