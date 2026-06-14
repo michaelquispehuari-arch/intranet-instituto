@@ -735,3 +735,115 @@ Si el proyecto equivocado solo muestra un Volume sin servicios conectados, prime
 Si NO contiene backend, PostgreSQL activo ni Redis, puede eliminarse desde Delete Volume y luego Project Settings > Danger Zone > Delete Project.
 No borrar el proyecto donde estan backend, PostgreSQL/progressq y Redis.
 ```
+
+---
+
+## Actualizacion final de avance - 2026-06-14
+
+Estado de rama y despliegue:
+
+```text
+Rama activa: dev
+Ultimos commits relevantes:
+  1b94f4f Implementar sesiones, resumenes, config y sustitutorios (FASE A-D)
+  43e11c9 Implementar cronograma de notas, emails y sidebar responsive (Parte A)
+  bd49b60 Alinear calificaciones y readiness para prueba real
+  8c26dbd Unificar navegacion en shell principal
+  6d90def Mover usuarios material y examenes al shell
+
+Frontend publico:
+  https://intranet-instituto-frontend.onrender.com
+
+Backend publico:
+  https://intranet-instituto-production.up.railway.app/health
+```
+
+Cambios funcionales cerrados:
+
+```text
+- La app autenticada quedo unificada bajo un shell principal con sidebar.
+- /dashboard redirige a /inicio.
+- /inicio muestra contenido segun rol.
+- /cursos, /calificaciones, /configuracion, /sustitutorios, /material, /usuarios y /exams viven dentro del shell.
+- /content redirige a /material.
+- /content/upload redirige a /material/subir.
+- /users redirige a /usuarios.
+- /material carga con estado vacio/error si falla la consulta, sin romper la pagina.
+- ADMIN y PROFESOR pueden subir material.
+- El backend sigue siendo autoridad de permisos y calculo de notas.
+- El calculo 50/50 deja la nota final pendiente si falta asistencia o promedio academico.
+- /configuracion muestra readiness de servicios por proxy interno protegido.
+```
+
+Servicios reales reportados:
+
+```text
+PostgreSQL Railway -> OK para demo/despliegue.
+Redis Railway      -> OK.
+Cloudflare R2      -> OK; subida y descarga real de PDF probada.
+SMTP               -> pendiente.
+Sentry             -> pendiente opcional.
+Dominio            -> pendiente.
+Email worker       -> pendiente de desplegar cuando SMTP este listo.
+```
+
+Validaciones ejecutadas en la ultima actualizacion:
+
+```text
+backend:  npm.cmd run typecheck       -> OK
+backend:  npm.cmd run build           -> OK
+backend:  npm.cmd run prisma:validate -> OK
+backend:  npm.cmd audit --omit=dev    -> OK, 0 vulnerabilities
+
+frontend: npm.cmd run typecheck       -> OK
+frontend: npm.cmd run build           -> OK
+frontend: npm.cmd audit --omit=dev    -> OK, 0 vulnerabilities
+```
+
+Validacion no ejecutada correctamente:
+
+```text
+backend: npm.cmd run test:integration -> fallo porque DATABASE_URL local apunta a localhost:5432 y PostgreSQL local no estaba levantado.
+
+Nota importante:
+PostgreSQL de produccion/demo SI esta en Railway. El fallo no significa que Railway este caido.
+No se deben correr tests de integracion contra la base real de Railway porque pueden crear/modificar datos de prueba.
+Para esos tests se necesita PostgreSQL local o una base separada solo para testing.
+```
+
+Verificacion publica despues del ultimo push:
+
+```text
+Backend /health -> 200 OK
+Frontend Render -> 200 OK
+/material sin sesion -> 307 redirect/proteccion, no 404
+```
+
+Credenciales demo actuales:
+
+```text
+admin@instituto.test
+profesor.matematica@instituto.test
+profesor.comunicacion@instituto.test
+estudiante1@instituto.test
+
+Password:
+Password123!
+```
+
+Pendientes reales antes de lanzamiento institucional:
+
+```text
+1. Rotar cualquier secreto que haya sido expuesto en chat.
+2. Comprar dominio.
+3. Configurar Cloudflare DNS con el dominio.
+4. Configurar SMTP real con dominio verificado.
+5. Desplegar email-worker como servicio separado.
+6. Probar reset de password con SMTP + Redis + worker reales.
+7. Configurar Sentry si se decide usar monitoreo.
+8. Configurar UptimeRobot.
+9. Actualizar politica de privacidad con datos reales del instituto.
+10. Crear usuarios, cursos y sesiones reales; no depender del seed.
+11. Hacer prueba final por roles en escritorio y movil.
+12. Verificar backups de PostgreSQL.
+```

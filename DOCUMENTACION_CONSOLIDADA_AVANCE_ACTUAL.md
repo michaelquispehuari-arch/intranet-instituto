@@ -1823,3 +1823,151 @@ Decision tecnica:
 El codigo detecta placeholders como temporal, pendiente y smtp.example.com.
 Estos valores se muestran como missing en /health/ready y no se tratan como configuracion valida.
 ```
+
+---
+
+## Actualizacion consolidada - 2026-06-14 cierre actual
+
+Estado actual resumido:
+
+```text
+La plataforma ya esta en demo funcional avanzada.
+Backend, frontend, PostgreSQL Railway, Redis Railway y Cloudflare R2 estan conectados para pruebas reales.
+El frontend publico esta en Render.
+El backend publico esta en Railway.
+SMTP, dominio, email-worker, Sentry y UptimeRobot siguen pendientes para lanzamiento institucional.
+```
+
+Ultimos commits relevantes en `dev`:
+
+```text
+1b94f4f Implementar sesiones, resumenes, config y sustitutorios (FASE A-D)
+43e11c9 Implementar cronograma de notas, emails y sidebar responsive (Parte A)
+bd49b60 Alinear calificaciones y readiness para prueba real
+8c26dbd Unificar navegacion en shell principal
+6d90def Mover usuarios material y examenes al shell
+```
+
+URLs publicas actuales:
+
+```text
+Frontend:
+https://intranet-instituto-frontend.onrender.com
+
+Backend health:
+https://intranet-instituto-production.up.railway.app/health
+```
+
+Credenciales demo:
+
+```text
+admin@instituto.test
+profesor.matematica@instituto.test
+profesor.comunicacion@instituto.test
+estudiante1@instituto.test
+
+Password comun:
+Password123!
+```
+
+Rutas frontend actuales recomendadas:
+
+```text
+/login
+/inicio
+/cursos
+/cursos/[id]
+/cursos/[id]/sesiones/[sesionId]
+/calificaciones
+/exams
+/exams/create
+/exams/[id]
+/exams/[id]/results
+/material
+/material/subir
+/usuarios
+/sustitutorios
+/configuracion
+/forgot-password
+/reset-password
+/privacy
+```
+
+Rutas antiguas mantenidas como compatibilidad:
+
+```text
+/dashboard       -> redirige a /inicio
+/content         -> redirige a /material
+/content/upload  -> redirige a /material/subir
+/users           -> redirige a /usuarios
+
+/courses, /grades y /settings siguen existiendo como pantallas historicas/administrativas.
+La navegacion principal usa las rutas nuevas con shell.
+```
+
+Cambios importantes del ultimo cierre:
+
+```text
+- Se unifico la experiencia autenticada bajo un solo shell con sidebar.
+- Inicio del sidebar apunta a /inicio, no al dashboard viejo.
+- Usuarios, Material y Examenes ahora viven dentro del shell.
+- Material maneja errores de carga sin tumbar la pagina.
+- ADMIN y PROFESOR pueden subir material; backend valida permisos.
+- El boton de subida desde curso apunta a /material/subir?cursoId=...
+- /material puede filtrar por cursoId.
+- /configuracion muestra estado real de servicios por /health/ready via proxy interno.
+- El calculo de notas 50/50 deja nota final pendiente si falta asistencia o promedio academico.
+```
+
+Estado de servicios reales:
+
+```text
+PostgreSQL Railway -> OK
+Redis Railway      -> OK
+Cloudflare R2      -> OK
+Render frontend    -> OK
+Railway backend    -> OK
+SMTP               -> pendiente
+Email worker       -> pendiente
+Sentry             -> pendiente opcional
+Dominio            -> pendiente
+UptimeRobot        -> pendiente
+```
+
+Validaciones de la ultima sesion:
+
+```text
+backend:  npm.cmd run typecheck       -> OK
+backend:  npm.cmd run build           -> OK
+backend:  npm.cmd run prisma:validate -> OK
+backend:  npm.cmd audit --omit=dev    -> OK
+
+frontend: npm.cmd run typecheck       -> OK
+frontend: npm.cmd run build           -> OK
+frontend: npm.cmd audit --omit=dev    -> OK
+```
+
+Nota sobre `test:integration`:
+
+```text
+No paso en la ultima sesion porque PostgreSQL local no estaba levantado en localhost:5432.
+Esto no afecta al demo publico: la base de datos real del demo esta en Railway.
+No correr tests de integracion contra Railway produccion/demo salvo que se use una base separada de testing.
+```
+
+Pendientes de lanzamiento:
+
+```text
+1. Rotar secretos expuestos previamente.
+2. Comprar dominio.
+3. Configurar Cloudflare DNS y HTTPS.
+4. Configurar SMTP real con dominio verificado.
+5. Desplegar email-worker.
+6. Probar reset de password real.
+7. Configurar Sentry si se usara monitoreo.
+8. Configurar UptimeRobot.
+9. Actualizar politica de privacidad con datos reales.
+10. Cargar usuarios/cursos/sesiones reales.
+11. Probar flujos completos con ADMIN, PROFESOR y ESTUDIANTE.
+12. Verificar backups de PostgreSQL.
+```
