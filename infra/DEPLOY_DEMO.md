@@ -217,9 +217,50 @@ Mientras se use plan gratuito, alguna plataforma puede dormir servicios por inac
 Para estudiantes reales, se debe pagar al menos el servicio que recibe trafico publico:
 
 ```text
-Frontend Render: evita espera inicial del sitio.
-Backend Railway: evita espera inicial de la API.
-Worker: necesario si se quiere reset de password por correo siempre disponible.
+Railway: backend, PostgreSQL y Redis.
+Render: frontend.
+Worker: necesario cuando SMTP este listo.
 ```
 
-La decision final de pago debe tomarse despues de validar todo el flujo demo.
+Decision con presupuesto de USD 5:
+
+```text
+Pagar primero Railway.
+Mantener Render en plan gratuito por ahora.
+No mover frontend a Railway todavia para no aumentar consumo.
+```
+
+Motivo:
+
+```text
+El backend y la base de datos son criticos para todo el sistema.
+La espera inicial de Render free es molesta, pero menos grave que detener backend/PostgreSQL/Redis.
+```
+
+---
+
+## Limpieza de proyecto Railway creado por error
+
+Antes de borrar:
+
+```text
+Confirmar que NO es el proyecto intranet-instituto.
+Confirmar que NO contiene backend, PostgreSQL/progressq ni Redis en uso.
+```
+
+Si solo aparece un volumen sin servicios conectados:
+
+```text
+1. Delete Volume.
+2. Volver a Project Settings.
+3. Danger Zone.
+4. Delete Project.
+```
+
+No borrar el proyecto correcto:
+
+```text
+backend
+PostgreSQL/progressq
+Redis
+```

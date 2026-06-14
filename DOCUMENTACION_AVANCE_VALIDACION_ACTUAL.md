@@ -682,3 +682,56 @@ Un token R2 real fue expuesto en chat durante la configuracion.
 Debe quedar revocado y reemplazado por otro token no expuesto.
 No documentar Access Key ID, Secret Access Key, token cfat, DATABASE_URL ni otros secretos.
 ```
+
+---
+
+## Decision operativa - presupuesto y lanzamiento 2026-06-14
+
+Presupuesto disponible reportado:
+
+```text
+USD 5 mensuales aproximadamente.
+```
+
+Decision recomendada:
+
+```text
+Pagar primero Railway.
+Mantener Render en plan gratuito por ahora.
+No mover frontend a Railway todavia para no aumentar consumo del presupuesto.
+```
+
+Motivo:
+
+```text
+Railway contiene backend, PostgreSQL y Redis.
+Si backend/base de datos fallan, la aplicacion no funciona.
+Si Render gratuito tarda en despertar, afecta la primera carga del frontend, pero no rompe datos ni API.
+```
+
+Estado de lanzamiento:
+
+```text
+La pagina esta en estado demo funcional avanzada.
+No esta aun en lanzamiento final institucional.
+```
+
+Pendientes para lanzamiento final:
+
+```text
+Comprar dominio.
+Configurar Cloudflare DNS con el dominio.
+Configurar SMTP real con dominio verificado.
+Desplegar email-worker.
+Rotar cualquier secreto que fue expuesto en chat.
+Actualizar politica de privacidad con datos reales del instituto.
+Hacer prueba completa por roles antes de compartir con estudiantes.
+```
+
+Proyecto/volumen Railway creado por error:
+
+```text
+Si el proyecto equivocado solo muestra un Volume sin servicios conectados, primero verificar que no sea el proyecto intranet-instituto.
+Si NO contiene backend, PostgreSQL activo ni Redis, puede eliminarse desde Delete Volume y luego Project Settings > Danger Zone > Delete Project.
+No borrar el proyecto donde estan backend, PostgreSQL/progressq y Redis.
+```
