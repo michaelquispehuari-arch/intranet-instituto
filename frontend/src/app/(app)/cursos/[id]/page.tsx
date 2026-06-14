@@ -1,12 +1,9 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AppShell } from "../../../components/app-shell";
 
 type Sesion = {
   id: string;
@@ -24,6 +21,10 @@ type Curso = {
   ciclo: number;
   anio: number;
   profesor: { id: string; nombre: string; apellido: string };
+};
+
+type CourseResponse = {
+  course?: Curso;
 };
 
 type Tab = "sesiones" | "material" | "examenes" | "notas" | "alumnos";
@@ -52,8 +53,8 @@ export default function CourseWorkspacePage() {
       fetch(`/api/backend/courses/${id}`).then((r) => r.json()),
       fetch(`/api/backend/courses/${id}/sessions`).then((r) => r.json()),
       fetch("/api/backend/config/zoom").then((r) => r.json()),
-    ]).then(([cursoData, sesionesData, zoomData]) => {
-      setCurso(cursoData);
+    ]).then(([cursoData, sesionesData, zoomData]: [CourseResponse, Sesion[], { enlaceZoom?: string }]) => {
+      setCurso(cursoData.course ?? null);
       setSesiones(Array.isArray(sesionesData) ? sesionesData : []);
       setEnlaceZoom(zoomData?.enlaceZoom ?? null);
       setLoading(false);
@@ -71,27 +72,21 @@ export default function CourseWorkspacePage() {
   ];
 
   if (loading) {
-    return (
-      <AppShell>
-        <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>
-      </AppShell>
-    );
+    return <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>;
   }
 
   if (!curso) {
     return (
-      <AppShell>
-        <div className="card">
-          <div className="empty-state">
-            <p className="empty-state-title">Curso no encontrado</p>
-          </div>
+      <div className="card">
+        <div className="empty-state">
+          <p className="empty-state-title">Curso no encontrado</p>
         </div>
-      </AppShell>
+      </div>
     );
   }
 
   return (
-    <AppShell>
+    <div>
       {/* Topbar del curso */}
       <div className="course-topbar" style={{ margin: "-28px -32px 0", position: "sticky", top: 0, zIndex: 10 }}>
         <div className="course-topbar-left">
@@ -121,13 +116,10 @@ export default function CourseWorkspacePage() {
         ))}
       </div>
 
-      {/* Contenido de Sesiones */}
       {tab === "sesiones" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-              Clases de la semana
-            </h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Clases de la semana</h2>
             {session?.user?.rol === "ADMIN" && (
               <Link href={`/cursos/${id}/sesiones/nueva`} className="btn btn-primary">
                 + Nueva sesión
@@ -160,19 +152,13 @@ export default function CourseWorkspacePage() {
                     <div className="session-date-day">{fecha.getDate()}</div>
                     <div className="session-date-month">{MESES[fecha.getMonth()]}</div>
                   </div>
-
                   <div className="session-info">
                     <div className="session-title">{sesion.titulo}</div>
                     <div className="session-chips">
-                      {esHoy && (
-                        <span className="chip chip-ok">Hoy</span>
-                      )}
-                      {sesion.enlaceGrabacion && (
-                        <span className="chip chip-grabacion">🎬 Grabación</span>
-                      )}
+                      {esHoy && <span className="chip chip-ok">Hoy</span>}
+                      {sesion.enlaceGrabacion && <span className="chip chip-grabacion">🎬 Grabación</span>}
                     </div>
                   </div>
-
                   <span className="session-chevron">›</span>
                 </Link>
               );
@@ -192,11 +178,9 @@ export default function CourseWorkspacePage() {
             )}
           </div>
           <div className="card-body">
-            <p style={{ color: "var(--texto-secundario)", margin: 0 }}>
-              <Link href={`/content?cursoId=${id}`} style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
-                Ver todo el material de este curso →
-              </Link>
-            </p>
+            <Link href={`/content?cursoId=${id}`} style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
+              Ver todo el material de este curso →
+            </Link>
           </div>
         </div>
       )}
@@ -225,8 +209,8 @@ export default function CourseWorkspacePage() {
             <h3>Calificaciones</h3>
           </div>
           <div className="card-body">
-            <Link href={`/grades?cursoId=${id}`} style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
-              Ver calificaciones del curso →
+            <Link href="/calificaciones" style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
+              Ver cronograma de calificaciones →
             </Link>
           </div>
         </div>
@@ -243,12 +227,12 @@ export default function CourseWorkspacePage() {
             )}
           </div>
           <div className="card-body">
-            <Link href={`/courses`} style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
+            <Link href="/courses" style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
               Ver en gestión de cursos →
             </Link>
           </div>
         </div>
       )}
-    </AppShell>
+    </div>
   );
 }

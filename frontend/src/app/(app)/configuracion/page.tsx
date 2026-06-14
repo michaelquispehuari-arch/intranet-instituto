@@ -1,9 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
-import { AppShell } from "../../components/app-shell";
 
 type ServiceStatus = {
   status: "ok" | "missing" | "error";
@@ -55,7 +52,7 @@ export default function ConfiguracionPage() {
   }
 
   return (
-    <AppShell>
+    <div>
       <div className="page-header">
         <span className="page-eyebrow">Administración</span>
         <h1 className="page-title">Configuración</h1>
@@ -84,7 +81,7 @@ export default function ConfiguracionPage() {
             </dl>
           ) : (
             <p style={{ margin: 0, color: "var(--texto-tenue)" }}>
-              No se pudo consultar el diagnostico del backend.
+              No se pudo consultar el diagnóstico del backend.
             </p>
           )}
         </div>
@@ -136,6 +133,6 @@ export default function ConfiguracionPage() {
           )}
         </div>
       </div>
-    </AppShell>
+    </div>
   );
 }

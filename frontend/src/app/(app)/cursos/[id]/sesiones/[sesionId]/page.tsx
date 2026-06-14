@@ -1,12 +1,9 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AppShell } from "../../../../../components/app-shell";
 
 type Sesion = {
   id: string;
@@ -109,22 +106,16 @@ export default function SessionDetailPage() {
   }
 
   if (loading) {
-    return (
-      <AppShell>
-        <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>
-      </AppShell>
-    );
+    return <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>;
   }
 
   if (!sesion) {
     return (
-      <AppShell>
-        <div className="card">
-          <div className="empty-state">
-            <p className="empty-state-title">Sesión no encontrada</p>
-          </div>
+      <div className="card">
+        <div className="empty-state">
+          <p className="empty-state-title">Sesión no encontrada</p>
         </div>
-      </AppShell>
+      </div>
     );
   }
 
@@ -138,7 +129,7 @@ export default function SessionDetailPage() {
   ];
 
   return (
-    <AppShell>
+    <div>
       <div style={{ marginBottom: 12 }}>
         <Link href={`/cursos/${courseId}`} style={{ fontSize: 13, color: "var(--texto-tenue)" }}>
           ← {sesion.curso?.nombre ?? "Curso"}
@@ -152,7 +143,6 @@ export default function SessionDetailPage() {
         <h1 className="page-title">{sesion.titulo}</h1>
       </div>
 
-      {/* Tabs de sesión */}
       <div className="workspace-tabs" style={{ margin: "0 -32px 24px" }}>
         {tabs.map((t) => (
           <button
@@ -165,16 +155,10 @@ export default function SessionDetailPage() {
         ))}
       </div>
 
-      {/* Grabación */}
       {tab === "grabacion" && (
         <div className="card">
           <div className="card-header">
             <h3>Grabación de la clase</h3>
-            {rol === "ADMIN" && (
-              <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                Editar sesión para agregar enlace
-              </span>
-            )}
           </div>
           <div className="card-body">
             {sesion.enlaceGrabacion ? (
@@ -202,7 +186,6 @@ export default function SessionDetailPage() {
         </div>
       )}
 
-      {/* Capturas de pizarra */}
       {tab === "capturas" && (
         <div className="card">
           <div className="card-header">
@@ -246,7 +229,6 @@ export default function SessionDetailPage() {
         </div>
       )}
 
-      {/* Asistencia (solo ADMIN/PROFESOR) */}
       {tab === "asistencia" && rol !== "ESTUDIANTE" && (
         <div className="card">
           <div className="card-header">
@@ -314,7 +296,6 @@ export default function SessionDetailPage() {
         </div>
       )}
 
-      {/* Resúmenes */}
       {tab === "resumenes" && (
         <div className="card">
           <div className="card-header">
@@ -325,12 +306,8 @@ export default function SessionDetailPage() {
               <div className="empty-state" style={{ padding: "20px 0" }}>
                 <div className="empty-state-icon">📄</div>
                 <p className="empty-state-title">Sin resúmenes asignados</p>
-                {rol === "ADMIN" && (
-                  <p>Usa "Requerir resumen" desde la gestión de sesiones.</p>
-                )}
-                {rol === "ESTUDIANTE" && (
-                  <p>No tienes resúmenes pendientes para esta sesión.</p>
-                )}
+                {rol === "ADMIN" && <p>Usa "Requerir resumen" desde la gestión de sesiones.</p>}
+                {rol === "ESTUDIANTE" && <p>No tienes resúmenes pendientes para esta sesión.</p>}
               </div>
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
@@ -393,6 +370,6 @@ export default function SessionDetailPage() {
           </div>
         </div>
       )}
-    </AppShell>
+    </div>
   );
 }

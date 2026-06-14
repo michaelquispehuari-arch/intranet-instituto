@@ -1,6 +1,7 @@
 import { withAuth } from "next-auth/middleware";
 
 const roleAccess: Record<string, Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE">> = {
+  "/inicio": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
   "/dashboard": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
   "/courses": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
   "/cursos": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
@@ -40,6 +41,7 @@ export default withAuth({
 
 export const config = {
   matcher: [
+    "/inicio/:path*",
     "/dashboard/:path*",
     "/courses/:path*",
     "/cursos/:path*",

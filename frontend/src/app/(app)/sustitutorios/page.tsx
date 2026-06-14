@@ -1,9 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
-import { AppShell } from "../../components/app-shell";
 
 type EligibleStudent = {
   estudianteId: string;
@@ -30,7 +27,7 @@ export default function SustitutoriosPage() {
   }, []);
 
   return (
-    <AppShell>
+    <div>
       <div className="page-header">
         <span className="page-eyebrow">Administración</span>
         <h1 className="page-title">Exámenes Sustitutorios</h1>
@@ -89,6 +86,6 @@ export default function SustitutoriosPage() {
           )}
         </div>
       </div>
-    </AppShell>
+    </div>
   );
 }

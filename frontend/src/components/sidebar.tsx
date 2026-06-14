@@ -13,7 +13,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Inicio", icon: "⬜", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+  { href: "/inicio", label: "Inicio", icon: "⬜", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
   { href: "/cursos", label: "Cursos", icon: "📚", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
   { href: "/calificaciones", label: "Calificaciones", icon: "📊", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
   { href: "/exams", label: "Exámenes", icon: "📝", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },

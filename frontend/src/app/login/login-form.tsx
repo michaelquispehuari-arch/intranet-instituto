@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/inicio";
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -32,7 +32,7 @@ export function LoginForm() {
       return;
     }
 
-    router.replace(result.url ?? "/dashboard");
+    router.replace(result.url ?? "/inicio");
     router.refresh();
   }
 

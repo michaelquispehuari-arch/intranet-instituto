@@ -1,10 +1,7 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { AppShell } from "../../components/app-shell";
 
 type Semana = {
   curso: { id: string; nombre: string; ciclo: number; anio: number };
@@ -56,13 +53,12 @@ export default function CalificacionesPage() {
   const rol = session?.user?.rol;
   const esEstudiante = rol === "ESTUDIANTE";
 
-  // Collect all unique courses (as columns)
   const cursosMap = new Map<string, { id: string; nombre: string }>();
   data.forEach((e) => e.semanas.forEach((s) => cursosMap.set(s.curso.id, s.curso)));
   const cursos = [...cursosMap.values()];
 
   return (
-    <AppShell>
+    <div>
       <div className="page-header">
         <span className="page-eyebrow">{esEstudiante ? "Mis resultados" : "Académico"}</span>
         <h1 className="page-title">Cronograma de calificaciones</h1>
@@ -122,10 +118,7 @@ export default function CalificacionesPage() {
                 const total = entrada.semanas.filter((s) => s.estado === "cerrado").length;
 
                 return (
-                  <tr
-                    key={entrada.estudiante.id}
-                    style={{ borderBottom: "0.5px solid var(--borde)" }}
-                  >
+                  <tr key={entrada.estudiante.id} style={{ borderBottom: "0.5px solid var(--borde)" }}>
                     {!esEstudiante && (
                       <td style={{ padding: "10px 16px", whiteSpace: "nowrap" }}>
                         <div style={{ fontWeight: 600 }}>
@@ -168,6 +161,6 @@ export default function CalificacionesPage() {
           <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>En curso / sin nota</span>
         </div>
       )}
-    </AppShell>
+    </div>
   );
 }
