@@ -638,9 +638,47 @@ Infraestructura:
 Pendiente operativo:
 
 ```text
-Configurar R2 real en Cloudflare y pegar variables en Railway.
-Configurar Redis real.
 Configurar SMTP real.
 Desplegar email-worker como servicio separado.
-Validar /health/ready hasta que los servicios necesarios aparezcan como ok.
+Validar /health/ready hasta que SMTP aparezca como ok.
+```
+
+---
+
+## Avance operativo - Railway Redis y Cloudflare R2 validados 2026-06-14
+
+Servicios reales:
+
+```text
+PostgreSQL Railway -> OK
+Redis Railway      -> OK
+Cloudflare R2      -> OK
+SMTP               -> pendiente
+Sentry             -> pendiente opcional
+```
+
+Resultado reportado de `/health/ready`:
+
+```text
+postgres: ok
+redis: ok
+r2: ok
+smtp: faltante
+sentry: faltante
+```
+
+Prueba funcional real:
+
+```text
+Profesor subio un PDF desde /content/upload.
+El archivo se guardo en Cloudflare R2.
+La descarga desde la pagina funciono correctamente.
+```
+
+Nota de seguridad:
+
+```text
+Un token R2 real fue expuesto en chat durante la configuracion.
+Debe quedar revocado y reemplazado por otro token no expuesto.
+No documentar Access Key ID, Secret Access Key, token cfat, DATABASE_URL ni otros secretos.
 ```

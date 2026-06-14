@@ -9,7 +9,7 @@ Frontend: Render
 Backend: Railway
 PostgreSQL: Railway
 Archivos: Cloudflare R2
-Redis: pendiente por proveedor
+Redis: Railway
 SMTP: pendiente por proveedor
 ```
 
@@ -26,7 +26,7 @@ Login ADMIN                         -> OK
 Login PROFESOR                      -> OK
 Login ESTUDIANTE                    -> OK
 Crear/publicar/rendir examen        -> OK
-Subir/descargar/eliminar material   -> OK cuando R2 este configurado
+Subir/descargar/eliminar material   -> OK
 Reset de password                   -> OK cuando Redis + SMTP + worker esten configurados
 ```
 
@@ -164,6 +164,13 @@ SMTP_FROM=<correo de dominio verificado>
 ```
 
 Sin dominio propio, el correo real puede quedar limitado por el proveedor SMTP. Para demo se puede dejar reset de password pendiente y validar el resto de modulos primero.
+
+Estado actual:
+
+```text
+Redis ya esta configurado en Railway.
+SMTP sigue pendiente.
+```
 
 ---
 
