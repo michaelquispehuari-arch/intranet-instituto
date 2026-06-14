@@ -3,13 +3,16 @@ import { withAuth } from "next-auth/middleware";
 const roleAccess: Record<string, Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE">> = {
   "/dashboard": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
   "/courses": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
-  "/exams/create": ["PROFESOR"],
-  "/exams": ["PROFESOR", "ESTUDIANTE"],
-  "/content/upload": ["PROFESOR"],
-  "/content": ["PROFESOR", "ESTUDIANTE"],
+  "/cursos": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
+  "/exams/create": ["ADMIN", "PROFESOR"],
+  "/exams": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
+  "/content/upload": ["ADMIN", "PROFESOR"],
+  "/content": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
   "/grades": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
   "/users": ["ADMIN"],
   "/settings": ["ADMIN"],
+  "/configuracion": ["ADMIN"],
+  "/sustitutorios": ["ADMIN"],
 };
 
 export default withAuth({
@@ -35,5 +38,16 @@ export default withAuth({
 });
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/courses/:path*", "/exams/:path*", "/content/:path*", "/grades/:path*", "/users/:path*", "/settings/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/courses/:path*",
+    "/cursos/:path*",
+    "/exams/:path*",
+    "/content/:path*",
+    "/grades/:path*",
+    "/users/:path*",
+    "/settings/:path*",
+    "/configuracion/:path*",
+    "/sustitutorios/:path*",
+  ],
 };

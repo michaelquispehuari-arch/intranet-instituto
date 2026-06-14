@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import {
   createExamSchema,
   examIdParamSchema,
+  gradeOpenSchema,
   submitExamSchema,
 } from "../schemas/exam.schema.js";
 import * as examService from "../services/exam.service.js";
@@ -70,6 +71,17 @@ export async function submit(req: Request, res: Response, next: NextFunction) {
     const input = submitExamSchema.parse(req.body);
     const submission = await examService.submitExam(id, input, getRequestUser(req));
     res.json({ submission });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function gradeOpen(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = examIdParamSchema.parse(req.params);
+    const input = gradeOpenSchema.parse(req.body);
+    const result = await examService.gradeOpenAnswers(id, input, getRequestUser(req));
+    res.json({ result });
   } catch (error) {
     next(error);
   }

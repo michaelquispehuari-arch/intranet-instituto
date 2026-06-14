@@ -11,6 +11,9 @@ import { examRoutes } from "./routes/exam.routes.js";
 import { contentRoutes } from "./routes/content.routes.js";
 import { gradeRoutes } from "./routes/grade.routes.js";
 import { userRoutes } from "./routes/user.routes.js";
+import { sessionRoutes, sessionDetailRoutes, summaryRoutes } from "./routes/session.routes.js";
+import { configRoutes } from "./routes/config.routes.js";
+import { substitutionRoutes } from "./routes/substitution.routes.js";
 import { getReadinessStatus } from "./services/health.service.js";
 
 export const app = express();
@@ -42,10 +45,15 @@ app.get("/health/ready", async (_req, res, next) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/courses", courseRoutes);
+app.use("/api/courses/:id/sessions", sessionRoutes);
+app.use("/api/sessions", sessionDetailRoutes);
+app.use("/api/summaries", summaryRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/grades", gradeRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/config", configRoutes);
+app.use("/api/substitutions", substitutionRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

@@ -7,6 +7,58 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Rol {
+  ADMIN
+  PROFESOR
+  ESTUDIANTE
+}
+
+enum TipoCurso {
+  REGULAR
+  ENTRENAMIENTO
+  ESPECIAL
+}
+
+enum TipoPregunta {
+  OPCION_MULTIPLE
+  VERDADERO_FALSO
+  ABIERTA
+}
+
+enum TipoMaterial {
+  MATERIAL_CURSO
+  CAPTURA_PIZARRA
+}
+
+enum EstadoAsistencia {
+  PRESENTE
+  AUSENTE
+  TARDANZA
+}
+
+enum EstadoResumen {
+  PENDIENTE
+  ENTREGADO
+  REVISADO
+}
+
+enum OrigenHabilitacion {
+  AUTOMATICO
+  MANUAL
+}
+
+enum EstadoCalificacion {
+  AUTO
+  PENDIENTE
+  CALIFICADA
+}
+
+enum TipoNotaManual {
+  EXPOSICION
+  ACTIVIDAD
+  PARTICIPACION
+}
+
 model Usuario {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -17,44 +69,43 @@ model Usuario {
   activo       Boolean  @default(true)
   creadoEn     DateTime @default(now())
 
-  cursosComoProfesor Curso[]        @relation("ProfesorCurso")
-  inscripciones      Inscripcion[]
-  examenesSub        ExamenEnvio[]
-  notasComoEstudiante NotaManual[]  @relation("NotaManualEstudiante")
-  notasComoProfesor  NotaManual[]   @relation("NotaManualProfesor")
-  asistencias        Asistencia[]
-  materialesSubidos  Material[]     @relation("ProfesorMaterial")
-}
-
-enum Rol {
-  ADMIN
-  PROFESOR
-  ESTUDIANTE
+  cursosComoProfesor  Curso[]                  @relation("ProfesorCurso")
+  inscripciones       Inscripcion[]
+  examenesSub         ExamenEnvio[]
+  notasComoEstudiante NotaManual[]             @relation("NotaManualEstudiante")
+  notasComoProfesor   NotaManual[]             @relation("NotaManualProfesor")
+  asistencias         Asistencia[]
+  materialesSubidos   Material[]               @relation("ProfesorMaterial")
+  resumenes           EntregaResumen[]
+  habilitaciones      HabilitacionSustitutorio[]
 }
 
 model Curso {
-  id          String  @id @default(cuid())
+  id          String    @id @default(cuid())
   nombre      String
   descripcion String?
   ciclo       Int
   anio        Int
   profesorId  String
-  activo      Boolean @default(true)
+  activo      Boolean   @default(true)
+  tipo        TipoCurso @default(REGULAR)
 
-  profesor      Usuario       @relation("ProfesorCurso", fields: [profesorId], references: [id])
-  inscripciones Inscripcion[]
-  examenes      Examen[]
-  materiales    Material[]
-  notasManuales NotaManual[]
-  asistencias   Asistencia[]
-  config        ConfigCurso?
+  profesor       Usuario                    @relation("ProfesorCurso", fields: [profesorId], references: [id])
+  inscripciones  Inscripcion[]
+  examenes       Examen[]
+  materiales     Material[]
+  notasManuales  NotaManual[]
+  config         ConfigCurso?
+  sesiones       Sesion[]
+  habilitaciones HabilitacionSustitutorio[]
 }
 
 model Inscripcion {
-  id           String   @id @default(cuid())
-  estudianteId String
-  cursoId      String
-  creadoEn     DateTime @default(now())
+  id             String   @id @default(cuid())
+  estudianteId   String
+  cursoId        String
+  creadoEn       DateTime @default(now())
+  notaAsistencia Float?
 
   estudiante Usuario @relation(fields: [estudianteId], references: [id])
   curso      Curso   @relation(fields: [cursoId], references: [id])
@@ -62,17 +113,71 @@ model Inscripcion {
   @@unique([estudianteId, cursoId])
 }
 
-model Examen {
-  id              String    @id @default(cuid())
-  titulo          String
-  descripcion     String?
+model Sesion {
+  id              String   @id @default(cuid())
   cursoId         String
-  duracionMinutos Int
-  publicadoEn     DateTime?
-  disponibleDesde DateTime?
-  disponibleHasta DateTime?
-  activo          Boolean   @default(true)
-  creadoEn        DateTime  @default(now())
+  fecha           DateTime
+  titulo          String
+  enlaceGrabacion String?
+  orden           Int
+  creadoEn        DateTime @default(now())
+
+  curso       Curso            @relation(fields: [cursoId], references: [id])
+  asistencias Asistencia[]
+  materiales  Material[]
+  resumenes   EntregaResumen[]
+}
+
+model EntregaResumen {
+  id           String        @id @default(cuid())
+  sesionId     String
+  estudianteId String
+  urlR2        String?
+  entregadoEn  DateTime?
+  fechaLimite  DateTime?
+  estado       EstadoResumen @default(PENDIENTE)
+  requerido    Boolean       @default(false)
+
+  sesion     Sesion  @relation(fields: [sesionId], references: [id])
+  estudiante Usuario @relation(fields: [estudianteId], references: [id])
+
+  @@unique([sesionId, estudianteId])
+}
+
+model HabilitacionSustitutorio {
+  id            String             @id @default(cuid())
+  estudianteId  String
+  cursoId       String
+  origen        OrigenHabilitacion @default(AUTOMATICO)
+  habilitadoPor String?
+  creadoEn      DateTime           @default(now())
+
+  estudiante Usuario @relation(fields: [estudianteId], references: [id])
+  curso      Curso   @relation(fields: [cursoId], references: [id])
+
+  @@unique([estudianteId, cursoId])
+}
+
+model Configuracion {
+  id            String   @id @default(cuid())
+  clave         String   @unique
+  valor         String
+  actualizadoEn DateTime @updatedAt
+}
+
+model Examen {
+  id                String    @id @default(cuid())
+  titulo            String
+  descripcion       String?
+  cursoId           String
+  duracionMinutos   Int
+  publicadoEn       DateTime?
+  disponibleDesde   DateTime?
+  disponibleHasta   DateTime?
+  activo            Boolean   @default(true)
+  creadoEn          DateTime  @default(now())
+  revelarRespuestas Boolean   @default(true)
+  esSustitutorio    Boolean   @default(false)
 
   curso     Curso         @relation(fields: [cursoId], references: [id])
   preguntas Pregunta[]
@@ -93,11 +198,6 @@ model Pregunta {
   respuestas RespuestaEstudiante[]
 }
 
-enum TipoPregunta {
-  OPCION_MULTIPLE
-  VERDADERO_FALSO
-}
-
 model ExamenEnvio {
   id           String    @id @default(cuid())
   estudianteId String
@@ -115,40 +215,46 @@ model ExamenEnvio {
 }
 
 model RespuestaEstudiante {
-  id              String  @id @default(cuid())
-  envioId         String
-  preguntaId      String
-  respuesta       String
-  esCorrecta      Boolean
-  puntajeObtenido Float
+  id                 String             @id @default(cuid())
+  envioId            String
+  preguntaId         String
+  respuesta          String
+  esCorrecta         Boolean
+  puntajeObtenido    Float
+  puntajeManual      Float?
+  estadoCalificacion EstadoCalificacion @default(AUTO)
 
   envio    ExamenEnvio @relation(fields: [envioId], references: [id])
   pregunta Pregunta    @relation(fields: [preguntaId], references: [id])
 }
 
 model Material {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   nombre      String
   descripcion String?
   cursoId     String
+  sesionId    String?
   profesorId  String
   urlR2       String
   tipoArchivo String
   tamanoBytes BigInt
-  creadoEn    DateTime @default(now())
+  tipo        TipoMaterial @default(MATERIAL_CURSO)
+  creadoEn    DateTime     @default(now())
 
   curso    Curso   @relation(fields: [cursoId], references: [id])
+  sesion   Sesion? @relation(fields: [sesionId], references: [id])
   profesor Usuario @relation("ProfesorMaterial", fields: [profesorId], references: [id])
 }
 
 model NotaManual {
-  id           String   @id @default(cuid())
+  id           String         @id @default(cuid())
   estudianteId String
   cursoId      String
   profesorId   String
   valor        Float
   descripcion  String?
-  fecha        DateTime @default(now())
+  fecha        DateTime       @default(now())
+  tipo         TipoNotaManual @default(ACTIVIDAD)
 
   estudiante Usuario @relation("NotaManualEstudiante", fields: [estudianteId], references: [id])
   profesor   Usuario @relation("NotaManualProfesor", fields: [profesorId], references: [id])
@@ -158,28 +264,22 @@ model NotaManual {
 model Asistencia {
   id           String           @id @default(cuid())
   estudianteId String
-  cursoId      String
-  fecha        DateTime
+  sesionId     String
   estado       EstadoAsistencia
+  observacion  String?
 
   estudiante Usuario @relation(fields: [estudianteId], references: [id])
-  curso      Curso   @relation(fields: [cursoId], references: [id])
+  sesion     Sesion  @relation(fields: [sesionId], references: [id])
 
-  @@unique([estudianteId, cursoId, fecha])
-}
-
-enum EstadoAsistencia {
-  PRESENTE
-  AUSENTE
-  TARDANZA
+  @@unique([estudianteId, sesionId])
 }
 
 model ConfigCurso {
-  id                String @id @default(cuid())
-  cursoId           String @unique
-  pesoExamenes      Float  @default(0.7)
-  pesoNotasManuales Float  @default(0.3)
-  notaAprobatoria   Float  @default(11)
+  id              String @id @default(cuid())
+  cursoId         String @unique
+  pesoAsistencia  Float  @default(0.5)
+  pesoAcademico   Float  @default(0.5)
+  notaAprobatoria Float  @default(11)
 
   curso Curso @relation(fields: [cursoId], references: [id])
 }

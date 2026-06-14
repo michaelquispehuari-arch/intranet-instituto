@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { Prisma, Rol } from "@prisma/client";
+import { Prisma, Rol, TipoMaterial } from "@prisma/client";
 import type { UploadContentInput, ListContentQuery } from "../schemas/content.schema.js";
 import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
@@ -31,7 +31,10 @@ type MaterialWithRelations = Prisma.MaterialGetPayload<{
 }>;
 
 export async function listContent(query: ListContentQuery, user: AuthUser) {
-  const courseFilter = query.cursoId ? { cursoId: query.cursoId } : {};
+  const courseFilter = {
+    ...(query.cursoId ? { cursoId: query.cursoId } : {}),
+    ...(query.sesionId ? { sesionId: query.sesionId } : {}),
+  };
 
   const materials = await prisma.material.findMany({
     where: {
@@ -95,10 +98,12 @@ export async function uploadContent(input: UploadContentInput, file: Express.Mul
         nombre: input.nombre ?? file.originalname,
         descripcion: input.descripcion,
         cursoId: input.cursoId,
+        sesionId: input.sesionId ?? null,
         profesorId: user.id,
         urlR2: objectKey,
         tipoArchivo: extension,
         tamanoBytes: BigInt(file.size),
+        tipo: input.tipo ?? TipoMaterial.MATERIAL_CURSO,
       },
       include: materialInclude,
     });

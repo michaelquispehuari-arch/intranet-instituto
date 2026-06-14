@@ -1,8 +1,8 @@
-import { Rol, TipoPregunta } from "@prisma/client";
+import { Rol, TipoPregunta, EstadoCalificacion } from "@prisma/client";
 import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
-import type { CreateExamInput, SubmitExamInput } from "../schemas/exam.schema.js";
+import type { CreateExamInput, SubmitExamInput, GradeOpenInput } from "../schemas/exam.schema.js";
 
 const EXAM_SUBMIT_GRACE_MS = 30_000;
 
@@ -337,7 +337,11 @@ export async function submitExam(examId: string, input: SubmitExamInput, user: A
 
   const answerMap = new Map(input.respuestas.map((answer) => [answer.preguntaId, answer.respuesta]));
 
-  if (answerMap.size !== input.respuestas.length || answerMap.size !== exam.preguntas.length) {
+  if (answerMap.size !== input.respuestas.length) {
+    throw new ForbiddenError("No puedes enviar respuestas duplicadas");
+  }
+
+  if (answerMap.size !== exam.preguntas.length) {
     throw new ForbiddenError("Debes enviar una respuesta por cada pregunta");
   }
 
@@ -348,6 +352,16 @@ export async function submitExam(examId: string, input: SubmitExamInput, user: A
       throw new ForbiddenError("Debes enviar una respuesta por cada pregunta");
     }
 
+    if (question.tipo === TipoPregunta.ABIERTA) {
+      return {
+        preguntaId: question.id,
+        respuesta: studentAnswer,
+        esCorrecta: false,
+        puntajeObtenido: 0,
+        estadoCalificacion: EstadoCalificacion.PENDIENTE,
+      };
+    }
+
     const isCorrect = studentAnswer === question.respuestaCorrecta;
 
     return {
@@ -355,6 +369,7 @@ export async function submitExam(examId: string, input: SubmitExamInput, user: A
       respuesta: studentAnswer,
       esCorrecta: isCorrect,
       puntajeObtenido: isCorrect ? question.puntaje : 0,
+      estadoCalificacion: EstadoCalificacion.AUTO,
     };
   });
 
@@ -499,4 +514,35 @@ function isExamTimeExpired(startedAt: Date, durationMinutes: number) {
   const expiresAt = startedAt.getTime() + durationMinutes * 60_000 + EXAM_SUBMIT_GRACE_MS;
 
   return Date.now() > expiresAt;
+}
+
+export async function gradeOpenAnswers(examId: string, input: GradeOpenInput, user: AuthUser) {
+  if (user.rol !== Rol.ADMIN) {
+    throw new ForbiddenError();
+  }
+
+  const exam = await prisma.examen.findUnique({
+    where: { id: examId },
+    select: { id: true },
+  });
+
+  if (!exam) {
+    throw new NotFoundError("Examen no encontrado");
+  }
+
+  const results = await Promise.all(
+    input.calificaciones.map(({ respuestaId, puntajeManual }) =>
+      prisma.respuestaEstudiante.update({
+        where: { id: respuestaId },
+        data: {
+          puntajeManual,
+          puntajeObtenido: puntajeManual,
+          esCorrecta: puntajeManual > 0,
+          estadoCalificacion: EstadoCalificacion.CALIFICADA,
+        },
+      }),
+    ),
+  );
+
+  return results;
 }

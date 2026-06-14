@@ -15,4 +15,4 @@ gradeRoutes.post("/manual", requireRole(Rol.PROFESOR), gradeController.createMan
 gradeRoutes.patch("/manual/:id", requireRole(Rol.PROFESOR), gradeController.updateManual);
 gradeRoutes.delete("/manual/:id", requireRole(Rol.PROFESOR), gradeController.removeManual);
 gradeRoutes.get("/attendance", gradeController.listAttendance);
-gradeRoutes.post("/attendance", requireRole(Rol.PROFESOR), gradeController.upsertAttendance);
+gradeRoutes.post("/attendance", requireRole(Rol.ADMIN), gradeController.setAttendance);

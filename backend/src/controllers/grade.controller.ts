@@ -1,22 +1,19 @@
 import type { NextFunction, Request, Response } from "express";
 import {
-  attendanceQuerySchema,
+  attendanceGradeQuerySchema,
   createManualGradeSchema,
   gradeConfigParamSchema,
   gradeQuerySchema,
   manualGradeIdParamSchema,
+  setAttendanceGradeSchema,
   updateGradeConfigSchema,
   updateManualGradeSchema,
-  upsertAttendanceSchema,
 } from "../schemas/grade.schema.js";
 import * as gradeService from "../services/grade.service.js";
 import { UnauthorizedError } from "../utils/http-error.js";
 
 function getRequestUser(req: Request) {
-  if (!req.user) {
-    throw new UnauthorizedError("Sesion no valida");
-  }
-
+  if (!req.user) throw new UnauthorizedError("Sesion no valida");
   return req.user;
 }
 
@@ -63,18 +60,18 @@ export async function removeManual(req: Request, res: Response, next: NextFuncti
 
 export async function listAttendance(req: Request, res: Response, next: NextFunction) {
   try {
-    const query = attendanceQuerySchema.parse(req.query);
-    const attendance = await gradeService.listAttendance(query, getRequestUser(req));
+    const query = attendanceGradeQuerySchema.parse(req.query);
+    const attendance = await gradeService.listAttendanceGrades(query, getRequestUser(req));
     res.json({ attendance });
   } catch (error) {
     next(error);
   }
 }
 
-export async function upsertAttendance(req: Request, res: Response, next: NextFunction) {
+export async function setAttendance(req: Request, res: Response, next: NextFunction) {
   try {
-    const input = upsertAttendanceSchema.parse(req.body);
-    const attendance = await gradeService.upsertAttendance(input, getRequestUser(req));
+    const input = setAttendanceGradeSchema.parse(req.body);
+    const attendance = await gradeService.setAttendanceGrade(input, getRequestUser(req));
     res.json({ attendance });
   } catch (error) {
     next(error);

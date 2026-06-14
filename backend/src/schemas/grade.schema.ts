@@ -1,4 +1,3 @@
-import { EstadoAsistencia } from "@prisma/client";
 import { z } from "zod";
 
 export const gradeQuerySchema = z.object({
@@ -28,22 +27,21 @@ export const updateManualGradeSchema = z.object({
   fecha: z.coerce.date().optional(),
 });
 
-export const attendanceQuerySchema = z.object({
+export const attendanceGradeQuerySchema = z.object({
   cursoId: z.string().min(1).optional(),
   estudianteId: z.string().min(1).optional(),
 });
 
-export const upsertAttendanceSchema = z.object({
+export const setAttendanceGradeSchema = z.object({
   estudianteId: z.string().min(1),
   cursoId: z.string().min(1),
-  fecha: z.coerce.date(),
-  estado: z.nativeEnum(EstadoAsistencia),
+  notaAsistencia: z.number().min(0).max(20).nullable(),
 });
 
 export const updateGradeConfigSchema = z
   .object({
-    pesoExamenes: z.number().min(0).max(1).optional(),
-    pesoNotasManuales: z.number().min(0).max(1).optional(),
+    pesoAsistencia: z.number().min(0).max(1).optional(),
+    pesoAcademico: z.number().min(0).max(1).optional(),
     notaAprobatoria: z.number().min(0).max(20).optional(),
   })
   .refine((input) => Object.keys(input).length > 0, {
@@ -53,6 +51,6 @@ export const updateGradeConfigSchema = z
 export type GradeQuery = z.infer<typeof gradeQuerySchema>;
 export type CreateManualGradeInput = z.infer<typeof createManualGradeSchema>;
 export type UpdateManualGradeInput = z.infer<typeof updateManualGradeSchema>;
-export type AttendanceQuery = z.infer<typeof attendanceQuerySchema>;
-export type UpsertAttendanceInput = z.infer<typeof upsertAttendanceSchema>;
+export type AttendanceGradeQuery = z.infer<typeof attendanceGradeQuerySchema>;
+export type SetAttendanceGradeInput = z.infer<typeof setAttendanceGradeSchema>;
 export type UpdateGradeConfigInput = z.infer<typeof updateGradeConfigSchema>;

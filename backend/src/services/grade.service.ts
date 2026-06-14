@@ -1,19 +1,19 @@
 import { Rol } from "@prisma/client";
 import type {
-  AttendanceQuery,
+  AttendanceGradeQuery,
   CreateManualGradeInput,
   GradeQuery,
   UpdateManualGradeInput,
   UpdateGradeConfigInput,
-  UpsertAttendanceInput,
+  SetAttendanceGradeInput,
 } from "../schemas/grade.schema.js";
 import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, HttpError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
 
 const defaultGradeConfig = {
-  pesoExamenes: 0.7,
-  pesoNotasManuales: 0.3,
+  pesoAsistencia: 0.5,
+  pesoAcademico: 0.5,
   notaAprobatoria: 11,
 };
 
@@ -28,35 +28,20 @@ export async function listGradeSummaries(query: GradeQuery, user: AuthUser) {
         where: estudianteId ? { estudianteId } : undefined,
         include: {
           estudiante: {
-            select: {
-              id: true,
-              nombre: true,
-              apellido: true,
-              email: true,
-            },
+            select: { id: true, nombre: true, apellido: true, email: true },
           },
         },
       },
-      notasManuales: estudianteId
-        ? { where: { estudianteId } }
-        : true,
+      notasManuales: estudianteId ? { where: { estudianteId } } : true,
       examenes: {
         include: {
-          preguntas: {
-            select: {
-              puntaje: true,
-            },
-          },
+          preguntas: { select: { puntaje: true } },
           envios: {
             where: {
               completado: true,
               ...(estudianteId ? { estudianteId } : {}),
             },
-            select: {
-              estudianteId: true,
-              puntajeTotal: true,
-              examenId: true,
-            },
+            select: { estudianteId: true, puntajeTotal: true, examenId: true },
           },
         },
       },
@@ -65,47 +50,38 @@ export async function listGradeSummaries(query: GradeQuery, user: AuthUser) {
   });
 
   return courses.flatMap((course) => {
-    const config = course.config ?? {
-      pesoExamenes: 0.7,
-      pesoNotasManuales: 0.3,
-      notaAprobatoria: 11,
-    };
+    const config = course.config ?? defaultGradeConfig;
 
     return course.inscripciones.map((inscripcion) => {
       const manualGrades = course.notasManuales.filter(
         (grade) => grade.estudianteId === inscripcion.estudianteId,
       );
       const examGrades = course.examenes.flatMap((exam) => {
-        const maxScore = exam.preguntas.reduce((sum, question) => sum + question.puntaje, 0);
-
-        if (maxScore <= 0) {
-          return [];
-        }
-
+        const maxScore = exam.preguntas.reduce((sum, q) => sum + q.puntaje, 0);
+        if (maxScore <= 0) return [];
         return exam.envios
-          .filter((submission) => submission.estudianteId === inscripcion.estudianteId)
-          .map((submission) => ((submission.puntajeTotal ?? 0) / maxScore) * 20);
+          .filter((e) => e.estudianteId === inscripcion.estudianteId)
+          .map((e) => ((e.puntajeTotal ?? 0) / maxScore) * 20);
       });
 
-      const promedioExamenes = average(examGrades);
-      const promedioNotasManuales = average(manualGrades.map((grade) => grade.valor));
-      const promedioFinal = calculateFinalAverage(
-        promedioExamenes,
-        promedioNotasManuales,
-        config.pesoExamenes,
-        config.pesoNotasManuales,
+      const promedioAcademico = average([
+        ...examGrades,
+        ...manualGrades.map((g) => g.valor),
+      ]);
+      const notaAsistencia = inscripcion.notaAsistencia;
+
+      const promedioFinal = calculateFinalGrade(
+        notaAsistencia,
+        promedioAcademico,
+        config.pesoAsistencia,
+        config.pesoAcademico,
       );
 
       return {
-        curso: {
-          id: course.id,
-          nombre: course.nombre,
-          ciclo: course.ciclo,
-          anio: course.anio,
-        },
+        curso: { id: course.id, nombre: course.nombre, ciclo: course.ciclo, anio: course.anio },
         estudiante: inscripcion.estudiante,
-        promedioExamenes,
-        promedioNotasManuales,
+        notaAsistencia,
+        promedioAcademico,
         promedioFinal,
         aprobado: promedioFinal === null ? null : promedioFinal >= config.notaAprobatoria,
         notaAprobatoria: config.notaAprobatoria,
@@ -135,18 +111,10 @@ export async function updateManualGrade(gradeId: string, input: UpdateManualGrad
     select: { profesorId: true },
   });
 
-  if (!grade) {
-    throw new NotFoundError("Nota manual no encontrada");
-  }
+  if (!grade) throw new NotFoundError("Nota manual no encontrada");
+  if (grade.profesorId !== user.id) throw new ForbiddenError();
 
-  if (grade.profesorId !== user.id) {
-    throw new ForbiddenError();
-  }
-
-  return prisma.notaManual.update({
-    where: { id: gradeId },
-    data: input,
-  });
+  return prisma.notaManual.update({ where: { id: gradeId }, data: input });
 }
 
 export async function deleteManualGrade(gradeId: string, user: AuthUser) {
@@ -155,69 +123,63 @@ export async function deleteManualGrade(gradeId: string, user: AuthUser) {
     select: { profesorId: true },
   });
 
-  if (!grade) {
-    throw new NotFoundError("Nota manual no encontrada");
-  }
+  if (!grade) throw new NotFoundError("Nota manual no encontrada");
+  if (grade.profesorId !== user.id) throw new ForbiddenError();
 
-  if (grade.profesorId !== user.id) {
-    throw new ForbiddenError();
-  }
-
-  return prisma.notaManual.delete({
-    where: { id: gradeId },
-  });
+  return prisma.notaManual.delete({ where: { id: gradeId } });
 }
 
-export async function listAttendance(query: AttendanceQuery, user: AuthUser) {
+export async function listAttendanceGrades(query: AttendanceGradeQuery, user: AuthUser) {
   const estudianteId = getVisibleStudentId(query.estudianteId, user);
 
-  return prisma.asistencia.findMany({
+  const inscriptions = await prisma.inscripcion.findMany({
     where: {
       ...(query.cursoId ? { cursoId: query.cursoId } : {}),
       ...(estudianteId ? { estudianteId } : {}),
       curso: buildCourseAccessWhere(query.cursoId, user),
     },
     include: {
-      estudiante: {
-        select: {
-          id: true,
-          nombre: true,
-          apellido: true,
-          email: true,
-        },
-      },
-      curso: {
-        select: {
-          id: true,
-          nombre: true,
-        },
-      },
+      estudiante: { select: { id: true, nombre: true, apellido: true, email: true } },
+      curso: { select: { id: true, nombre: true } },
     },
-    orderBy: { fecha: "desc" },
   });
+
+  return inscriptions.map((i) => ({
+    estudianteId: i.estudianteId,
+    cursoId: i.cursoId,
+    notaAsistencia: i.notaAsistencia,
+    estudiante: i.estudiante,
+    curso: i.curso,
+  }));
 }
 
-export async function upsertAttendance(input: UpsertAttendanceInput, user: AuthUser) {
-  const fecha = normalizeDate(input.fecha);
-  await ensureProfessorCanGrade(input.cursoId, input.estudianteId, user.id);
+export async function setAttendanceGrade(input: SetAttendanceGradeInput, user: AuthUser) {
+  if (user.rol !== Rol.ADMIN) {
+    throw new ForbiddenError("Solo el admin puede ingresar la nota de asistencia");
+  }
 
-  return prisma.asistencia.upsert({
+  const inscription = await prisma.inscripcion.findUnique({
     where: {
-      estudianteId_cursoId_fecha: {
+      estudianteId_cursoId: {
         estudianteId: input.estudianteId,
         cursoId: input.cursoId,
-        fecha,
       },
     },
-    update: {
-      estado: input.estado,
+    select: { id: true },
+  });
+
+  if (!inscription) {
+    throw new NotFoundError("Inscripcion no encontrada");
+  }
+
+  return prisma.inscripcion.update({
+    where: {
+      estudianteId_cursoId: {
+        estudianteId: input.estudianteId,
+        cursoId: input.cursoId,
+      },
     },
-    create: {
-      estudianteId: input.estudianteId,
-      cursoId: input.cursoId,
-      fecha,
-      estado: input.estado,
-    },
+    data: { notaAsistencia: input.notaAsistencia },
   });
 }
 
@@ -237,27 +199,21 @@ export async function updateGradeConfig(courseId: string, input: UpdateGradeConf
   const currentConfig = await prisma.configCurso.findUnique({
     where: { cursoId: courseId },
   });
+
   const nextConfig = {
-    pesoExamenes: input.pesoExamenes ?? currentConfig?.pesoExamenes ?? defaultGradeConfig.pesoExamenes,
-    pesoNotasManuales:
-      input.pesoNotasManuales ??
-      currentConfig?.pesoNotasManuales ??
-      defaultGradeConfig.pesoNotasManuales,
-    notaAprobatoria:
-      input.notaAprobatoria ?? currentConfig?.notaAprobatoria ?? defaultGradeConfig.notaAprobatoria,
+    pesoAsistencia: input.pesoAsistencia ?? currentConfig?.pesoAsistencia ?? defaultGradeConfig.pesoAsistencia,
+    pesoAcademico: input.pesoAcademico ?? currentConfig?.pesoAcademico ?? defaultGradeConfig.pesoAcademico,
+    notaAprobatoria: input.notaAprobatoria ?? currentConfig?.notaAprobatoria ?? defaultGradeConfig.notaAprobatoria,
   };
 
-  if (Math.abs(nextConfig.pesoExamenes + nextConfig.pesoNotasManuales - 1) > 0.0001) {
+  if (Math.abs(nextConfig.pesoAsistencia + nextConfig.pesoAcademico - 1) > 0.0001) {
     throw new HttpError(400, "Los pesos de calificacion deben sumar 1");
   }
 
   return prisma.configCurso.upsert({
     where: { cursoId: courseId },
     update: nextConfig,
-    create: {
-      cursoId: courseId,
-      ...nextConfig,
-    },
+    create: { cursoId: courseId, ...nextConfig },
   });
 }
 
@@ -270,14 +226,7 @@ function buildCourseAccessWhere(courseId: string | undefined, user: AuthUser) {
     ...(courseId ? { id: courseId } : {}),
     ...(user.rol === Rol.PROFESOR ? { profesorId: user.id, activo: true } : {}),
     ...(user.rol === Rol.ESTUDIANTE
-      ? {
-          activo: true,
-          inscripciones: {
-            some: {
-              estudianteId: user.id,
-            },
-          },
-        }
+      ? { activo: true, inscripciones: { some: { estudianteId: user.id } } }
       : {}),
   };
 }
@@ -287,10 +236,7 @@ async function ensureProfessorCanGrade(courseId: string, studentId: string, prof
     where: {
       estudianteId: studentId,
       cursoId: courseId,
-      curso: {
-        profesorId: professorId,
-        activo: true,
-      },
+      curso: { profesorId: professorId, activo: true },
     },
     select: { id: true },
   });
@@ -301,49 +247,27 @@ async function ensureProfessorCanGrade(courseId: string, studentId: string, prof
 }
 
 async function ensureCourseExists(courseId: string) {
-  const course = await prisma.curso.findUnique({
-    where: { id: courseId },
-    select: { id: true },
-  });
-
-  if (!course) {
-    throw new NotFoundError("Curso no encontrado");
-  }
+  const course = await prisma.curso.findUnique({ where: { id: courseId }, select: { id: true } });
+  if (!course) throw new NotFoundError("Curso no encontrado");
 }
 
 function average(values: number[]) {
-  if (values.length === 0) {
-    return null;
-  }
-
-  return round2(values.reduce((sum, value) => sum + value, 0) / values.length);
+  if (values.length === 0) return null;
+  return round2(values.reduce((sum, v) => sum + v, 0) / values.length);
 }
 
-function calculateFinalAverage(
-  examAverage: number | null,
-  manualAverage: number | null,
-  examWeight: number,
-  manualWeight: number,
+function calculateFinalGrade(
+  notaAsistencia: number | null,
+  promedioAcademico: number | null,
+  pesoAsistencia: number,
+  pesoAcademico: number,
 ) {
-  if (examAverage === null && manualAverage === null) {
-    return null;
-  }
-
-  if (examAverage === null) {
-    return manualAverage;
-  }
-
-  if (manualAverage === null) {
-    return examAverage;
-  }
-
-  return round2(examAverage * examWeight + manualAverage * manualWeight);
+  if (notaAsistencia === null && promedioAcademico === null) return null;
+  if (notaAsistencia === null) return promedioAcademico;
+  if (promedioAcademico === null) return notaAsistencia;
+  return round2(notaAsistencia * pesoAsistencia + promedioAcademico * pesoAcademico);
 }
 
 function round2(value: number) {
   return Math.round(value * 100) / 100;
-}
-
-function normalizeDate(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
