@@ -42,3 +42,15 @@ export async function getR2Client() {
 
   return r2Client;
 }
+
+export async function verifyR2BucketAccess() {
+  const config = getR2Config();
+  const client = await getR2Client();
+  const { HeadBucketCommand } = await import("@aws-sdk/client-s3");
+
+  await client.send(
+    new HeadBucketCommand({
+      Bucket: config.bucketName,
+    }),
+  );
+}

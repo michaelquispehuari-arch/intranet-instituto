@@ -1,5 +1,7 @@
 import { env } from "../config/env.js";
 import { prisma } from "../utils/prisma.js";
+import { verifySmtpConnection } from "../utils/mailer.js";
+import { verifyR2BucketAccess } from "../utils/r2.js";
 import { getRedisClient } from "../utils/redis.js";
 import { isConfiguredRedisUrl, isConfiguredValue } from "../utils/service-config.js";
 
@@ -49,17 +51,44 @@ async function checkRedis(): Promise<ServiceStatus> {
   }
 }
 
+async function checkR2(): Promise<ServiceStatus> {
+  if (!isR2Configured()) {
+    return { status: "missing", message: "Cloudflare R2 no configurado" };
+  }
+
+  try {
+    await verifyR2BucketAccess();
+    return { status: "ok" };
+  } catch {
+    return { status: "error", message: "Cloudflare R2 no responde o no permite acceder al bucket" };
+  }
+}
+
+async function checkSmtp(): Promise<ServiceStatus> {
+  if (!isSmtpConfigured()) {
+    return { status: "missing", message: "SMTP no configurado" };
+  }
+
+  try {
+    await verifySmtpConnection();
+    return { status: "ok" };
+  } catch {
+    return { status: "error", message: "SMTP no responde o rechazo las credenciales" };
+  }
+}
+
 export async function getReadinessStatus() {
-  const [postgres, redis] = await Promise.all([checkPostgres(), checkRedis()]);
+  const [postgres, redis, r2, smtp] = await Promise.all([
+    checkPostgres(),
+    checkRedis(),
+    checkR2(),
+    checkSmtp(),
+  ]);
   const services = {
     postgres,
     redis,
-    r2: isR2Configured()
-      ? { status: "ok" as const }
-      : { status: "missing" as const, message: "Cloudflare R2 no configurado" },
-    smtp: isSmtpConfigured()
-      ? { status: "ok" as const }
-      : { status: "missing" as const, message: "SMTP no configurado" },
+    r2,
+    smtp,
     sentry: env.SENTRY_DSN
       ? { status: "ok" as const }
       : { status: "missing" as const, message: "Sentry no configurado" },

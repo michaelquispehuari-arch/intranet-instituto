@@ -618,3 +618,29 @@ backend: npm.cmd run test:integration -> OK (2/2 pass)
 frontend: npm.cmd run typecheck       -> OK
 frontend: npm.cmd run build           -> OK (20 rutas generadas)
 ```
+
+---
+
+## Avance aplicado - readiness real y guia demo 2026-06-14
+
+Backend:
+
+- `/health/ready` ahora verifica acceso real a Cloudflare R2 con `HeadBucket`.
+- `/health/ready` ahora verifica conexion real SMTP con `transporter.verify()`.
+- SMTP usa timeouts de 5 segundos para evitar esperas largas cuando el proveedor no responde.
+- Si R2 o SMTP tienen variables pero credenciales/bucket incorrectos, el estado cambia a `error`.
+
+Infraestructura:
+
+- Agregado `infra/DEPLOY_DEMO.md` con pasos para Railway, Render, Cloudflare R2, SMTP y email-worker.
+- `infra/README.md` apunta a la guia demo.
+
+Pendiente operativo:
+
+```text
+Configurar R2 real en Cloudflare y pegar variables en Railway.
+Configurar Redis real.
+Configurar SMTP real.
+Desplegar email-worker como servicio separado.
+Validar /health/ready hasta que los servicios necesarios aparezcan como ok.
+```
