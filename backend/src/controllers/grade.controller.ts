@@ -27,6 +27,15 @@ export async function listSummaries(req: Request, res: Response, next: NextFunct
   }
 }
 
+export async function getTimeline(req: Request, res: Response, next: NextFunction) {
+  try {
+    const timeline = await gradeService.getTimeline(getRequestUser(req));
+    res.json(timeline);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function createManual(req: Request, res: Response, next: NextFunction) {
   try {
     const input = createManualGradeSchema.parse(req.body);

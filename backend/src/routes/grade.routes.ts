@@ -9,6 +9,7 @@ export const gradeRoutes = Router();
 gradeRoutes.use(authMiddleware);
 
 gradeRoutes.get("/", gradeController.listSummaries);
+gradeRoutes.get("/timeline", gradeController.getTimeline);
 gradeRoutes.get("/config/:cursoId", requireRole(Rol.ADMIN), gradeController.getConfig);
 gradeRoutes.patch("/config/:cursoId", requireRole(Rol.ADMIN), gradeController.updateConfig);
 gradeRoutes.post("/manual", requireRole(Rol.PROFESOR), gradeController.createManual);

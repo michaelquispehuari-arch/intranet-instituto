@@ -4,6 +4,7 @@ import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, HttpError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
 import type { CreateUserInput, UpdateUserInput } from "../schemas/user.schema.js";
+import { sendWelcomeEmail } from "./email.service.js";
 
 const userSelect = {
   id: true,
@@ -42,7 +43,7 @@ export async function createUser(input: CreateUserInput) {
 
   const passwordHash = await bcrypt.hash(input.password, 12);
 
-  return prisma.usuario.create({
+  const user = await prisma.usuario.create({
     data: {
       email: input.email,
       passwordHash,
@@ -52,6 +53,10 @@ export async function createUser(input: CreateUserInput) {
     },
     select: userSelect,
   });
+
+  await sendWelcomeEmail(user.email, user.nombre, input.password);
+
+  return user;
 }
 
 export async function updateUser(userId: string, input: UpdateUserInput, actor: AuthUser) {

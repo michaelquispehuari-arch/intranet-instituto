@@ -3,6 +3,7 @@ import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
 import type { CreateExamInput, SubmitExamInput, GradeOpenInput } from "../schemas/exam.schema.js";
+import { sendExamPublishedEmail } from "./email.service.js";
 
 const EXAM_SUBMIT_GRACE_MS = 30_000;
 
@@ -273,14 +274,30 @@ export async function createExam(input: CreateExamInput, user: AuthUser) {
 export async function publishExam(examId: string, user: AuthUser) {
   await ensureProfessorOwnsExam(examId, user.id);
 
-  return prisma.examen.update({
+  const exam = await prisma.examen.update({
     where: { id: examId },
     data: {
       publicadoEn: new Date(),
       activo: true,
     },
-    select: examListSelect,
+    include: {
+      curso: {
+        select: {
+          nombre: true,
+          inscripciones: {
+            where: { estudiante: { activo: true } },
+            select: { estudiante: { select: { email: true, nombre: true } } },
+          },
+        },
+      },
+    },
   });
+
+  const students = exam.curso.inscripciones.map((i) => i.estudiante);
+  await sendExamPublishedEmail(students, exam.titulo, exam.curso.nombre);
+
+  const { curso: _curso, ...examData } = exam;
+  return prisma.examen.findUnique({ where: { id: examId }, select: examListSelect });
 }
 
 export async function submitExam(examId: string, input: SubmitExamInput, user: AuthUser) {

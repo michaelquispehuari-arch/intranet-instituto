@@ -24,17 +24,17 @@ after(async () => {
   await prisma.notaManual.deleteMany({
     where: { id: { in: createdManualGradeIds } },
   });
-  await prisma.asistencia.deleteMany({
-    where: {
-      cursoId: courseId,
-      fecha: new Date(2026, 5, 5),
-    },
+  // Revertir nota de asistencia en inscripción (campo nuevo en lugar del registro por fecha)
+  await prisma.inscripcion.updateMany({
+    where: { cursoId: courseId },
+    data: { notaAsistencia: null },
   });
+  // Revertir config del curso a valores por defecto
   await prisma.configCurso.update({
     where: { cursoId: courseId },
     data: {
-      pesoExamenes: 0.7,
-      pesoNotasManuales: 0.3,
+      pesoAsistencia: 0.5,
+      pesoAcademico: 0.5,
       notaAprobatoria: 11,
     },
   });
@@ -45,7 +45,6 @@ after(async () => {
         reject(error);
         return;
       }
-
       resolve();
     });
   });
@@ -84,22 +83,25 @@ test("grades module enforces roles, ownership and configurable weights", async (
   const configResponse = await request(`/api/grades/config/${courseId}`, admin.token);
   assert.equal(configResponse.status, 200);
 
+  // Pesos que suman > 1 → 400
   const invalidConfigResponse = await request(`/api/grades/config/${courseId}`, admin.token, {
     method: "PATCH",
-    body: JSON.stringify({ pesoExamenes: 0.9, pesoNotasManuales: 0.9 }),
+    body: JSON.stringify({ pesoAsistencia: 0.9, pesoAcademico: 0.9 }),
   });
   assert.equal(invalidConfigResponse.status, 400);
 
+  // Pesos válidos (50/50)
   const validConfigResponse = await request(`/api/grades/config/${courseId}`, admin.token, {
     method: "PATCH",
     body: JSON.stringify({
-      pesoExamenes: 0.7,
-      pesoNotasManuales: 0.3,
+      pesoAsistencia: 0.5,
+      pesoAcademico: 0.5,
       notaAprobatoria: 11,
     }),
   });
   assert.equal(validConfigResponse.status, 200);
 
+  // Nota manual en curso ajeno → 403
   const forbiddenManualGradeResponse = await request("/api/grades/manual", professor.token, {
     method: "POST",
     body: JSON.stringify({
@@ -110,6 +112,7 @@ test("grades module enforces roles, ownership and configurable weights", async (
   });
   assert.equal(forbiddenManualGradeResponse.status, 403);
 
+  // Nota manual válida
   const manualGradeResponse = await request("/api/grades/manual", professor.token, {
     method: "POST",
     body: JSON.stringify({
@@ -124,6 +127,7 @@ test("grades module enforces roles, ownership and configurable weights", async (
   const manualGradeBody = (await manualGradeResponse.json()) as { grade: { id: string } };
   createdManualGradeIds.push(manualGradeBody.grade.id);
 
+  // Actualizar nota manual
   const updateManualGradeResponse = await request(
     `/api/grades/manual/${manualGradeBody.grade.id}`,
     professor.token,
@@ -134,6 +138,7 @@ test("grades module enforces roles, ownership and configurable weights", async (
   );
   assert.equal(updateManualGradeResponse.status, 200);
 
+  // Resumen de notas (devuelve promedioAcademico en nuevo schema)
   const professorSummaryResponse = await request(
     `/api/grades?cursoId=${courseId}&estudianteId=${student.user.id}`,
     professor.token,
@@ -141,12 +146,13 @@ test("grades module enforces roles, ownership and configurable weights", async (
   assert.equal(professorSummaryResponse.status, 200);
 
   const professorSummaryBody = (await professorSummaryResponse.json()) as {
-    summaries: Array<{ estudiante: { id: string }; promedioNotasManuales: number }>;
+    summaries: Array<{ estudiante: { id: string }; promedioAcademico: number }>;
   };
   assert.equal(professorSummaryBody.summaries.length, 1);
   assert.equal(professorSummaryBody.summaries[0]?.estudiante.id, student.user.id);
-  assert.equal(professorSummaryBody.summaries[0]?.promedioNotasManuales, 18);
+  assert.equal(professorSummaryBody.summaries[0]?.promedioAcademico, 18);
 
+  // Estudiante no puede ver datos de otro estudiante
   const studentLeakResponse = await request(
     `/api/grades?cursoId=${courseId}&estudianteId=${otherStudent.user.id}`,
     student.token,
@@ -161,20 +167,32 @@ test("grades module enforces roles, ownership and configurable weights", async (
     [student.user.id],
   );
 
+  // Config inaccesible para estudiante
   const studentConfigResponse = await request(`/api/grades/config/${courseId}`, student.token);
   assert.equal(studentConfigResponse.status, 403);
 
-  const attendanceResponse = await request("/api/grades/attendance", professor.token, {
+  // Nota de asistencia (0-20 en inscripcion, solo ADMIN)
+  const attendanceByProfessorResponse = await request("/api/grades/attendance", professor.token, {
     method: "POST",
     body: JSON.stringify({
       estudianteId: student.user.id,
       cursoId: courseId,
-      fecha: "2026-06-05",
-      estado: "PRESENTE",
+      notaAsistencia: 16,
+    }),
+  });
+  assert.equal(attendanceByProfessorResponse.status, 403);
+
+  const attendanceResponse = await request("/api/grades/attendance", admin.token, {
+    method: "POST",
+    body: JSON.stringify({
+      estudianteId: student.user.id,
+      cursoId: courseId,
+      notaAsistencia: 16,
     }),
   });
   assert.equal(attendanceResponse.status, 200);
 
+  // Estudiante no puede ver notas de otro estudiante en attendance
   const studentAttendanceResponse = await request(
     `/api/grades/attendance?cursoId=${courseId}&estudianteId=${otherStudent.user.id}`,
     student.token,
@@ -185,6 +203,17 @@ test("grades module enforces roles, ownership and configurable weights", async (
     attendance: Array<{ estudiante: { id: string } }>;
   };
   assert(
-    studentAttendanceBody.attendance.every((attendance) => attendance.estudiante.id === student.user.id),
+    studentAttendanceBody.attendance.every((a) => a.estudiante.id === student.user.id),
   );
+
+  // Timeline accesible para todos los roles
+  const timelineResponse = await request("/api/grades/timeline", student.token);
+  assert.equal(timelineResponse.status, 200);
+  const timelineBody = (await timelineResponse.json()) as Array<{
+    estudiante: { id: string };
+    semanas: Array<{ estado: string }>;
+  }>;
+  assert(Array.isArray(timelineBody));
+  // Estudiante solo ve sus propios datos
+  assert(timelineBody.every((e) => e.estudiante.id === student.user.id));
 });
