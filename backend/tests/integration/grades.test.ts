@@ -146,11 +146,18 @@ test("grades module enforces roles, ownership and configurable weights", async (
   assert.equal(professorSummaryResponse.status, 200);
 
   const professorSummaryBody = (await professorSummaryResponse.json()) as {
-    summaries: Array<{ estudiante: { id: string }; promedioAcademico: number }>;
+    summaries: Array<{
+      estudiante: { id: string };
+      notaAsistencia: number | null;
+      promedioAcademico: number;
+      promedioFinal: number | null;
+    }>;
   };
   assert.equal(professorSummaryBody.summaries.length, 1);
   assert.equal(professorSummaryBody.summaries[0]?.estudiante.id, student.user.id);
+  assert.equal(professorSummaryBody.summaries[0]?.notaAsistencia, null);
   assert.equal(professorSummaryBody.summaries[0]?.promedioAcademico, 18);
+  assert.equal(professorSummaryBody.summaries[0]?.promedioFinal, null);
 
   // Estudiante no puede ver datos de otro estudiante
   const studentLeakResponse = await request(
@@ -191,6 +198,17 @@ test("grades module enforces roles, ownership and configurable weights", async (
     }),
   });
   assert.equal(attendanceResponse.status, 200);
+
+  const completedSummaryResponse = await request(
+    `/api/grades?cursoId=${courseId}&estudianteId=${student.user.id}`,
+    professor.token,
+  );
+  assert.equal(completedSummaryResponse.status, 200);
+  const completedSummaryBody = (await completedSummaryResponse.json()) as {
+    summaries: Array<{ promedioFinal: number; aprobado: boolean }>;
+  };
+  assert.equal(completedSummaryBody.summaries[0]?.promedioFinal, 17);
+  assert.equal(completedSummaryBody.summaries[0]?.aprobado, true);
 
   // Estudiante no puede ver notas de otro estudiante en attendance
   const studentAttendanceResponse = await request(

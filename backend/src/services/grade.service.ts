@@ -331,9 +331,7 @@ function calculateFinalGrade(
   pesoAsistencia: number,
   pesoAcademico: number,
 ) {
-  if (notaAsistencia === null && promedioAcademico === null) return null;
-  if (notaAsistencia === null) return promedioAcademico;
-  if (promedioAcademico === null) return notaAsistencia;
+  if (notaAsistencia === null || promedioAcademico === null) return null;
   return round2(notaAsistencia * pesoAsistencia + promedioAcademico * pesoAcademico);
 }
 

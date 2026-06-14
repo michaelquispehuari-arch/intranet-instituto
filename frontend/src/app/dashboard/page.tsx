@@ -6,21 +6,21 @@ import { LogoutButton } from "./logout-button";
 const modulesByRole = {
   ADMIN: [
     { title: "Usuarios", href: "/users", description: "Gestion de cuentas y roles." },
-    { title: "Cursos", href: "/courses", description: "Gestion de cursos y profesores." },
-    { title: "Calificaciones", href: "/grades", description: "Revision general y configuracion academica." },
-    { title: "Configuracion", href: "/settings", description: "Parametros del sistema." },
+    { title: "Cursos", href: "/cursos", description: "Gestion de cursos y profesores." },
+    { title: "Calificaciones", href: "/calificaciones", description: "Revision general del avance academico." },
+    { title: "Configuracion", href: "/configuracion", description: "Enlace Zoom y ajustes globales." },
   ],
   PROFESOR: [
-    { title: "Cursos", href: "/courses", description: "Cursos asignados y estudiantes." },
+    { title: "Cursos", href: "/cursos", description: "Cursos asignados y estudiantes." },
     { title: "Materiales", href: "/content", description: "Biblioteca de archivos por curso." },
     { title: "Examenes", href: "/exams", description: "Crear, publicar y revisar examenes." },
-    { title: "Calificaciones", href: "/grades", description: "Notas manuales, promedios y asistencia." },
+    { title: "Calificaciones", href: "/calificaciones", description: "Notas y situacion por alumno." },
   ],
   ESTUDIANTE: [
-    { title: "Cursos", href: "/courses", description: "Cursos donde estas inscrito." },
+    { title: "Cursos", href: "/cursos", description: "Cursos donde estas inscrito." },
     { title: "Examenes", href: "/exams", description: "Evaluaciones publicadas de tus cursos." },
     { title: "Materiales", href: "/content", description: "Biblioteca de archivos disponibles." },
-    { title: "Mis notas", href: "/grades", description: "Promedios, notas y asistencia." },
+    { title: "Mis notas", href: "/calificaciones", description: "Promedios, notas y asistencia." },
   ],
 } as const;
 

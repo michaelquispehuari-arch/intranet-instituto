@@ -17,8 +17,8 @@ type GradeSummary = {
     apellido: string;
     email: string;
   };
-  promedioExamenes: number | null;
-  promedioNotasManuales: number | null;
+  notaAsistencia: number | null;
+  promedioAcademico: number | null;
   promedioFinal: number | null;
   aprobado: boolean | null;
   notaAprobatoria: number;
@@ -66,20 +66,19 @@ async function createManualGrade(formData: FormData) {
   redirect("/grades");
 }
 
-async function registerAttendance(formData: FormData) {
+async function setAttendanceGrade(formData: FormData) {
   "use server";
 
   const session = await getServerSession(authOptions);
 
-  if (!session || session.user.rol !== "PROFESOR") {
+  if (!session || session.user.rol !== "ADMIN") {
     redirect("/login");
   }
 
   await backendPost("/api/grades/attendance", session, {
     estudianteId: parseTarget(formData).estudianteId,
     cursoId: parseTarget(formData).cursoId,
-    fecha: String(formData.get("fecha") ?? ""),
-    estado: String(formData.get("estado") ?? "PRESENTE"),
+    notaAsistencia: Number(formData.get("notaAsistencia") ?? 0),
   });
 
   redirect("/grades");
@@ -100,7 +99,7 @@ export default async function GradesPage() {
   const data = await backendGet<{ summaries: GradeSummary[] }>("/api/grades", session);
   let courseDetails: CourseDetail[] = [];
 
-  if (session.user.rol === "PROFESOR") {
+  if (session.user.rol === "ADMIN" || session.user.rol === "PROFESOR") {
     const { courses } = await backendGet<{ courses: CourseListItem[] }>("/api/courses", session);
     courseDetails = await Promise.all(
       courses.map(async (course) => {
@@ -150,26 +149,20 @@ export default async function GradesPage() {
                 Registrar nota
               </button>
             </form>
+          </section>
+        ) : null}
 
-            <form className="panel form wide-form" action={registerAttendance}>
-              <h2 className="section-title">Asistencia</h2>
+        {session.user.rol === "ADMIN" ? (
+          <section className="grid two-column-grid" aria-label="Acciones de admin">
+            <form className="panel form wide-form" action={setAttendanceGrade}>
+              <h2 className="section-title">Nota de asistencia</h2>
               <GradeStudentFields courses={courseDetails} />
-              <div className="form-grid compact">
-                <label className="field">
-                  <span>Fecha</span>
-                  <input name="fecha" type="date" required />
-                </label>
-                <label className="field">
-                  <span>Estado</span>
-                  <select name="estado" defaultValue="PRESENTE" required>
-                    <option value="PRESENTE">Presente</option>
-                    <option value="AUSENTE">Ausente</option>
-                    <option value="TARDANZA">Tardanza</option>
-                  </select>
-                </label>
-              </div>
+              <label className="field">
+                <span>Nota 0 a 20</span>
+                <input name="notaAsistencia" type="number" min={0} max={20} step={0.1} required />
+              </label>
               <button className="button" type="submit" disabled={courseDetails.length === 0}>
-                Registrar asistencia
+                Guardar asistencia
               </button>
             </form>
           </section>
@@ -192,8 +185,8 @@ export default async function GradesPage() {
                   <p>
                     {summary.estudiante.nombre} {summary.estudiante.apellido}
                   </p>
-                  <p>Examenes: {formatGrade(summary.promedioExamenes)}</p>
-                  <p>Notas manuales: {formatGrade(summary.promedioNotasManuales)}</p>
+                  <p>Asistencia: {formatGrade(summary.notaAsistencia)}</p>
+                  <p>Academico: {formatGrade(summary.promedioAcademico)}</p>
                   <p>Aprobatoria: {summary.notaAprobatoria.toFixed(1)}</p>
                 </div>
                 <strong>

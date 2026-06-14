@@ -5,17 +5,34 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { AppShell } from "../../components/app-shell";
 
+type ServiceStatus = {
+  status: "ok" | "missing" | "error";
+  message?: string;
+};
+
+type ReadinessStatus = {
+  status: "ready" | "degraded";
+  services: Record<string, ServiceStatus>;
+};
+
 export default function ConfiguracionPage() {
   const [enlaceZoom, setEnlaceZoom] = useState("");
+  const [readiness, setReadiness] = useState<ReadinessStatus | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/backend/config/zoom")
-      .then((r) => r.json())
-      .then((data) => {
-        setEnlaceZoom(data?.enlaceZoom ?? "");
+    Promise.all([
+      fetch("/api/backend/config/zoom").then((r) => r.json()),
+      fetch("/api/backend/health/ready").then((r) => r.json()),
+    ])
+      .then(([zoomData, readinessData]) => {
+        setEnlaceZoom(zoomData?.enlaceZoom ?? "");
+        setReadiness(readinessData?.services ? readinessData : null);
+        setLoading(false);
+      })
+      .catch(() => {
         setLoading(false);
       });
   }, []);
@@ -43,6 +60,34 @@ export default function ConfiguracionPage() {
         <span className="page-eyebrow">Administración</span>
         <h1 className="page-title">Configuración</h1>
         <p className="page-subtitle">Ajustes globales del ciclo académico</p>
+      </div>
+
+      <div className="card" style={{ maxWidth: 720, marginBottom: 16 }}>
+        <div className="card-header" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Estado de servicios</h2>
+          <span className={`status-pill ${readiness?.status === "ready" ? "ok" : "warning"}`}>
+            {readiness?.status === "ready" ? "Listo" : "Pendiente"}
+          </span>
+        </div>
+        <div className="card-body">
+          {readiness ? (
+            <dl className="service-list">
+              {Object.entries(readiness.services).map(([name, service]) => (
+                <div key={name}>
+                  <dt>{name.toUpperCase()}</dt>
+                  <dd>
+                    <span className={`status-pill ${service.status}`}>{service.status}</span>
+                    {service.message ? <small>{service.message}</small> : null}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p style={{ margin: 0, color: "var(--texto-tenue)" }}>
+              No se pudo consultar el diagnostico del backend.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="card" style={{ maxWidth: 520 }}>

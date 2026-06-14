@@ -27,8 +27,8 @@ type CourseItem = {
 type GradeConfig = {
   id?: string;
   cursoId: string;
-  pesoExamenes: number;
-  pesoNotasManuales: number;
+  pesoAsistencia: number;
+  pesoAcademico: number;
   notaAprobatoria: number;
 };
 
@@ -65,8 +65,8 @@ async function updateGradeConfig(formData: FormData) {
 
   const cursoId = String(formData.get("cursoId") ?? "");
   await backendPatch(`/api/grades/config/${cursoId}`, session, {
-    pesoExamenes: Number(formData.get("pesoExamenes") ?? 0),
-    pesoNotasManuales: Number(formData.get("pesoNotasManuales") ?? 0),
+    pesoAsistencia: Number(formData.get("pesoAsistencia") ?? 0),
+    pesoAcademico: Number(formData.get("pesoAcademico") ?? 0),
     notaAprobatoria: Number(formData.get("notaAprobatoria") ?? 0),
   });
 
@@ -172,26 +172,26 @@ export default async function SettingsPage() {
                     <input name="cursoId" type="hidden" value={course.id} />
                     <div className="form-grid compact">
                       <label className="field">
-                        <span>Peso examenes</span>
+                        <span>Peso asistencia</span>
                         <input
-                          name="pesoExamenes"
+                          name="pesoAsistencia"
                           type="number"
                           min={0}
                           max={1}
                           step={0.01}
-                          defaultValue={config?.pesoExamenes ?? 0.7}
+                          defaultValue={config?.pesoAsistencia ?? 0.5}
                           required
                         />
                       </label>
                       <label className="field">
-                        <span>Peso notas manuales</span>
+                        <span>Peso academico</span>
                         <input
-                          name="pesoNotasManuales"
+                          name="pesoAcademico"
                           type="number"
                           min={0}
                           max={1}
                           step={0.01}
-                          defaultValue={config?.pesoNotasManuales ?? 0.3}
+                          defaultValue={config?.pesoAcademico ?? 0.5}
                           required
                         />
                       </label>
