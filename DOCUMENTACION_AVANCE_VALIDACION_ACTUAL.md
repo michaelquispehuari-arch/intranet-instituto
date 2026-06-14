@@ -586,3 +586,35 @@ Regla:
 No documentar valores reales de DATABASE_URL, JWT_SECRET, NEXTAUTH_SECRET, SMTP_PASS, R2 ni tokens.
 Los placeholders como temporal, pendiente y smtp.example.com no cuentan como configuracion valida.
 ```
+
+---
+
+## Avance aplicado - control real de tiempo en examenes 2026-06-14
+
+Backend:
+
+- Al abrir un examen como ESTUDIANTE, el backend crea o reutiliza el intento real en `ExamenEnvio`.
+- `POST /api/exams/:id/submit` rechaza envios cuando el intento supero `duracionMinutos`.
+- Se mantiene idempotencia: si el examen ya fue completado, el backend devuelve el resultado guardado.
+- Se agrega un margen tecnico de 30 segundos para evitar fallos por latencia al enviar.
+
+Frontend:
+
+- `/exams/[id]` muestra el tiempo restante basado en el intento real del backend.
+- Si el examen ya fue enviado, la pagina muestra acceso directo a resultados en vez de un formulario bloqueado.
+
+Pruebas:
+
+- Agregada `backend/tests/integration/exams.test.ts`.
+- `npm.cmd run test:integration` ahora ejecuta pruebas de calificaciones y examenes.
+
+Validaciones ejecutadas:
+
+```text
+backend: npm.cmd run typecheck        -> OK
+backend: npm.cmd run build            -> OK
+backend: npm.cmd run prisma:validate  -> OK
+backend: npm.cmd run test:integration -> OK (2/2 pass)
+frontend: npm.cmd run typecheck       -> OK
+frontend: npm.cmd run build           -> OK (20 rutas generadas)
+```

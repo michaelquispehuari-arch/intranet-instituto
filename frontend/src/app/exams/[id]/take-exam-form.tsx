@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { readApiError } from "@/lib/api-error";
 import type { ExamDetail } from "../types";
@@ -14,10 +14,28 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(exam.tiempoRestanteSegundos ?? null);
+
+  useEffect(() => {
+    if (remainingSeconds === null || remainingSeconds <= 0) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setRemainingSeconds((current) => (current === null ? null : Math.max(0, current - 1)));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [remainingSeconds]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    if (remainingSeconds === 0) {
+      setError("El tiempo del examen ha terminado.");
+      return;
+    }
 
     const respuestas = exam.preguntas.map((question) => ({
       preguntaId: question.id,
@@ -51,8 +69,19 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
     router.refresh();
   }
 
+  const remainingLabel =
+    remainingSeconds === null
+      ? null
+      : `${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")}`;
+
   return (
     <form className="panel form wide-form" onSubmit={handleSubmit}>
+      {remainingLabel ? (
+        <div className="card-actions">
+          <span className="badge">Tiempo restante: {remainingLabel}</span>
+        </div>
+      ) : null}
+
       <div className="stack">
         {exam.preguntas.map((question) => (
           <fieldset className="question-box" key={question.id}>
@@ -80,7 +109,7 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
       {error ? <p className="error">{error}</p> : null}
 
       <div className="card-actions">
-        <button className="button" type="submit" disabled={isSubmitting}>
+        <button className="button" type="submit" disabled={isSubmitting || remainingSeconds === 0}>
           {isSubmitting ? "Enviando..." : "Enviar examen"}
         </button>
       </div>

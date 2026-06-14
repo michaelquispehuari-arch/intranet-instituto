@@ -16,7 +16,7 @@
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
-    "test:integration": "node --import tsx --test --test-timeout=120000 tests/integration/grades.test.ts",
+    "test:integration": "node --import tsx --test --test-timeout=120000 tests/integration/grades.test.ts tests/integration/exams.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

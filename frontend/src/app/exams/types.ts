@@ -40,6 +40,11 @@ export type ExamDetail = {
   descripcion: string | null;
   duracionMinutos: number;
   publicadoEn: string | null;
+  intento?: {
+    iniciadoEn: string;
+    completado: boolean;
+  };
+  tiempoRestanteSegundos?: number;
   curso: {
     id: string;
     nombre: string;

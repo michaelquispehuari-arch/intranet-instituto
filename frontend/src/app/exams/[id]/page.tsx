@@ -49,7 +49,17 @@ export default async function ExamPage({ params }: ExamPageProps) {
           </p>
         </section>
 
-        {canTakeExam ? (
+        {canTakeExam && exam.intento?.completado ? (
+          <section className="panel empty-state">
+            <h2>Examen enviado</h2>
+            <p className="muted">Tu envio ya fue registrado.</p>
+            <div className="card-actions">
+              <Link className="button" href={`/exams/${exam.id}/results`}>
+                Ver resultado
+              </Link>
+            </div>
+          </section>
+        ) : canTakeExam ? (
           <TakeExamForm exam={exam} />
         ) : (
           <section className="panel form wide-form">

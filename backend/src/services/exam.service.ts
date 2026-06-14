@@ -4,6 +4,8 @@ import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
 import type { CreateExamInput, SubmitExamInput } from "../schemas/exam.schema.js";
 
+const EXAM_SUBMIT_GRACE_MS = 30_000;
+
 const examListSelect = {
   id: true,
   titulo: true,
@@ -118,9 +120,38 @@ export async function getExamById(examId: string, user: AuthUser) {
     throw new ForbiddenError();
   }
 
+  const attempt = await prisma.examenEnvio.upsert({
+    where: {
+      estudianteId_examenId: {
+        estudianteId: user.id,
+        examenId: exam.id,
+      },
+    },
+    update: {},
+    create: {
+      estudianteId: user.id,
+      examenId: exam.id,
+    },
+    select: {
+      iniciadoEn: true,
+      completado: true,
+    },
+  });
+
+  if (!attempt.completado && isExamTimeExpired(attempt.iniciadoEn, exam.duracionMinutos)) {
+    throw new ForbiddenError("El tiempo del examen ha terminado");
+  }
+
   return {
     ...exam,
     preguntas: exam.preguntas.map(({ respuestaCorrecta: _respuestaCorrecta, ...question }) => question),
+    intento: {
+      iniciadoEn: attempt.iniciadoEn,
+      completado: attempt.completado,
+    },
+    tiempoRestanteSegundos: attempt.completado
+      ? 0
+      : getRemainingExamSeconds(attempt.iniciadoEn, exam.duracionMinutos),
   };
 }
 
@@ -289,11 +320,19 @@ export async function submitExam(examId: string, input: SubmitExamInput, user: A
     select: {
       id: true,
       completado: true,
+      iniciadoEn: true,
     },
   });
 
   if (existingSubmission?.completado) {
     return getSubmissionResult(existingSubmission.id);
+  }
+
+  if (
+    existingSubmission &&
+    isExamTimeExpired(existingSubmission.iniciadoEn, exam.duracionMinutos)
+  ) {
+    throw new ForbiddenError("El tiempo del examen ha terminado");
   }
 
   const answerMap = new Map(input.respuestas.map((answer) => [answer.preguntaId, answer.respuesta]));
@@ -447,4 +486,17 @@ function isExamAvailable(exam: {
   }
 
   return true;
+}
+
+function getRemainingExamSeconds(startedAt: Date, durationMinutes: number) {
+  const endsAt = startedAt.getTime() + durationMinutes * 60_000;
+  const remainingMs = Math.max(0, endsAt - Date.now());
+
+  return Math.ceil(remainingMs / 1000);
+}
+
+function isExamTimeExpired(startedAt: Date, durationMinutes: number) {
+  const expiresAt = startedAt.getTime() + durationMinutes * 60_000 + EXAM_SUBMIT_GRACE_MS;
+
+  return Date.now() > expiresAt;
 }
