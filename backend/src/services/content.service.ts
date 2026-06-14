@@ -68,7 +68,7 @@ export async function getContentById(contentId: string, user: AuthUser) {
 }
 
 export async function uploadContent(input: UploadContentInput, file: Express.Multer.File, user: AuthUser) {
-  await ensureProfessorOwnsCourse(input.cursoId, user.id);
+  await ensureCanUploadToCourse(input.cursoId, user);
 
   const extension = getFileExtension(file.originalname);
 
@@ -202,11 +202,24 @@ async function findAccessibleMaterial(contentId: string, user: AuthUser) {
   throw new ForbiddenError();
 }
 
-async function ensureProfessorOwnsCourse(courseId: string, professorId: string) {
+async function ensureCanUploadToCourse(courseId: string, user: AuthUser) {
+  if (user.rol === Rol.ADMIN) {
+    const course = await prisma.curso.findUnique({
+      where: { id: courseId },
+      select: { id: true },
+    });
+
+    if (!course) {
+      throw new ForbiddenError("Curso no encontrado");
+    }
+
+    return;
+  }
+
   const course = await prisma.curso.findFirst({
     where: {
       id: courseId,
-      profesorId: professorId,
+      profesorId: user.id,
       activo: true,
     },
     select: { id: true },

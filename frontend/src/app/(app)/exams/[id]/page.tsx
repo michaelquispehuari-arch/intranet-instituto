@@ -1,7 +1,6 @@
 import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogoutButton } from "@/app/dashboard/logout-button";
 import { authOptions } from "@/lib/auth";
 import { backendGet } from "@/lib/backend";
 import type { ExamDetail } from "../types";
@@ -26,35 +25,27 @@ export default async function ExamPage({ params }: ExamPageProps) {
   const canTakeExam = session.user.rol === "ESTUDIANTE";
 
   return (
-    <main className="page">
-      <div className="shell dashboard">
-        <header className="topbar">
-          <div className="brand">
-            <strong>{exam.titulo}</strong>
-            <span className="muted">{session.user.email}</span>
-          </div>
-          <div className="toolbar">
-            <Link className="button secondary" href="/exams">
-              Volver
-            </Link>
-            <LogoutButton />
-          </div>
-        </header>
+    <div>
+      <div style={{ marginBottom: 12 }}>
+        <Link href="/exams" style={{ fontSize: 13, color: "var(--texto-tenue)" }}>
+          ← Examenes
+        </Link>
+      </div>
 
-        <section className="panel hero">
+        <section className="page-header">
           <span className="badge">{exam.curso.nombre}</span>
-          <h1>{exam.titulo}</h1>
-          <p className="muted">
+          <h1 className="page-title">{exam.titulo}</h1>
+          <p className="page-subtitle">
             {exam.descripcion ?? "Sin descripcion"} · {exam.duracionMinutos} minutos
           </p>
         </section>
 
         {canTakeExam && exam.intento?.completado ? (
-          <section className="panel empty-state">
+          <section className="card empty-state">
             <h2>Examen enviado</h2>
             <p className="muted">Tu envio ya fue registrado.</p>
             <div className="card-actions">
-              <Link className="button" href={`/exams/${exam.id}/results`}>
+              <Link className="btn btn-primary" href={`/exams/${exam.id}/results`}>
                 Ver resultado
               </Link>
             </div>
@@ -62,7 +53,7 @@ export default async function ExamPage({ params }: ExamPageProps) {
         ) : canTakeExam ? (
           <TakeExamForm exam={exam} />
         ) : (
-          <section className="panel form wide-form">
+          <section className="card" style={{ padding: 20 }}>
             <div className="stack">
               {exam.preguntas.map((question) => (
                 <article className="question-box" key={question.id}>
@@ -81,7 +72,6 @@ export default async function ExamPage({ params }: ExamPageProps) {
             </div>
           </section>
         )}
-      </div>
-    </main>
+    </div>
   );
 }

@@ -13,7 +13,7 @@ contentRoutes.get("/", contentController.list);
 contentRoutes.get("/:id", contentController.getById);
 contentRoutes.post(
   "/",
-  requireRole(Rol.PROFESOR),
+  requireRole(Rol.ADMIN, Rol.PROFESOR),
   uploadMaterialFile.single("file"),
   contentController.upload,
 );

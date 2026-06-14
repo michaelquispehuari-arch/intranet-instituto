@@ -172,13 +172,13 @@ export default function CourseWorkspacePage() {
           <div className="card-header">
             <h3>Material del curso</h3>
             {(session?.user?.rol === "ADMIN" || session?.user?.rol === "PROFESOR") && (
-              <Link href={`/content/upload?cursoId=${id}`} className="btn btn-primary">
+              <Link href={`/material/subir?cursoId=${id}`} className="btn btn-primary">
                 + Subir material
               </Link>
             )}
           </div>
           <div className="card-body">
-            <Link href={`/content?cursoId=${id}`} style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
+            <Link href={`/material?cursoId=${id}`} style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
               Ver todo el material de este curso →
             </Link>
           </div>

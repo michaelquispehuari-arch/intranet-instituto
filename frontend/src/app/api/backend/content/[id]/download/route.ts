@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { BackendRequestError, backendGet } from "@/lib/backend";
-import type { MaterialItem } from "@/app/content/types";
+import type { MaterialItem } from "@/app/(app)/material/types";
 
 type RouteContext = {
   params: Promise<{

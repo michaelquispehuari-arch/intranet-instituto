@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { BackendRequestError, backendPost } from "@/lib/backend";
-import type { ExamListItem } from "@/app/exams/types";
+import type { ExamListItem } from "@/app/(app)/exams/types";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);

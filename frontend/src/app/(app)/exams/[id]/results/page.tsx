@@ -1,7 +1,6 @@
 import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogoutButton } from "@/app/dashboard/logout-button";
 import { authOptions } from "@/lib/auth";
 import { backendGet } from "@/lib/backend";
 import type { ExamResults } from "../../types";
@@ -33,36 +32,28 @@ export default async function ExamResultsPage({ params }: ExamResultsPageProps) 
   }
 
   return (
-    <main className="page">
-      <div className="shell dashboard">
-        <header className="topbar">
-          <div className="brand">
-            <strong>Resultados</strong>
-            <span className="muted">{session.user.email}</span>
-          </div>
-          <div className="toolbar">
-            <Link className="button secondary" href="/exams">
-              Volver
-            </Link>
-            <LogoutButton />
-          </div>
-        </header>
+    <div>
+      <div style={{ marginBottom: 12 }}>
+        <Link href="/exams" style={{ fontSize: 13, color: "var(--texto-tenue)" }}>
+          ← Examenes
+        </Link>
+      </div>
 
-        <section className="panel hero">
+        <section className="page-header">
           <span className="badge">Resultados</span>
-          <h1>{data?.exam.titulo ?? "Resultado no disponible"}</h1>
-          <p className="muted">Resultados registrados por el backend.</p>
+          <h1 className="page-title">{data?.exam.titulo ?? "Resultado no disponible"}</h1>
+          <p className="page-subtitle">Resultados registrados por el backend.</p>
         </section>
 
         {!data || data.submissions.length === 0 ? (
-          <section className="panel empty-state">
+          <section className="card empty-state">
             <strong>Sin envios completados.</strong>
             <p className="muted">Cuando un estudiante envie el examen, el resultado aparecera aqui.</p>
           </section>
         ) : (
           <section className="stack" aria-label="Resultados del examen">
             {data.submissions.map((submission) => (
-              <article className="panel result-card" key={submission.id}>
+              <article className="card result-card" style={{ padding: 20 }} key={submission.id}>
                 <div className="result-header">
                   <div>
                     <span className="badge">{formatScore(submission.puntajeTotal)}</span>
@@ -96,7 +87,6 @@ export default async function ExamResultsPage({ params }: ExamResultsPageProps) 
             ))}
           </section>
         )}
-      </div>
-    </main>
+    </div>
   );
 }
