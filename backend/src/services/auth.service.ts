@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
-import type { Usuario } from "@prisma/client";
+import type { Rol } from "@prisma/client";
 import { env } from "../config/env.js";
 import { enqueueEmail } from "../queues/email.queue.js";
 import type {
@@ -29,7 +29,17 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
-function toAuthUser(user: Usuario): AuthUser {
+type LoginUser = {
+  id: string;
+  email: string;
+  passwordHash: string;
+  nombre: string;
+  apellido: string;
+  rol: Rol;
+  activo: boolean;
+};
+
+function toAuthUser(user: LoginUser): AuthUser {
   return {
     id: user.id,
     email: user.email,
@@ -42,6 +52,15 @@ function toAuthUser(user: Usuario): AuthUser {
 export async function login(input: { email: string; password: string }) {
   const user = await prisma.usuario.findUnique({
     where: { email: input.email },
+    select: {
+      id: true,
+      email: true,
+      passwordHash: true,
+      nombre: true,
+      apellido: true,
+      rol: true,
+      activo: true,
+    },
   });
 
   if (!user || !user.activo) {
