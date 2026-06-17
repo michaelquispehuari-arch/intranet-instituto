@@ -7,6 +7,7 @@ import {
   updateSessionSchema,
   upsertSessionAttendanceSchema,
   requireSummarySchema,
+  reviewSummarySchema,
   updateSummaryDeadlineSchema,
   summaryIdParamSchema,
 } from "../schemas/session.schema.js";
@@ -109,7 +110,8 @@ export async function updateSummaryDeadline(req: Request, res: Response, next: N
 export async function reviewSummary(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = summaryIdParamSchema.parse(req.params);
-    const result = await sessionService.reviewSummary(id, req.user!);
+    const { notaTranscripcion } = reviewSummarySchema.parse(req.body);
+    const result = await sessionService.reviewSummary(id, notaTranscripcion, req.user!);
     res.json(result);
   } catch (error) {
     next(error);

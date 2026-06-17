@@ -4,7 +4,6 @@ import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, HttpError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
 import type { CreateUserInput, UpdateUserInput } from "../schemas/user.schema.js";
-import { sendWelcomeEmail } from "./email.service.js";
 
 const userSelect = {
   id: true,
@@ -53,8 +52,6 @@ export async function createUser(input: CreateUserInput) {
     },
     select: userSelect,
   });
-
-  await sendWelcomeEmail(user.email, user.nombre, input.password);
 
   return user;
 }

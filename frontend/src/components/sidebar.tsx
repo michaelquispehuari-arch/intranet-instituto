@@ -18,6 +18,7 @@ const navItems: NavItem[] = [
   { href: "/calificaciones", label: "Calificaciones", icon: "📊", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
   { href: "/exams", label: "Exámenes", icon: "📝", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
   { href: "/material", label: "Material", icon: "📁", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+  { href: "/estudiantes", label: "Estudiantes", icon: "🎓", roles: ["ADMIN"] },
   { href: "/usuarios", label: "Usuarios", icon: "👥", roles: ["ADMIN"] },
   { href: "/sustitutorios", label: "Sustitutorios", icon: "🔄", roles: ["ADMIN"] },
   { href: "/configuracion", label: "Configuración", icon: "⚙️", roles: ["ADMIN"] },

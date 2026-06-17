@@ -207,6 +207,11 @@ export default function CourseWorkspacePage() {
         <div className="card">
           <div className="card-header">
             <h3>Calificaciones</h3>
+            {(session?.user?.rol === "ADMIN" || session?.user?.rol === "PROFESOR") && (
+              <Link href={`/cursos/${id}/notas`} className="btn btn-primary">
+                Abrir grilla de notas
+              </Link>
+            )}
           </div>
           <div className="card-body">
             <Link href="/calificaciones" style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>

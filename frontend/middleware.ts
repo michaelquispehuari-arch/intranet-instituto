@@ -14,6 +14,7 @@ const roleAccess: Record<string, Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE">> = {
   "/calificaciones": ["ADMIN", "PROFESOR", "ESTUDIANTE"],
   "/users": ["ADMIN"],
   "/usuarios": ["ADMIN"],
+  "/estudiantes": ["ADMIN"],
   "/settings": ["ADMIN"],
   "/configuracion": ["ADMIN"],
   "/sustitutorios": ["ADMIN"],
@@ -57,5 +58,6 @@ export const config = {
     "/settings/:path*",
     "/configuracion/:path*",
     "/sustitutorios/:path*",
+    "/estudiantes/:path*",
   ],
 };

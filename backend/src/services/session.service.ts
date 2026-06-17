@@ -307,7 +307,7 @@ export async function updateSummaryDeadline(
   });
 }
 
-export async function reviewSummary(summaryId: string, user: AuthUser) {
+export async function reviewSummary(summaryId: string, notaTranscripcion: number | null | undefined, user: AuthUser) {
   if (user.rol !== Rol.ADMIN) {
     throw new ForbiddenError();
   }
@@ -323,7 +323,10 @@ export async function reviewSummary(summaryId: string, user: AuthUser) {
 
   return prisma.entregaResumen.update({
     where: { id: summaryId },
-    data: { estado: "REVISADO" },
+    data: {
+      estado: "REVISADO",
+      ...(notaTranscripcion !== undefined ? { notaTranscripcion } : {}),
+    },
   });
 }
 
