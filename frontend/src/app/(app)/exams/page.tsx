@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { backendGet, backendPatch } from "@/lib/backend";
+import { BackendRequestError, backendGet, backendPatch } from "@/lib/backend";
 import type { ExamListItem } from "./types";
 
 function formatDate(value: string | null) {
@@ -37,7 +37,20 @@ export default async function ExamsPage() {
     redirect("/login");
   }
 
-  const data = await backendGet<{ exams: ExamListItem[] }>("/api/exams", session);
+  let data: { exams: ExamListItem[] };
+  try {
+    data = await backendGet<{ exams: ExamListItem[] }>("/api/exams", session);
+  } catch (err) {
+    if (err instanceof BackendRequestError && err.statusCode === 401) redirect("/login");
+    return (
+      <div className="card">
+        <div className="empty-state">
+          <p className="empty-state-title">Error al cargar exámenes</p>
+          <p style={{ color: "var(--texto-tenue)" }}>{err instanceof Error ? err.message : "Error del servidor"}</p>
+        </div>
+      </div>
+    );
+  }
   const isProfessor = session.user.rol === "PROFESOR";
 
   return (

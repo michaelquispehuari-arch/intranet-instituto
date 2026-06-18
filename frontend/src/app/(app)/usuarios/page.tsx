@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { backendDelete, backendGet, backendPatch, backendPost } from "@/lib/backend";
+import { BackendRequestError, backendDelete, backendGet, backendPatch, backendPost } from "@/lib/backend";
 
 type UsersPageProps = {
   searchParams?: Promise<{ q?: string }>;
@@ -74,7 +74,20 @@ export default async function UsuariosPage({ searchParams }: UsersPageProps) {
   if (!session) redirect("/login");
   if (session.user.rol !== "ADMIN") redirect("/inicio");
 
-  const data = await backendGet<{ users: UserItem[] }>("/api/users", session);
+  let data: { users: UserItem[] };
+  try {
+    data = await backendGet<{ users: UserItem[] }>("/api/users", session);
+  } catch (err) {
+    if (err instanceof BackendRequestError && err.statusCode === 401) redirect("/login");
+    return (
+      <div className="card">
+        <div className="empty-state">
+          <p className="empty-state-title">Error al cargar usuarios</p>
+          <p style={{ color: "var(--texto-tenue)" }}>{err instanceof Error ? err.message : "Error del servidor"}</p>
+        </div>
+      </div>
+    );
+  }
   const query = ((await searchParams)?.q ?? "").trim().toLowerCase();
   const users = query
     ? data.users.filter((u) =>

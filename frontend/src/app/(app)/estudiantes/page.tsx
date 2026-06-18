@@ -45,6 +45,7 @@ export default function EstudiantesPage() {
     modo: "SINCRONICO",
   });
   const [importStatus, setImportStatus] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
   const csvRef = useRef<HTMLInputElement>(null);
 
   async function load(q = query) {
@@ -67,6 +68,7 @@ export default function EstudiantesPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setCreateError(null);
     const r = await fetch("/api/backend/students", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -77,6 +79,9 @@ export default function EstudiantesPage() {
       setShowCreate(false);
       setNewStudent({ modo: "SINCRONICO" });
       load();
+    } else {
+      const d = await r.json().catch(() => ({})) as { error?: string };
+      setCreateError(d.error ?? "Error al crear estudiante");
     }
   }
 
@@ -147,8 +152,12 @@ export default function EstudiantesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rows }),
     });
-    const result = await r.json();
-    setImportStatus(`Importados: ${result.created} · Saltados: ${result.skipped}${result.errors?.length ? ` · Errores: ${result.errors.length}` : ""}`);
+    const result = await r.json() as { created?: number; skipped?: number; errors?: string[]; error?: string };
+    if (!r.ok) {
+      setImportStatus(`Error al importar: ${result.error ?? "Error del servidor"}`);
+    } else {
+      setImportStatus(`Importados: ${result.created ?? 0} · Saltados: ${result.skipped ?? 0}${result.errors?.length ? ` · Errores: ${result.errors.length}` : ""}`);
+    }
     load();
     if (csvRef.current) csvRef.current.value = "";
   }
@@ -229,6 +238,9 @@ export default function EstudiantesPage() {
               <p style={{ margin: 0, fontSize: 12, color: "var(--texto-tenue)" }}>
                 La contrasena inicial del estudiante sera su DNI.
               </p>
+              {createError && (
+                <p style={{ margin: 0, fontSize: 13, color: "var(--desaprobado-texto)" }}>{createError}</p>
+              )}
               <div>
                 <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Creando…" : "Crear estudiante"}</button>
               </div>

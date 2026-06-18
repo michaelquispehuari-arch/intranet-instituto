@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { LogoutButton } from "@/app/dashboard/logout-button";
 import { SearchForm } from "@/components/search-form";
 import { authOptions } from "@/lib/auth";
-import { backendDelete, backendGet, backendPatch, backendPost } from "@/lib/backend";
+import { BackendRequestError, backendDelete, backendGet, backendPatch, backendPost } from "@/lib/backend";
 
 type CoursesPageProps = {
   searchParams?: Promise<{
@@ -147,7 +147,26 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
     redirect("/login");
   }
 
-  const { courses } = await backendGet<{ courses: CourseItem[] }>("/api/courses", session);
+  let courses: CourseItem[];
+  try {
+    const result = await backendGet<{ courses: CourseItem[] }>("/api/courses", session);
+    courses = result.courses;
+  } catch (err) {
+    if (err instanceof BackendRequestError && err.statusCode === 401) redirect("/login");
+    return (
+      <main className="page">
+        <div className="shell dashboard">
+          <div className="card">
+            <div className="empty-state">
+              <p className="empty-state-title">Error al cargar cursos</p>
+              <p>{err instanceof Error ? err.message : "Error del servidor"}</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const query = ((await searchParams)?.q ?? "").trim().toLowerCase();
   const filteredCourses = query
     ? courses.filter((course) =>
@@ -169,19 +188,27 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   let courseDetails = new Map<string, CourseDetail>();
 
   if (session.user.rol === "ADMIN") {
-    const usersData = await backendGet<{ users: UserItem[] }>("/api/users", session);
-    professors = usersData.users.filter((user) => user.rol === "PROFESOR" && user.activo);
-    students = usersData.users.filter((user) => user.rol === "ESTUDIANTE" && user.activo);
+    try {
+      const usersData = await backendGet<{ users: UserItem[] }>("/api/users", session);
+      professors = usersData.users.filter((user) => user.rol === "PROFESOR" && user.activo);
+      students = usersData.users.filter((user) => user.rol === "ESTUDIANTE" && user.activo);
+    } catch {
+      // Si falla la lista de usuarios, seguimos sin los selectores de profesor/estudiante
+    }
   }
 
   if (session.user.rol !== "ESTUDIANTE") {
-    const details = await Promise.all(
-      filteredCourses.map(async (course) => {
-        const data = await backendGet<{ course: CourseDetail }>(`/api/courses/${course.id}`, session);
-        return data.course;
-      }),
-    );
-    courseDetails = new Map(details.map((course) => [course.id, course]));
+    try {
+      const details = await Promise.all(
+        filteredCourses.map(async (course) => {
+          const data = await backendGet<{ course: CourseDetail }>(`/api/courses/${course.id}`, session);
+          return data.course;
+        }),
+      );
+      courseDetails = new Map(details.map((course) => [course.id, course]));
+    } catch {
+      // Si falla el detalle de cursos, se muestra la lista sin inscripciones
+    }
   }
 
   return (
