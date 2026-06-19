@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { normalizeCsvHeader, parseCsv } from "@/lib/csv";
+import { normalizeCsvHeader, parseCsv, readCsvFile } from "@/lib/csv";
 
 type Profesor = {
   id: string;
@@ -134,7 +134,7 @@ export default function ProfesoresPage() {
     if (!file) return;
     setStatus("Procesando CSV...");
 
-    const csvRows = parseCsv(await file.text());
+    const csvRows = parseCsv(await readCsvFile(file));
     const headers = (csvRows[0] ?? []).map(normalizeCsvHeader);
     const rows = csvRows.slice(1).map((cols) => {
       const obj: Record<string, string> = {};

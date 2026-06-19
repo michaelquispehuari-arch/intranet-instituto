@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { normalizeCsvHeader, parseCsv } from "@/lib/csv";
+import { normalizeCsvHeader, parseCsv, readCsvFile } from "@/lib/csv";
 
 type ModoEstudio = "SINCRONICO" | "ASINCRONICO" | "MIXTO";
 
@@ -32,6 +32,21 @@ const MODO_LABEL: Record<ModoEstudio, string> = {
 function fmtFecha(iso: string | null) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("es-PE");
+}
+
+function parseOptionalInt(value: unknown) {
+  if (value === "" || value === null || value === undefined) return undefined;
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function parseCsvDate(value: string | undefined) {
+  if (!value) return undefined;
+  const clean = value.trim();
+  const match = clean.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (!match) return clean;
+  const [, day, month, year] = match;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 export default function EstudiantesPage() {
@@ -109,14 +124,26 @@ export default function EstudiantesPage() {
     e.preventDefault();
     if (!editId) return;
     setSaving(true);
-    await fetch(`/api/backend/students/${editId}`, {
+    setImportStatus("");
+    const payload = {
+      ...editData,
+      semestreIngreso: parseOptionalInt(editData.semestreIngreso),
+      anioIngreso: parseOptionalInt(editData.anioIngreso),
+    };
+    const response = await fetch(`/api/backend/students/${editId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(editData),
+      body: JSON.stringify(payload),
     });
     setSaving(false);
-    setEditId(null);
-    load();
+    if (response.ok) {
+      setEditId(null);
+      setImportStatus("Estudiante guardado.");
+      load();
+    } else {
+      const data = await response.json().catch(() => ({})) as { error?: string };
+      setImportStatus(`Error al guardar: ${data.error ?? "Error del servidor"}`);
+    }
   }
 
   async function handleImportCsv(e: React.ChangeEvent<HTMLInputElement>) {
@@ -124,7 +151,7 @@ export default function EstudiantesPage() {
     if (!file) return;
     setImportStatus("Procesando…");
 
-    const text = await file.text();
+    const text = await readCsvFile(file);
     const csvRows = parseCsv(text);
     const headers = (csvRows[0] ?? []).map(normalizeCsvHeader);
 
@@ -149,6 +176,7 @@ export default function EstudiantesPage() {
         anioIngreso: obj.ano ? parseInt(obj.ano) : undefined,
         dni: obj.dni ?? undefined,
         telefono: obj.telefono ?? undefined,
+        fechaNacimiento: parseCsvDate(obj["fecha de nacimiento"]),
         coordinador: obj["coord."] ?? obj.coordinador ?? undefined,
       };
     }).filter((r) => r.email || r.dni || r.nombre || r.apellido);
