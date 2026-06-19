@@ -66,6 +66,14 @@ function csvFieldFromRow(
   return csvField(row, names) || (cols[fallbackIndex] ?? "").trim();
 }
 
+function findEmail(cols: string[]) {
+  return cols.find((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))?.trim() ?? "";
+}
+
+function findDni(cols: string[]) {
+  return cols.find((value) => /^\d{8}$/.test(value.trim()))?.trim() ?? "";
+}
+
 export default function EstudiantesPage() {
   const [students, setStudents] = useState<Estudiante[]>([]);
   const [query, setQuery] = useState("");
@@ -181,8 +189,10 @@ export default function EstudiantesPage() {
       const obj: Record<string, string> = {};
       headers.forEach((h, i) => { obj[h] = cols[i] ?? ""; });
       const modo = normalizeCsvHeader(csvFieldFromRow(obj, ["MODO"], cols, 3)).toUpperCase() || "SINCRONICO";
+      const email = csvFieldFromRow(obj, ["CORREO", "EMAIL", "E-MAIL"], cols, 11) || findEmail(cols);
+      const dni = csvFieldFromRow(obj, ["DNI", "DOCUMENTO"], cols, 8) || findDni(cols);
       return {
-        email: csvFieldFromRow(obj, ["CORREO", "EMAIL", "E-MAIL"], cols, 11),
+        email,
         nombre: csvFieldFromRow(obj, ["NOMBRES", "NOMBRE"], cols, 1),
         apellido: csvFieldFromRow(obj, ["APELLIDOS", "APELLIDO"], cols, 2),
         codigo: csvFieldFromRow(obj, ["CODIGO", "CÓDIGO"], cols, 0) || undefined,
@@ -191,7 +201,7 @@ export default function EstudiantesPage() {
         pais: csvFieldFromRow(obj, ["PAIS", "PAÍS"], cols, 5) || undefined,
         semestreIngreso: parseOptionalInt(csvFieldFromRow(obj, ["SEM.", "SEM", "SEMESTRE"], cols, 6)),
         anioIngreso: parseOptionalInt(csvFieldFromRow(obj, ["ANO", "AÑO"], cols, 7)),
-        dni: csvFieldFromRow(obj, ["DNI", "DOCUMENTO"], cols, 8) || undefined,
+        dni: dni || undefined,
         telefono: csvFieldFromRow(obj, ["TELEFONO", "TELÉFONO", "CELULAR"], cols, 9) || undefined,
         fechaNacimiento: parseCsvDate(csvFieldFromRow(obj, ["FECHA DE NACIMIENTO", "FECHA NACIMIENTO"], cols, 10)),
         coordinador: csvFieldFromRow(obj, ["COORD.", "COORD", "COORDINADOR"], cols, 13) || undefined,
@@ -203,8 +213,9 @@ export default function EstudiantesPage() {
       return;
     }
 
+    const validRows = rows.filter((r) => r.email && r.nombre && r.apellido && r.dni);
     const invalid = rows.filter((r) => !r.email || !r.nombre || !r.apellido || !r.dni);
-    if (invalid.length > 0) {
+    if (validRows.length === 0 && invalid.length > 0) {
       const sample = invalid[0];
       setImportStatus(`Error al importar: ${invalid.length} fila(s) sin CORREO, NOMBRES, APELLIDOS o DNI. Primera fila leida: correo=${sample.email || "-"}, nombres=${sample.nombre || "-"}, apellidos=${sample.apellido || "-"}, dni=${sample.dni || "-"}. Encabezados detectados: ${headers.join(" | ")}`);
       return;
@@ -213,13 +224,13 @@ export default function EstudiantesPage() {
     const r = await fetch("/api/backend/students/import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rows }),
+      body: JSON.stringify({ rows: validRows }),
     });
     const result = await r.json() as { created?: number; skipped?: number; errors?: string[]; error?: string };
     if (!r.ok) {
       setImportStatus(`Error al importar: ${result.error ?? "Error del servidor"}`);
     } else {
-      setImportStatus(`Importados: ${result.created ?? 0} · Saltados: ${result.skipped ?? 0}${result.errors?.length ? ` · Errores: ${result.errors.length}` : ""}`);
+      setImportStatus(`Importados: ${result.created ?? 0} · Saltados: ${(result.skipped ?? 0) + invalid.length}${invalid.length ? ` · Incompletos: ${invalid.length}` : ""}${result.errors?.length ? ` · Errores: ${result.errors.length}` : ""}`);
     }
     load();
     if (csvRef.current) csvRef.current.value = "";
