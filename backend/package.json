@@ -12,6 +12,7 @@
     "build": "tsc",
     "start": "node dist/src/server.js",
     "start:email-worker": "node dist/src/workers/email.worker.js",
+    "reset:demo": "node dist/src/scripts/reset-demo-data.js",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev",
