@@ -50,6 +50,14 @@ export async function update(req: Request, res: Response, next: NextFunction) {
   } catch (e) { next(e); }
 }
 
+export async function remove(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = z.string().min(1).parse(req.params.id);
+    const student = await studentService.deactivateStudent(id, req.user!);
+    res.json(student);
+  } catch (e) { next(e); }
+}
+
 export async function importCsv(req: Request, res: Response, next: NextFunction) {
   try {
     const rawRows = z.array(z.unknown()).parse(req.body.rows ?? req.body);

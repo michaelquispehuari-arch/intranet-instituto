@@ -129,6 +129,17 @@ export default function ProfesoresPage() {
     if (response.ok) load();
   }
 
+  async function deleteProfessor(profesor: Profesor) {
+    const ok = window.confirm(`Eliminar profesor ${profesor.nombre} ${profesor.apellido}? La cuenta quedara inactiva.`);
+    if (!ok) return;
+
+    const response = await fetch(`/api/backend/users/${profesor.id}`, { method: "DELETE" });
+    const data = await response.json().catch(() => ({})) as { error?: string };
+    setStatus(response.ok ? "Profesor eliminado." : data.error ?? "Error al eliminar profesor");
+    if (response.ok) load();
+  }
+
+
   async function handleImportCsv(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -224,6 +235,7 @@ export default function ProfesoresPage() {
                   draft={draft}
                   onChange={(f, v) => updateDraft(profesor.id, f, v)}
                   onSave={() => saveProfessor(profesor.id)}
+                  onDelete={profesor.activo ? () => deleteProfessor(profesor) : undefined}
                 />
               );
             })}
@@ -238,6 +250,7 @@ function ProfessorRow(props: {
   draft: Draft;
   onChange: (field: keyof Draft, value: string | boolean) => void;
   onSave: () => void;
+  onDelete?: () => void;
   isNew?: boolean;
 }) {
   return (
@@ -255,9 +268,20 @@ function ProfessorRow(props: {
         </select>
       </td>
       <td style={{ padding: 6 }}>
-        <button className={props.isNew ? "btn btn-primary" : "btn btn-secondary"} style={{ fontSize: 12, padding: "4px 8px" }} onClick={props.onSave}>
-          {props.isNew ? "Crear" : "Guardar"}
-        </button>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className={props.isNew ? "btn btn-primary" : "btn btn-secondary"} style={{ fontSize: 12, padding: "4px 8px" }} onClick={props.onSave}>
+            {props.isNew ? "Crear" : "Guardar"}
+          </button>
+          {props.onDelete && (
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize: 12, padding: "4px 8px", color: "var(--desaprobado-texto)", borderColor: "var(--desaprobado-texto)" }}
+              onClick={props.onDelete}
+            >
+              Eliminar
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );

@@ -175,6 +175,21 @@ export default function EstudiantesPage() {
     }
   }
 
+  async function handleDeleteStudent(student: Estudiante) {
+    const ok = window.confirm(`Eliminar estudiante ${student.nombre} ${student.apellido}? La cuenta quedara inactiva.`);
+    if (!ok) return;
+
+    const response = await fetch(`/api/backend/students/${student.id}`, { method: "DELETE" });
+    if (response.ok) {
+      setImportStatus("Estudiante eliminado.");
+      load();
+      return;
+    }
+
+    const data = await response.json().catch(() => ({})) as { error?: string };
+    setImportStatus(`Error al eliminar: ${data.error ?? "Error del servidor"}`);
+  }
+
   async function handleImportCsv(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -421,7 +436,18 @@ export default function EstudiantesPage() {
                       <span className={`chip ${s.activo ? "chip-ok" : "chip-resumen"}`}>{s.activo ? "A" : "I"}</span>
                     </td>
                     <td style={{ padding: "7px 6px" }}>
-                      <button className="btn btn-secondary" style={{ fontSize: 12, padding: "3px 8px" }} onClick={() => startEdit(s)}>Editar</button>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button className="btn btn-secondary" style={{ fontSize: 12, padding: "3px 8px" }} onClick={() => startEdit(s)}>Editar</button>
+                        {s.activo && (
+                          <button
+                            className="btn btn-secondary"
+                            style={{ fontSize: 12, padding: "3px 8px", color: "var(--desaprobado-texto)", borderColor: "var(--desaprobado-texto)" }}
+                            onClick={() => handleDeleteStudent(s)}
+                          >
+                            Eliminar
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )

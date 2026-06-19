@@ -126,6 +126,19 @@ export async function updateStudent(id: string, input: UpdateStudentInput, user:
   return prisma.usuario.update({ where: { id }, data, select: studentSelect });
 }
 
+export async function deactivateStudent(id: string, user: AuthUser) {
+  if (user.rol !== Rol.ADMIN) throw new ForbiddenError();
+
+  const exists = await prisma.usuario.findFirst({ where: { id, rol: Rol.ESTUDIANTE } });
+  if (!exists) throw new NotFoundError("Estudiante no encontrado");
+
+  return prisma.usuario.update({
+    where: { id },
+    data: { activo: false },
+    select: studentSelect,
+  });
+}
+
 export async function importStudents(rows: CreateStudentInput[], user: AuthUser) {
   if (user.rol !== Rol.ADMIN) throw new ForbiddenError();
 

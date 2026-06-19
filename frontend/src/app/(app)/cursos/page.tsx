@@ -29,15 +29,34 @@ export default function CursosPage() {
   const { data: session } = useSession();
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("");
 
-  useEffect(() => {
-    fetch("/api/backend/courses")
+  async function loadCourses() {
+    setLoading(true);
+    await fetch("/api/backend/courses")
       .then((r) => r.json())
       .then((data: CoursesResponse) => {
         setCursos(Array.isArray(data.courses) ? data.courses : []);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { loadCourses(); }, []);
+
+  async function deleteCourse(curso: Curso) {
+    const ok = window.confirm(`Eliminar curso "${curso.nombre}"? Quedara inactivo y no se borrara el historial.`);
+    if (!ok) return;
+
+    const response = await fetch(`/api/backend/courses/${curso.id}`, { method: "DELETE" });
+    if (response.ok) {
+      setStatus("Curso eliminado.");
+      loadCourses();
+      return;
+    }
+
+    const data = await response.json().catch(() => ({})) as { message?: string; error?: string };
+    setStatus(`Error al eliminar: ${data.message ?? data.error ?? "Error del servidor"}`);
+  }
 
   const rol = session?.user?.rol;
 
@@ -63,6 +82,7 @@ export default function CursosPage() {
       </div>
 
       {loading && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+      {status && <p style={{ fontSize: 13, color: "var(--texto-secundario)", marginBottom: 12 }}>{status}</p>}
 
       {!loading && cursos.length === 0 && (
         <div className="card">
@@ -95,6 +115,19 @@ export default function CursosPage() {
               <div style={{ fontSize: 13, color: "var(--texto-tenue)" }}>
                 Prof. {curso.profesor.nombre} {curso.profesor.apellido} · Ciclo {curso.ciclo} / {curso.anio}
               </div>
+              {rol === "ADMIN" && curso.activo && (
+                <button
+                  className="btn btn-secondary"
+                  style={{ marginTop: 12, fontSize: 12, padding: "4px 8px", color: "var(--desaprobado-texto)", borderColor: "var(--desaprobado-texto)" }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    deleteCourse(curso);
+                  }}
+                >
+                  Eliminar curso
+                </button>
+              )}
             </div>
           </Link>
         ))}

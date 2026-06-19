@@ -12,4 +12,5 @@ studentRoutes.use(requireRole(Rol.ADMIN));
 studentRoutes.get("/", studentController.list);
 studentRoutes.post("/", studentController.create);
 studentRoutes.patch("/:id", studentController.update);
+studentRoutes.delete("/:id", studentController.remove);
 studentRoutes.post("/import", studentController.importCsv);
