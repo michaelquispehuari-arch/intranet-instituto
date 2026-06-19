@@ -49,6 +49,14 @@ function parseCsvDate(value: string | undefined) {
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
+function csvField(row: Record<string, string>, names: string[]) {
+  for (const name of names) {
+    const value = row[normalizeCsvHeader(name)];
+    if (value !== undefined && value.trim() !== "") return value.trim();
+  }
+  return "";
+}
+
 export default function EstudiantesPage() {
   const [students, setStudents] = useState<Estudiante[]>([]);
   const [query, setQuery] = useState("");
@@ -163,27 +171,32 @@ export default function EstudiantesPage() {
     const rows = csvRows.slice(1).map((cols) => {
       const obj: Record<string, string> = {};
       headers.forEach((h, i) => { obj[h] = cols[i] ?? ""; });
-      const modo = normalizeCsvHeader(obj.modo ?? "").toUpperCase() || "SINCRONICO";
+      const modo = normalizeCsvHeader(csvField(obj, ["MODO"])).toUpperCase() || "SINCRONICO";
       return {
-        email: obj.correo ?? obj.email ?? "",
-        nombre: obj.nombres ?? obj.nombre ?? "",
-        apellido: obj.apellidos ?? obj.apellido ?? "",
-        codigo: obj.codigo || undefined,
+        email: csvField(obj, ["CORREO", "EMAIL", "E-MAIL"]),
+        nombre: csvField(obj, ["NOMBRES", "NOMBRE"]),
+        apellido: csvField(obj, ["APELLIDOS", "APELLIDO"]),
+        codigo: csvField(obj, ["CODIGO", "CÓDIGO"]) || undefined,
         modo: modo as ModoEstudio,
-        iglesia: obj.iglesia ?? undefined,
-        pais: obj.pais ?? undefined,
-        semestreIngreso: obj["sem."] ? parseInt(obj["sem."]) : undefined,
-        anioIngreso: obj.ano ? parseInt(obj.ano) : undefined,
-        dni: obj.dni ?? undefined,
-        telefono: obj.telefono ?? undefined,
-        fechaNacimiento: parseCsvDate(obj["fecha de nacimiento"]),
-        coordinador: obj["coord."] ?? obj.coordinador ?? undefined,
+        iglesia: csvField(obj, ["IGLESIA"]) || undefined,
+        pais: csvField(obj, ["PAIS", "PAÍS"]) || undefined,
+        semestreIngreso: parseOptionalInt(csvField(obj, ["SEM.", "SEM", "SEMESTRE"])),
+        anioIngreso: parseOptionalInt(csvField(obj, ["ANO", "AÑO"])),
+        dni: csvField(obj, ["DNI", "DOCUMENTO"]) || undefined,
+        telefono: csvField(obj, ["TELEFONO", "TELÉFONO", "CELULAR"]) || undefined,
+        fechaNacimiento: parseCsvDate(csvField(obj, ["FECHA DE NACIMIENTO", "FECHA NACIMIENTO"])),
+        coordinador: csvField(obj, ["COORD.", "COORD", "COORDINADOR"]) || undefined,
       };
     }).filter((r) => r.email || r.dni || r.nombre || r.apellido);
 
+    if (rows.length === 0) {
+      setImportStatus(`Error al importar: no se detectaron filas de alumnos. Encabezados detectados: ${headers.join(" | ")}`);
+      return;
+    }
+
     const invalid = rows.filter((r) => !r.email || !r.nombre || !r.apellido || !r.dni);
     if (invalid.length > 0) {
-      setImportStatus(`Error al importar: ${invalid.length} fila(s) sin CORREO, NOMBRES, APELLIDOS o DNI.`);
+      setImportStatus(`Error al importar: ${invalid.length} fila(s) sin CORREO, NOMBRES, APELLIDOS o DNI. Encabezados detectados: ${headers.join(" | ")}`);
       return;
     }
 

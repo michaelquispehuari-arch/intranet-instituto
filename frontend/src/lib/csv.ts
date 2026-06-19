@@ -65,32 +65,23 @@ export function parseCsv(text: string) {
 }
 
 function repairMojibake(value: string) {
-  const direct = value
-    .replaceAll("Ã", "Á")
-    .replaceAll("Ã‰", "É")
-    .replaceAll("Ã", "Í")
-    .replaceAll("Ã“", "Ó")
-    .replaceAll("Ãš", "Ú")
-    .replaceAll("Ã‘", "Ñ")
-    .replaceAll("Ã¡", "á")
-    .replaceAll("Ã©", "é")
-    .replaceAll("Ã­", "í")
-    .replaceAll("Ã³", "ó")
-    .replaceAll("Ãº", "ú")
-    .replaceAll("Ã±", "ñ")
-    .replaceAll("Â°", "°")
-    .replaceAll("Â·", "·")
-    .replaceAll("Â", "");
+  let current = value;
 
-  if (!/[ÃÂ]/.test(direct)) return direct;
+  for (let i = 0; i < 3; i++) {
+    if (!/[\u00c3\u00c2]/.test(current)) break;
 
-  const bytes = new Uint8Array([...direct].map(toWindows1252Byte));
-  const decoded = new TextDecoder("utf-8").decode(bytes);
-  return mojibakeScore(decoded) < mojibakeScore(direct) ? decoded : direct;
+    const bytes = new Uint8Array([...current].map(toWindows1252Byte));
+    const decoded = new TextDecoder("utf-8").decode(bytes);
+
+    if (mojibakeScore(decoded) >= mojibakeScore(current)) break;
+    current = decoded;
+  }
+
+  return current.replaceAll("\u00c2", "");
 }
 
 function mojibakeScore(value: string) {
-  return (value.match(/[ÃÂ�]/g) ?? []).length;
+  return (value.match(/[\u00c3\u00c2\ufffd]/g) ?? []).length;
 }
 
 function toWindows1252Byte(char: string) {
@@ -113,5 +104,8 @@ function guessDelimiter(text: string) {
   const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
   const commas = (firstLine.match(/,/g) ?? []).length;
   const semicolons = (firstLine.match(/;/g) ?? []).length;
+  const tabs = (firstLine.match(/\t/g) ?? []).length;
+
+  if (tabs > commas && tabs > semicolons) return "\t";
   return semicolons > commas ? ";" : ",";
 }
