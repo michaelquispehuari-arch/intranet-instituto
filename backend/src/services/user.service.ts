@@ -13,6 +13,9 @@ const userSelect = {
   rol: true,
   activo: true,
   creadoEn: true,
+  codigo: true,
+  dni: true,
+  telefono: true,
   _count: {
     select: {
       cursosComoProfesor: true,
@@ -49,6 +52,9 @@ export async function createUser(input: CreateUserInput) {
       nombre: input.nombre,
       apellido: input.apellido,
       rol: input.rol,
+      codigo: input.codigo || null,
+      dni: input.dni || null,
+      telefono: input.telefono || null,
     },
     select: userSelect,
   });
@@ -88,6 +94,9 @@ export async function updateUser(userId: string, input: UpdateUserInput, actor: 
       apellido: input.apellido,
       rol: input.rol,
       activo: input.activo,
+      codigo: input.codigo !== undefined ? input.codigo || null : undefined,
+      dni: input.dni !== undefined ? input.dni || null : undefined,
+      telefono: input.telefono !== undefined ? input.telefono || null : undefined,
     },
     select: userSelect,
   });

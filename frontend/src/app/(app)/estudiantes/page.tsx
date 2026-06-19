@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { normalizeCsvHeader, parseCsv } from "@/lib/csv";
 
 type ModoEstudio = "SINCRONICO" | "ASINCRONICO" | "MIXTO";
 
@@ -124,28 +125,39 @@ export default function EstudiantesPage() {
     setImportStatus("Procesando…");
 
     const text = await file.text();
-    const lines = text.trim().split("\n");
-    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const csvRows = parseCsv(text);
+    const headers = (csvRows[0] ?? []).map(normalizeCsvHeader);
 
-    const rows = lines.slice(1).map((line) => {
-      const cols = line.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+    if (headers.length === 0) {
+      setImportStatus("Error al importar: el CSV no tiene encabezados.");
+      return;
+    }
+
+    const rows = csvRows.slice(1).map((cols) => {
       const obj: Record<string, string> = {};
       headers.forEach((h, i) => { obj[h] = cols[i] ?? ""; });
+      const modo = normalizeCsvHeader(obj.modo ?? "").toUpperCase() || "SINCRONICO";
       return {
         email: obj.correo ?? obj.email ?? "",
         nombre: obj.nombres ?? obj.nombre ?? "",
         apellido: obj.apellidos ?? obj.apellido ?? "",
-        codigo: obj["código"] ?? obj.codigo ?? undefined,
-        modo: ((obj.modo ?? "").toUpperCase() || "SINCRONICO") as ModoEstudio,
+        codigo: obj.codigo || undefined,
+        modo: modo as ModoEstudio,
         iglesia: obj.iglesia ?? undefined,
-        pais: obj["país"] ?? obj.pais ?? undefined,
+        pais: obj.pais ?? undefined,
         semestreIngreso: obj["sem."] ? parseInt(obj["sem."]) : undefined,
-        anioIngreso: obj["año"] ?? obj.anio ? parseInt(obj["año"] ?? obj.anio) : undefined,
+        anioIngreso: obj.ano ? parseInt(obj.ano) : undefined,
         dni: obj.dni ?? undefined,
-        telefono: obj["teléfono"] ?? obj.telefono ?? undefined,
+        telefono: obj.telefono ?? undefined,
         coordinador: obj["coord."] ?? obj.coordinador ?? undefined,
       };
-    }).filter((r) => r.email);
+    }).filter((r) => r.email || r.dni || r.nombre || r.apellido);
+
+    const invalid = rows.filter((r) => !r.email || !r.nombre || !r.apellido || !r.dni);
+    if (invalid.length > 0) {
+      setImportStatus(`Error al importar: ${invalid.length} fila(s) sin CORREO, NOMBRES, APELLIDOS o DNI.`);
+      return;
+    }
 
     const r = await fetch("/api/backend/students/import", {
       method: "POST",

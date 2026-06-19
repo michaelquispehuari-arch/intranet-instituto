@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { href: "/exams", label: "Exámenes", icon: "📝", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
   { href: "/material", label: "Material", icon: "📁", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
   { href: "/estudiantes", label: "Estudiantes", icon: "🎓", roles: ["ADMIN"] },
+  { href: "/profesores", label: "Profesores", icon: "👨‍🏫", roles: ["ADMIN"] },
   { href: "/usuarios", label: "Usuarios", icon: "👥", roles: ["ADMIN"] },
   { href: "/sustitutorios", label: "Sustitutorios", icon: "🔄", roles: ["ADMIN"] },
   { href: "/configuracion", label: "Configuración", icon: "⚙️", roles: ["ADMIN"] },

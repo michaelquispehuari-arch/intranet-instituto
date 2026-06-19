@@ -11,6 +11,9 @@ export const createUserSchema = z.object({
   nombre: z.string().trim().min(2).max(80),
   apellido: z.string().trim().min(2).max(80),
   rol: z.nativeEnum(Rol),
+  codigo: z.string().trim().max(30).optional(),
+  dni: z.string().trim().max(20).optional(),
+  telefono: z.string().trim().max(20).optional(),
 });
 
 export const updateUserSchema = z.object({
@@ -20,6 +23,9 @@ export const updateUserSchema = z.object({
   apellido: z.string().trim().min(2).max(80).optional(),
   rol: z.nativeEnum(Rol).optional(),
   activo: z.coerce.boolean().optional(),
+  codigo: z.string().trim().max(30).optional(),
+  dni: z.string().trim().max(20).optional(),
+  telefono: z.string().trim().max(20).optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

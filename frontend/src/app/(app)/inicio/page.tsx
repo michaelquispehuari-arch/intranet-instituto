@@ -69,6 +69,7 @@ export default async function InicioPage() {
             { href: "/cursos", label: "Cursos", desc: "Gestionar cursos y sesiones", icon: "📚" },
             { href: "/calificaciones", label: "Calificaciones", desc: "Cronograma de notas por alumno", icon: "📊" },
             { href: "/usuarios", label: "Usuarios", desc: "Profesores y alumnos", icon: "👥" },
+            { href: "/profesores", label: "Profesores", desc: "Registro y cuentas docentes", icon: "👨‍🏫" },
             { href: "/sustitutorios", label: "Sustitutorios", desc: "Alumnos elegibles", icon: "🔄" },
             { href: "/configuracion", label: "Configuración", desc: "Zoom y ajustes globales", icon: "⚙️" },
             { href: "/exams", label: "Exámenes", desc: "Crear y revisar exámenes", icon: "📝" },
