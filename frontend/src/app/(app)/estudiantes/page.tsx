@@ -74,6 +74,10 @@ function findDni(cols: string[]) {
   return cols.find((value) => /^\d{8}$/.test(value.trim()))?.trim() ?? "";
 }
 
+function isValidEmail(value: string | undefined) {
+  return !!value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export default function EstudiantesPage() {
   const [students, setStudents] = useState<Estudiante[]>([]);
   const [query, setQuery] = useState("");
@@ -213,11 +217,11 @@ export default function EstudiantesPage() {
       return;
     }
 
-    const validRows = rows.filter((r) => r.email && r.nombre && r.apellido && r.dni);
-    const invalid = rows.filter((r) => !r.email || !r.nombre || !r.apellido || !r.dni);
+    const validRows = rows.filter((r) => isValidEmail(r.email) && r.nombre && r.apellido && r.dni);
+    const invalid = rows.filter((r) => !isValidEmail(r.email) || !r.nombre || !r.apellido || !r.dni);
     if (validRows.length === 0 && invalid.length > 0) {
       const sample = invalid[0];
-      setImportStatus(`Error al importar: ${invalid.length} fila(s) sin CORREO, NOMBRES, APELLIDOS o DNI. Primera fila leida: correo=${sample.email || "-"}, nombres=${sample.nombre || "-"}, apellidos=${sample.apellido || "-"}, dni=${sample.dni || "-"}. Encabezados detectados: ${headers.join(" | ")}`);
+      setImportStatus(`Error al importar: ${invalid.length} fila(s) sin CORREO valido, NOMBRES, APELLIDOS o DNI. Primera fila leida: correo=${sample.email || "-"}, nombres=${sample.nombre || "-"}, apellidos=${sample.apellido || "-"}, dni=${sample.dni || "-"}. Encabezados detectados: ${headers.join(" | ")}`);
       return;
     }
 

@@ -52,8 +52,23 @@ export async function update(req: Request, res: Response, next: NextFunction) {
 
 export async function importCsv(req: Request, res: Response, next: NextFunction) {
   try {
-    const rows = z.array(createStudentSchema).parse(req.body.rows ?? req.body);
+    const rawRows = z.array(z.unknown()).parse(req.body.rows ?? req.body);
+    const rows: studentService.CreateStudentInput[] = [];
+    const validationErrors: string[] = [];
+
+    rawRows.forEach((row, index) => {
+      const parsed = createStudentSchema.safeParse(row);
+      if (parsed.success) {
+        rows.push(parsed.data);
+        return;
+      }
+
+      validationErrors.push(`Fila ${index + 2}: datos invalidos`);
+    });
+
     const result = await studentService.importStudents(rows, req.user!);
+    result.skipped += validationErrors.length;
+    result.errors.push(...validationErrors);
     res.json(result);
   } catch (e) { next(e); }
 }
