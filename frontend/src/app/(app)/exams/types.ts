@@ -52,7 +52,7 @@ export type ExamDetail = {
   preguntas: Array<{
     id: string;
     texto: string;
-    tipo: "OPCION_MULTIPLE" | "VERDADERO_FALSO";
+    tipo: "OPCION_MULTIPLE" | "VERDADERO_FALSO" | "ABIERTA";
     opciones: string[];
     respuestaCorrecta?: string;
     puntaje: number;

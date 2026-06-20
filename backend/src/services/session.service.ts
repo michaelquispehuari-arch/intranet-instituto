@@ -88,22 +88,39 @@ export async function createSession(courseId: string, input: CreateSessionInput,
 }
 
 export async function updateSession(sessionId: string, input: UpdateSessionInput, user: AuthUser) {
-  if (user.rol !== Rol.ADMIN) {
+  if (user.rol !== Rol.ADMIN && user.rol !== Rol.PROFESOR) {
     throw new ForbiddenError();
   }
 
   const session = await prisma.sesion.findUnique({
     where: { id: sessionId },
-    select: { id: true },
+    select: { id: true, cursoId: true },
   });
 
   if (!session) {
     throw new NotFoundError("Sesion no encontrada");
   }
 
+  if (user.rol === Rol.PROFESOR) {
+    await ensureProfessorOwnsCourse(session.cursoId, user.id);
+
+    const requestedFields = Object.keys(input).filter(
+      (key) => input[key as keyof UpdateSessionInput] !== undefined,
+    );
+    if (requestedFields.some((field) => field !== "enlaceGrabacion")) {
+      throw new ForbiddenError("El profesor solo puede actualizar el enlace de grabacion");
+    }
+  }
+
   return prisma.sesion.update({
     where: { id: sessionId },
-    data: input,
+    data: {
+      ...input,
+      enlaceGrabacion:
+        input.enlaceGrabacion !== undefined
+          ? input.enlaceGrabacion || null
+          : undefined,
+    },
   });
 }
 

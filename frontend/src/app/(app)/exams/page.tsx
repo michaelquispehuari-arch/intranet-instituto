@@ -16,12 +16,26 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function getExamAvailabilityLabel(exam: ExamListItem) {
+  const now = new Date();
+
+  if (!exam.publicadoEn) return "Borrador";
+  if (exam.disponibleDesde && new Date(exam.disponibleDesde) > now) return `Disponible desde ${formatDate(exam.disponibleDesde)}`;
+  if (exam.disponibleHasta && new Date(exam.disponibleHasta) < now) return "Vencido";
+  return "Disponible";
+}
+
+function canOpenExam(exam: ExamListItem, role: string) {
+  if (role !== "ESTUDIANTE") return true;
+  return getExamAvailabilityLabel(exam) === "Disponible";
+}
+
 async function publishExam(formData: FormData) {
   "use server";
 
   const session = await getServerSession(authOptions);
 
-  if (!session || session.user.rol !== "PROFESOR") {
+  if (!session || !["ADMIN", "PROFESOR"].includes(session.user.rol)) {
     redirect("/login");
   }
 
@@ -51,7 +65,7 @@ export default async function ExamsPage() {
       </div>
     );
   }
-  const isProfessor = session.user.rol === "PROFESOR";
+  const canManageExams = session.user.rol === "PROFESOR" || session.user.rol === "ADMIN";
 
   return (
     <div>
@@ -60,12 +74,12 @@ export default async function ExamsPage() {
           <span className="page-eyebrow">{session.user.rol}</span>
           <h1 className="page-title">Examenes</h1>
           <p className="page-subtitle">
-            {isProfessor
+            {canManageExams
               ? "Crea, publica y revisa evaluaciones de tus cursos."
               : "Rinde las evaluaciones publicadas de tus cursos."}
           </p>
         </div>
-        {isProfessor ? (
+        {canManageExams ? (
           <Link className="btn btn-primary" href="/exams/create">
             Nuevo examen
           </Link>
@@ -82,7 +96,7 @@ export default async function ExamsPage() {
           {data.exams.map((exam) => (
             <article className="card exam-card" style={{ padding: 20 }} key={exam.id}>
               <div>
-                <span className="badge">{exam.publicadoEn ? "Publicado" : "Borrador"}</span>
+                <span className="badge">{getExamAvailabilityLabel(exam)}</span>
                 <h2 style={{ margin: "8px 0 4px", fontSize: 17 }}>{exam.titulo}</h2>
                 <p style={{ color: "var(--texto-secundario)", fontSize: 14 }}>{exam.descripcion ?? "Sin descripcion"}</p>
                 <dl className="meta-list">
@@ -106,15 +120,21 @@ export default async function ExamsPage() {
               </div>
 
               <div className="card-actions">
-                <Link className="btn btn-secondary" href={`/exams/${exam.id}`}>
-                  Abrir
-                </Link>
+                {canOpenExam(exam, session.user.rol) ? (
+                  <Link className="btn btn-secondary" href={`/exams/${exam.id}`}>
+                    {session.user.rol === "ESTUDIANTE" ? "Dar examen" : "Abrir"}
+                  </Link>
+                ) : (
+                  <span className="btn btn-secondary" aria-disabled="true">
+                    No disponible
+                  </span>
+                )}
                 {exam._count.envios > 0 || session.user.rol !== "ESTUDIANTE" ? (
                   <Link className="btn btn-secondary" href={`/exams/${exam.id}/results`}>
                     Resultados
                   </Link>
                 ) : null}
-                {isProfessor && !exam.publicadoEn ? (
+                {canManageExams && !exam.publicadoEn ? (
                   <form action={publishExam}>
                     <input name="examId" type="hidden" value={exam.id} />
                     <button className="btn btn-primary" type="submit">

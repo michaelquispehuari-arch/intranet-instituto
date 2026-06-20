@@ -7,7 +7,7 @@ import type { ExamListItem } from "@/app/(app)/exams/types";
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
 
-  if (!session || session.user.rol !== "PROFESOR") {
+  if (!session || !["ADMIN", "PROFESOR"].includes(session.user.rol)) {
     return NextResponse.json({ message: "No autorizado" }, { status: 401 });
   }
 

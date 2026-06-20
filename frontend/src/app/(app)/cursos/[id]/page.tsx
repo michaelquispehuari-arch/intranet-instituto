@@ -45,6 +45,10 @@ export default function CourseWorkspacePage() {
   const [enlaceZoom, setEnlaceZoom] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("sesiones");
   const [loading, setLoading] = useState(true);
+  const [recordingDrafts, setRecordingDrafts] = useState<Record<string, string>>({});
+  const [savingRecordingId, setSavingRecordingId] = useState<string | null>(null);
+  const [newSession, setNewSession] = useState({ titulo: "", fecha: "", enlaceGrabacion: "" });
+  const [creatingSession, setCreatingSession] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -54,14 +58,63 @@ export default function CourseWorkspacePage() {
       fetch(`/api/backend/courses/${id}/sessions`).then((r) => r.json()),
       fetch("/api/backend/config/zoom").then((r) => r.json()),
     ]).then(([cursoData, sesionesData, zoomData]: [CourseResponse, Sesion[], { enlaceZoom?: string }]) => {
+      const loadedSessions = Array.isArray(sesionesData) ? sesionesData : [];
       setCurso(cursoData.course ?? null);
-      setSesiones(Array.isArray(sesionesData) ? sesionesData : []);
+      setSesiones(loadedSessions);
+      setRecordingDrafts(
+        Object.fromEntries(loadedSessions.map((sesion) => [sesion.id, sesion.enlaceGrabacion ?? ""])),
+      );
       setEnlaceZoom(zoomData?.enlaceZoom ?? null);
       setLoading(false);
     });
   }, [id]);
 
   const today = new Date().toDateString();
+  const canManageRecordings = session?.user?.rol === "ADMIN" || session?.user?.rol === "PROFESOR";
+  const canCreateSessions = session?.user?.rol === "ADMIN";
+
+  async function saveSessionRecording(sesionId: string) {
+    setSavingRecordingId(sesionId);
+    const enlaceGrabacion = recordingDrafts[sesionId] ?? "";
+    const response = await fetch(`/api/backend/sessions/${sesionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enlaceGrabacion }),
+    });
+    setSavingRecordingId(null);
+
+    if (!response.ok) return;
+
+    setSesiones((current) =>
+      current.map((sesion) =>
+        sesion.id === sesionId ? { ...sesion, enlaceGrabacion: enlaceGrabacion.trim() || null } : sesion,
+      ),
+    );
+  }
+
+  async function createSession(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCreatingSession(true);
+    const nextOrder = Math.max(0, ...sesiones.map((sesion) => sesion.orden)) + 1;
+    const response = await fetch(`/api/backend/courses/${id}/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        titulo: newSession.titulo,
+        fecha: newSession.fecha,
+        orden: nextOrder,
+        enlaceGrabacion: newSession.enlaceGrabacion,
+      }),
+    });
+    setCreatingSession(false);
+
+    if (!response.ok) return;
+
+    const created = (await response.json()) as Sesion;
+    setSesiones((current) => [...current, created].sort((a, b) => a.orden - b.orden));
+    setRecordingDrafts((current) => ({ ...current, [created.id]: created.enlaceGrabacion ?? "" }));
+    setNewSession({ titulo: "", fecha: "", enlaceGrabacion: "" });
+  }
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "sesiones", label: "Sesiones" },
@@ -120,11 +173,7 @@ export default function CourseWorkspacePage() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Clases de la semana</h2>
-            {session?.user?.rol === "ADMIN" && (
-              <Link href={`/cursos/${id}/sesiones/nueva`} className="btn btn-primary">
-                + Nueva sesión
-              </Link>
-            )}
+            {canCreateSessions && <span className="badge">Nueva clase abajo</span>}
           </div>
 
           {sesiones.length === 0 && (
@@ -143,9 +192,8 @@ export default function CourseWorkspacePage() {
               const esHoy = fecha.toDateString() === today;
 
               return (
-                <Link
+                <article
                   key={sesion.id}
-                  href={`/cursos/${id}/sesiones/${sesion.id}`}
                   className={`session-card${esHoy ? " today" : ""}`}
                 >
                   <div className="session-date">
@@ -154,16 +202,96 @@ export default function CourseWorkspacePage() {
                   </div>
                   <div className="session-info">
                     <div className="session-title">{sesion.titulo}</div>
+                    {sesion.enlaceGrabacion ? (
+                      <a
+                        href={sesion.enlaceGrabacion}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-link"
+                        style={{ display: "inline-block", marginTop: 8 }}
+                      >
+                        Ver grabacion
+                      </a>
+                    ) : (
+                      <p className="muted" style={{ margin: "8px 0 0", fontSize: 13 }}>
+                        Grabacion pendiente.
+                      </p>
+                    )}
+                    {canManageRecordings && (
+                      <div className="recording-form">
+                        <input
+                          aria-label={`Link de grabacion para ${sesion.titulo}`}
+                          placeholder="Pegar link de YouTube"
+                          value={recordingDrafts[sesion.id] ?? ""}
+                          onChange={(event) =>
+                            setRecordingDrafts((current) => ({
+                              ...current,
+                              [sesion.id]: event.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          className="btn btn-secondary"
+                          type="button"
+                          disabled={savingRecordingId === sesion.id}
+                          onClick={() => saveSessionRecording(sesion.id)}
+                        >
+                          {savingRecordingId === sesion.id ? "Guardando..." : "Guardar link"}
+                        </button>
+                      </div>
+                    )}
                     <div className="session-chips">
                       {esHoy && <span className="chip chip-ok">Hoy</span>}
                       {sesion.enlaceGrabacion && <span className="chip chip-grabacion">🎬 Grabación</span>}
                     </div>
                   </div>
-                  <span className="session-chevron">›</span>
-                </Link>
+                  <Link className="btn btn-secondary" href={`/cursos/${id}/sesiones/${sesion.id}`}>
+                    Detalle
+                  </Link>
+                </article>
               );
             })}
           </div>
+          {canCreateSessions && (
+            <form className="card form wide-form" onSubmit={createSession} style={{ marginTop: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 16 }}>Nueva clase</h3>
+              <div className="form-grid">
+                <label className="field">
+                  <span>Titulo</span>
+                  <input
+                    placeholder={`Clase ${sesiones.length + 1} ${curso.nombre}`}
+                    value={newSession.titulo}
+                    onChange={(event) => setNewSession((current) => ({ ...current, titulo: event.target.value }))}
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Fecha</span>
+                  <input
+                    type="datetime-local"
+                    value={newSession.fecha}
+                    onChange={(event) => setNewSession((current) => ({ ...current, fecha: event.target.value }))}
+                    required
+                  />
+                </label>
+                <label className="field full-row">
+                  <span>Grabacion</span>
+                  <input
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={newSession.enlaceGrabacion}
+                    onChange={(event) =>
+                      setNewSession((current) => ({ ...current, enlaceGrabacion: event.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="card-actions">
+                <button className="btn btn-primary" type="submit" disabled={creatingSession}>
+                  {creatingSession ? "Creando..." : "Crear clase"}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 

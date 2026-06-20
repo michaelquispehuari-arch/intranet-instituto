@@ -7,6 +7,7 @@ import type { CourseOption } from "../types";
 
 type QuestionForm = {
   texto: string;
+  tipo: "OPCION_MULTIPLE" | "VERDADERO_FALSO" | "ABIERTA";
   opciones: string[];
   respuestaCorrecta: string;
   puntaje: number;
@@ -18,6 +19,7 @@ type CreateExamFormProps = {
 
 const emptyQuestion = (): QuestionForm => ({
   texto: "",
+  tipo: "OPCION_MULTIPLE",
   opciones: ["", ""],
   respuestaCorrecta: "",
   puntaje: 1,
@@ -60,6 +62,40 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
     );
   }
 
+  function changeQuestionType(index: number, tipo: QuestionForm["tipo"]) {
+    const nextOptions =
+      tipo === "VERDADERO_FALSO" ? ["Verdadero", "Falso"] : tipo === "ABIERTA" ? [] : ["", ""];
+
+    updateQuestion(index, {
+      tipo,
+      opciones: nextOptions,
+      respuestaCorrecta: tipo === "ABIERTA" ? "" : "",
+    });
+  }
+
+  function removeQuestion(index: number) {
+    setQuestions((current) => current.filter((_, questionIndex) => questionIndex !== index));
+  }
+
+  function removeOption(questionIndex: number, optionIndex: number) {
+    setQuestions((current) =>
+      current.map((question, index) => {
+        if (index !== questionIndex || question.opciones.length <= 2) {
+          return question;
+        }
+
+        const removedOption = question.opciones[optionIndex];
+        const opciones = question.opciones.filter((_, currentOptionIndex) => currentOptionIndex !== optionIndex);
+
+        return {
+          ...question,
+          opciones,
+          respuestaCorrecta: question.respuestaCorrecta === removedOption ? "" : question.respuestaCorrecta,
+        };
+      }),
+    );
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -75,7 +111,8 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
       disponibleHasta: String(formData.get("disponibleHasta") ?? "") || undefined,
       preguntas: questions.map((question) => ({
         texto: question.texto,
-        opciones: question.opciones,
+        tipo: question.tipo,
+        opciones: question.opciones.map((option) => option.trim()).filter(Boolean),
         respuestaCorrecta: question.respuestaCorrecta,
         puntaje: question.puntaje,
       })),
@@ -141,81 +178,78 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
 
       <div className="stack">
         {questions.map((question, questionIndex) => (
-          <fieldset className="question-box" key={questionIndex}>
-            <legend>Pregunta {questionIndex + 1}</legend>
+          <fieldset className="question-box google-question" key={questionIndex}>
+            <div className="question-toolbar">
+              <legend>Pregunta {questionIndex + 1}</legend>
+              <select
+                value={question.tipo}
+                onChange={(event) => changeQuestionType(questionIndex, event.target.value as QuestionForm["tipo"])}
+              >
+                <option value="OPCION_MULTIPLE">Opcion multiple</option>
+                <option value="VERDADERO_FALSO">Verdadero/Falso</option>
+                <option value="ABIERTA">Respuesta abierta</option>
+              </select>
+            </div>
+
             <label className="field">
-              <span>Texto</span>
+              <span>Pregunta</span>
               <textarea
                 required
                 minLength={3}
                 maxLength={1000}
-                rows={3}
+                rows={2}
+                placeholder="Escribe la pregunta"
                 value={question.texto}
                 onChange={(event) => updateQuestion(questionIndex, { texto: event.target.value })}
               />
             </label>
 
-            <div className="option-grid">
-              {question.opciones.map((option, optionIndex) => (
-                <label className="field" key={optionIndex}>
-                  <span>Opcion {optionIndex + 1}</span>
-                  <input
-                    required
-                    maxLength={300}
-                    value={option}
-                    onChange={(event) => updateOption(questionIndex, optionIndex, event.target.value)}
-                  />
-                </label>
-              ))}
-            </div>
+            {question.tipo === "ABIERTA" ? (
+              <div className="open-answer-preview">Respuesta escrita del estudiante</div>
+            ) : (
+              <div className="forms-option-list">
+                {question.opciones.map((option, optionIndex) => (
+                  <div className="forms-option-row" key={optionIndex}>
+                    <input
+                      type="radio"
+                      aria-label={`Marcar opcion ${optionIndex + 1} como correcta`}
+                      checked={question.respuestaCorrecta === option && option.trim().length > 0}
+                      onChange={() => updateQuestion(questionIndex, { respuestaCorrecta: option })}
+                    />
+                    <input
+                      required
+                      maxLength={300}
+                      placeholder={`Opcion ${optionIndex + 1}`}
+                      value={option}
+                      disabled={question.tipo === "VERDADERO_FALSO"}
+                      onChange={(event) => updateOption(questionIndex, optionIndex, event.target.value)}
+                    />
+                    {question.tipo === "OPCION_MULTIPLE" && question.opciones.length > 2 ? (
+                      <button
+                        className="btn btn-secondary icon-button"
+                        type="button"
+                        aria-label="Quitar opcion"
+                        onClick={() => removeOption(questionIndex, optionIndex)}
+                      >
+                        x
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+                {question.tipo === "OPCION_MULTIPLE" && question.opciones.length < 6 ? (
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => updateQuestion(questionIndex, { opciones: [...question.opciones, ""] })}
+                  >
+                    Agregar opcion
+                  </button>
+                ) : null}
+              </div>
+            )}
 
-            <div className="card-actions">
-              {question.opciones.length < 6 ? (
-                <button
-                  className="button secondary"
-                  type="button"
-                  onClick={() =>
-                    updateQuestion(questionIndex, { opciones: [...question.opciones, ""] })
-                  }
-                >
-                  Agregar opcion
-                </button>
-              ) : null}
-              {question.opciones.length > 2 ? (
-                <button
-                  className="button secondary"
-                  type="button"
-                  onClick={() =>
-                    updateQuestion(questionIndex, { opciones: question.opciones.slice(0, -1) })
-                  }
-                >
-                  Quitar opcion
-                </button>
-              ) : null}
-            </div>
-
-            <div className="form-grid compact">
-              <label className="field">
-                <span>Respuesta correcta</span>
-                <select
-                  required
-                  value={question.respuestaCorrecta}
-                  onChange={(event) =>
-                    updateQuestion(questionIndex, { respuestaCorrecta: event.target.value })
-                  }
-                >
-                  <option value="">Selecciona respuesta</option>
-                  {question.opciones
-                    .filter((option) => option.trim().length > 0)
-                    .map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                </select>
-              </label>
-
-              <label className="field">
+            <div className="question-footer">
+              <label className="field points-field">
                 <span>Puntaje</span>
                 <input
                   type="number"
@@ -223,12 +257,15 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
                   max={20}
                   step={0.1}
                   value={question.puntaje}
-                  onChange={(event) =>
-                    updateQuestion(questionIndex, { puntaje: Number(event.target.value) })
-                  }
+                  onChange={(event) => updateQuestion(questionIndex, { puntaje: Number(event.target.value) })}
                   required
                 />
               </label>
+              {questions.length > 1 ? (
+                <button className="btn btn-secondary" type="button" onClick={() => removeQuestion(questionIndex)}>
+                  Quitar pregunta
+                </button>
+              ) : null}
             </div>
           </fieldset>
         ))}
@@ -240,11 +277,6 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
         <button className="button secondary" type="button" onClick={() => setQuestions([...questions, emptyQuestion()])}>
           Agregar pregunta
         </button>
-        {questions.length > 1 ? (
-          <button className="button secondary" type="button" onClick={() => setQuestions(questions.slice(0, -1))}>
-            Quitar pregunta
-          </button>
-        ) : null}
         <button className="button" type="submit" disabled={isSubmitting || courses.length === 0}>
           {isSubmitting ? "Guardando..." : "Crear examen"}
         </button>

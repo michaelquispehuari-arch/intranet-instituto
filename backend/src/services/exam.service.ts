@@ -246,7 +246,11 @@ export async function getExamResults(examId: string, user: AuthUser) {
 }
 
 export async function createExam(input: CreateExamInput, user: AuthUser) {
-  await ensureProfessorOwnsCourse(input.cursoId, user.id);
+  if (user.rol === Rol.ADMIN) {
+    await ensureCourseExists(input.cursoId);
+  } else {
+    await ensureProfessorOwnsCourse(input.cursoId, user.id);
+  }
 
   return prisma.examen.create({
     data: {
@@ -256,6 +260,8 @@ export async function createExam(input: CreateExamInput, user: AuthUser) {
       duracionMinutos: input.duracionMinutos,
       disponibleDesde: input.disponibleDesde,
       disponibleHasta: input.disponibleHasta,
+      revelarRespuestas: input.revelarRespuestas,
+      esSustitutorio: input.esSustitutorio,
       preguntas: {
         create: input.preguntas.map((question, index) => ({
           texto: question.texto,
@@ -272,7 +278,7 @@ export async function createExam(input: CreateExamInput, user: AuthUser) {
 }
 
 export async function publishExam(examId: string, user: AuthUser) {
-  await ensureProfessorOwnsExam(examId, user.id);
+  await ensureCanManageExam(examId, user);
 
   const exam = await prisma.examen.update({
     where: { id: examId },
@@ -493,6 +499,30 @@ async function ensureProfessorOwnsExam(examId: string, professorId: string) {
 
   if (!exam) {
     throw new ForbiddenError("Examen no encontrado o no asignado al profesor");
+  }
+}
+
+async function ensureCanManageExam(examId: string, user: AuthUser) {
+  if (user.rol === Rol.ADMIN) {
+    const exam = await prisma.examen.findUnique({
+      where: { id: examId },
+      select: { id: true },
+    });
+    if (!exam) throw new NotFoundError("Examen no encontrado");
+    return;
+  }
+
+  await ensureProfessorOwnsExam(examId, user.id);
+}
+
+async function ensureCourseExists(courseId: string) {
+  const course = await prisma.curso.findUnique({
+    where: { id: courseId },
+    select: { id: true },
+  });
+
+  if (!course) {
+    throw new NotFoundError("Curso no encontrado");
   }
 }
 

@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { Prisma } from "@prisma/client";
+import { Prisma, Rol } from "@prisma/client";
 import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, HttpError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
@@ -45,18 +45,30 @@ export async function createUser(input: CreateUserInput) {
 
   const passwordHash = await bcrypt.hash(input.password, 12);
 
-  const user = await prisma.usuario.create({
-    data: {
-      email: input.email,
-      passwordHash,
-      nombre: input.nombre,
-      apellido: input.apellido,
-      rol: input.rol,
-      codigo: input.codigo || null,
-      dni: input.dni || null,
-      telefono: input.telefono || null,
-    },
-    select: userSelect,
+  const user = await prisma.$transaction(async (tx) => {
+    const createdUser = await tx.usuario.create({
+      data: {
+        email: input.email,
+        passwordHash,
+        nombre: input.nombre,
+        apellido: input.apellido,
+        rol: input.rol,
+        codigo: input.codigo || null,
+        dni: input.dni || null,
+        telefono: input.telefono || null,
+      },
+      select: userSelect,
+    });
+
+    if (createdUser.rol === Rol.ESTUDIANTE) {
+      await enrollStudentInActiveCourses(tx, createdUser.id);
+      return tx.usuario.findUniqueOrThrow({
+        where: { id: createdUser.id },
+        select: userSelect,
+      });
+    }
+
+    return createdUser;
   });
 
   return user;
@@ -125,4 +137,31 @@ async function ensureUserExists(userId: string) {
   if (!user) {
     throw new NotFoundError("Usuario no encontrado");
   }
+}
+
+async function enrollStudentInActiveCourses(tx: Prisma.TransactionClient, estudianteId: string) {
+  const courses = await tx.curso.findMany({
+    where: { activo: true },
+    select: { id: true },
+  });
+
+  if (courses.length === 0) {
+    return;
+  }
+
+  await tx.inscripcion.createMany({
+    data: courses.map((course) => ({
+      estudianteId,
+      cursoId: course.id,
+    })),
+    skipDuplicates: true,
+  });
+
+  await tx.registroSemanal.createMany({
+    data: courses.map((course) => ({
+      estudianteId,
+      cursoId: course.id,
+    })),
+    skipDuplicates: true,
+  });
 }

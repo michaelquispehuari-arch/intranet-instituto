@@ -88,20 +88,33 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
             <legend>Pregunta {question.orden}</legend>
             <h2>{question.texto}</h2>
             <p className="muted">Puntaje: {question.puntaje}</p>
-            <div className="radio-list">
-              {question.opciones.map((option) => (
-                <label key={option}>
-                  <input
-                    type="radio"
-                    name={question.id}
-                    value={option}
-                    checked={answers[question.id] === option}
-                    onChange={() => setAnswers({ ...answers, [question.id]: option })}
-                  />
-                  <span>{option}</span>
-                </label>
-              ))}
-            </div>
+            {question.tipo === "ABIERTA" ? (
+              <label className="field">
+                <span>Respuesta</span>
+                <textarea
+                  rows={5}
+                  maxLength={2000}
+                  value={answers[question.id] ?? ""}
+                  onChange={(event) => setAnswers({ ...answers, [question.id]: event.target.value })}
+                  required
+                />
+              </label>
+            ) : (
+              <div className="radio-list">
+                {question.opciones.map((option) => (
+                  <label key={option}>
+                    <input
+                      type="radio"
+                      name={question.id}
+                      value={option}
+                      checked={answers[question.id] === option}
+                      onChange={() => setAnswers({ ...answers, [question.id]: option })}
+                    />
+                    <span>{option}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </fieldset>
         ))}
       </div>

@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { ModoEstudio, Rol } from "@prisma/client";
+import { ModoEstudio, Prisma, Rol } from "@prisma/client";
 import { prisma } from "../utils/prisma.js";
 import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
 import type { AuthUser } from "../types/auth.js";
@@ -67,25 +67,14 @@ export async function createStudent(input: CreateStudentInput, user: AuthUser) {
 
   const passwordHash = await bcrypt.hash(input.dni, 12);
 
-  return prisma.usuario.create({
-    data: {
-      email: input.email,
-      passwordHash,
-      nombre: input.nombre,
-      apellido: input.apellido,
-      rol: Rol.ESTUDIANTE,
-      codigo: input.codigo || null,
-      modo: input.modo ?? ModoEstudio.SINCRONICO,
-      iglesia: input.iglesia || null,
-      pais: input.pais || null,
-      semestreIngreso: input.semestreIngreso ?? null,
-      anioIngreso: input.anioIngreso ?? null,
-      dni: input.dni || null,
-      telefono: input.telefono || null,
-      fechaNacimiento: input.fechaNacimiento ? new Date(input.fechaNacimiento) : null,
-      coordinador: input.coordinador || null,
-    },
-    select: studentSelect,
+  return prisma.$transaction(async (tx) => {
+    const student = await tx.usuario.create({
+      data: buildStudentCreateData(input, passwordHash),
+      select: studentSelect,
+    });
+
+    await enrollStudentInActiveCourses(tx, student.id, student.modo);
+    return student;
   });
 }
 
@@ -155,24 +144,13 @@ export async function importStudents(rows: CreateStudentInput[], user: AuthUser)
       }
 
       const passwordHash = await bcrypt.hash(row.dni, 12);
-      await prisma.usuario.create({
-        data: {
-          email: row.email,
-          passwordHash,
-          nombre: row.nombre,
-          apellido: row.apellido,
-          rol: Rol.ESTUDIANTE,
-          codigo: row.codigo || null,
-          modo: row.modo ?? ModoEstudio.SINCRONICO,
-          iglesia: row.iglesia || null,
-          pais: row.pais || null,
-          semestreIngreso: row.semestreIngreso ?? null,
-          anioIngreso: row.anioIngreso ?? null,
-          dni: row.dni || null,
-          telefono: row.telefono || null,
-          fechaNacimiento: row.fechaNacimiento ? new Date(row.fechaNacimiento) : null,
-          coordinador: row.coordinador || null,
-        },
+      await prisma.$transaction(async (tx) => {
+        const student = await tx.usuario.create({
+          data: buildStudentCreateData(row, passwordHash),
+          select: { id: true, modo: true },
+        });
+
+        await enrollStudentInActiveCourses(tx, student.id, student.modo);
       });
       results.created++;
     } catch (e: unknown) {
@@ -181,4 +159,56 @@ export async function importStudents(rows: CreateStudentInput[], user: AuthUser)
   }
 
   return results;
+}
+
+function buildStudentCreateData(input: CreateStudentInput, passwordHash: string) {
+  return {
+    email: input.email,
+    passwordHash,
+    nombre: input.nombre,
+    apellido: input.apellido,
+    rol: Rol.ESTUDIANTE,
+    codigo: input.codigo || null,
+    modo: input.modo ?? ModoEstudio.SINCRONICO,
+    iglesia: input.iglesia || null,
+    pais: input.pais || null,
+    semestreIngreso: input.semestreIngreso ?? null,
+    anioIngreso: input.anioIngreso ?? null,
+    dni: input.dni || null,
+    telefono: input.telefono || null,
+    fechaNacimiento: input.fechaNacimiento ? new Date(input.fechaNacimiento) : null,
+    coordinador: input.coordinador || null,
+  };
+}
+
+async function enrollStudentInActiveCourses(
+  tx: Prisma.TransactionClient,
+  estudianteId: string,
+  modo: ModoEstudio,
+) {
+  const courses = await tx.curso.findMany({
+    where: { activo: true },
+    select: { id: true },
+  });
+
+  if (courses.length === 0) {
+    return;
+  }
+
+  await tx.inscripcion.createMany({
+    data: courses.map((course) => ({
+      estudianteId,
+      cursoId: course.id,
+    })),
+    skipDuplicates: true,
+  });
+
+  await tx.registroSemanal.createMany({
+    data: courses.map((course) => ({
+      estudianteId,
+      cursoId: course.id,
+      modo,
+    })),
+    skipDuplicates: true,
+  });
 }

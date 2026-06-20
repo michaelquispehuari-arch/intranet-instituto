@@ -19,7 +19,7 @@ export const createSessionSchema = z.object({
 export const updateSessionSchema = z.object({
   titulo: z.string().trim().min(1).max(150).optional(),
   fecha: z.coerce.date().optional(),
-  enlaceGrabacion: z.string().url().optional().nullable(),
+  enlaceGrabacion: z.string().url().optional().nullable().or(z.literal("")),
   orden: z.number().int().min(1).optional(),
 });
 

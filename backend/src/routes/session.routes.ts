@@ -18,7 +18,7 @@ sessionRoutes.post("/", requireRole(Rol.ADMIN), sessionController.create);
 
 // /api/sessions/:id
 sessionDetailRoutes.get("/:id", sessionController.getById);
-sessionDetailRoutes.patch("/:id", requireRole(Rol.ADMIN), sessionController.update);
+sessionDetailRoutes.patch("/:id", requireRole(Rol.ADMIN, Rol.PROFESOR), sessionController.update);
 sessionDetailRoutes.get("/:id/attendance", sessionController.listAttendance);
 sessionDetailRoutes.post("/:id/attendance", requireRole(Rol.ADMIN), sessionController.upsertAttendance);
 sessionDetailRoutes.get("/:id/summaries", sessionController.listSummaries);

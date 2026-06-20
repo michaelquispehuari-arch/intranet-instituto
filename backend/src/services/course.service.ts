@@ -1,4 +1,4 @@
-import { Rol } from "@prisma/client";
+import { Prisma, Rol } from "@prisma/client";
 import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
@@ -108,16 +108,24 @@ export async function getCourseById(courseId: string, user: AuthUser) {
 export async function createCourse(input: CreateCourseInput) {
   await ensureActiveProfessor(input.profesorId);
 
-  return prisma.curso.create({
-    data: {
-      nombre: input.nombre,
-      descripcion: input.descripcion,
-      ciclo: input.ciclo,
-      anio: input.anio,
-      profesorId: input.profesorId,
-      config: { create: {} },
-    },
-    select: courseSelect,
+  return prisma.$transaction(async (tx) => {
+    const course = await tx.curso.create({
+      data: {
+        nombre: input.nombre,
+        descripcion: input.descripcion,
+        ciclo: input.ciclo,
+        anio: input.anio,
+        profesorId: input.profesorId,
+        config: { create: {} },
+      },
+      select: courseSelect,
+    });
+
+    await enrollActiveStudentsInCourse(tx, course.id);
+    return tx.curso.findUniqueOrThrow({
+      where: { id: course.id },
+      select: courseSelect,
+    });
   });
 }
 
@@ -149,34 +157,56 @@ export async function enrollStudent(courseId: string, input: EnrollStudentInput)
   await ensureCourseExists(courseId);
   await ensureActiveStudent(input.estudianteId);
 
-  return prisma.inscripcion.upsert({
-    where: {
-      estudianteId_cursoId: {
+  return prisma.$transaction(async (tx) => {
+    const student = await tx.usuario.findUniqueOrThrow({
+      where: { id: input.estudianteId },
+      select: { modo: true },
+    });
+
+    await tx.registroSemanal.upsert({
+      where: {
+        estudianteId_cursoId: {
+          estudianteId: input.estudianteId,
+          cursoId: courseId,
+        },
+      },
+      update: {},
+      create: {
+        estudianteId: input.estudianteId,
+        cursoId: courseId,
+        modo: student.modo,
+      },
+    });
+
+    return tx.inscripcion.upsert({
+      where: {
+        estudianteId_cursoId: {
+          estudianteId: input.estudianteId,
+          cursoId: courseId,
+        },
+      },
+      update: {},
+      create: {
         estudianteId: input.estudianteId,
         cursoId: courseId,
       },
-    },
-    update: {},
-    create: {
-      estudianteId: input.estudianteId,
-      cursoId: courseId,
-    },
-    include: {
-      estudiante: {
-        select: {
-          id: true,
-          nombre: true,
-          apellido: true,
-          email: true,
+      include: {
+        estudiante: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            email: true,
+          },
+        },
+        curso: {
+          select: {
+            id: true,
+            nombre: true,
+          },
         },
       },
-      curso: {
-        select: {
-          id: true,
-          nombre: true,
-        },
-      },
-    },
+    });
   });
 }
 
@@ -194,10 +224,51 @@ export async function unenrollStudent(courseId: string, studentId: string) {
     throw new NotFoundError("Inscripcion no encontrada");
   }
 
+  await prisma.registroSemanal.deleteMany({
+    where: {
+      cursoId: courseId,
+      estudianteId: studentId,
+    },
+  });
+
   return {
     cursoId: courseId,
     estudianteId: studentId,
   };
+}
+
+async function enrollActiveStudentsInCourse(tx: Prisma.TransactionClient, courseId: string) {
+  const students = await tx.usuario.findMany({
+    where: {
+      rol: Rol.ESTUDIANTE,
+      activo: true,
+    },
+    select: {
+      id: true,
+      modo: true,
+    },
+  });
+
+  if (students.length === 0) {
+    return;
+  }
+
+  await tx.inscripcion.createMany({
+    data: students.map((student) => ({
+      estudianteId: student.id,
+      cursoId: courseId,
+    })),
+    skipDuplicates: true,
+  });
+
+  await tx.registroSemanal.createMany({
+    data: students.map((student) => ({
+      estudianteId: student.id,
+      cursoId: courseId,
+      modo: student.modo,
+    })),
+    skipDuplicates: true,
+  });
 }
 
 async function ensureCourseExists(courseId: string) {

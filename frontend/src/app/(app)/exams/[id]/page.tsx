@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { backendGet } from "@/lib/backend";
+import { BackendRequestError, backendGet } from "@/lib/backend";
 import type { ExamDetail } from "../types";
 import { TakeExamForm } from "./take-exam-form";
 
@@ -20,7 +20,31 @@ export default async function ExamPage({ params }: ExamPageProps) {
   }
 
   const { id } = await params;
-  const data = await backendGet<{ exam: ExamDetail }>(`/api/exams/${id}`, session);
+  let data: { exam: ExamDetail };
+  try {
+    data = await backendGet<{ exam: ExamDetail }>(`/api/exams/${id}`, session);
+  } catch (error) {
+    const message =
+      error instanceof BackendRequestError && error.statusCode === 403
+        ? "El examen no esta disponible para rendir en este momento. Revisa la fecha y hora programadas."
+        : error instanceof Error
+          ? error.message
+          : "No se pudo cargar el examen.";
+
+    return (
+      <div>
+        <div style={{ marginBottom: 12 }}>
+          <Link href="/exams" style={{ fontSize: 13, color: "var(--texto-tenue)" }}>
+            Volver a examenes
+          </Link>
+        </div>
+        <section className="card empty-state">
+          <p className="empty-state-title">Examen no disponible</p>
+          <p>{message}</p>
+        </section>
+      </div>
+    );
+  }
   const exam = data.exam;
   const canTakeExam = session.user.rol === "ESTUDIANTE";
 
@@ -60,13 +84,17 @@ export default async function ExamPage({ params }: ExamPageProps) {
                   <span className="badge">Pregunta {question.orden}</span>
                   <h2>{question.texto}</h2>
                   <p className="muted">Puntaje: {question.puntaje}</p>
-                  <ul className="answer-list">
-                    {question.opciones.map((option) => (
-                      <li key={option} className={option === question.respuestaCorrecta ? "correct-answer" : ""}>
-                        {option}
-                      </li>
-                    ))}
-                  </ul>
+                  {question.tipo === "ABIERTA" ? (
+                    <p className="muted">Respuesta abierta para calificacion manual.</p>
+                  ) : (
+                    <ul className="answer-list">
+                      {question.opciones.map((option) => (
+                        <li key={option} className={option === question.respuestaCorrecta ? "correct-answer" : ""}>
+                          {option}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </article>
               ))}
             </div>

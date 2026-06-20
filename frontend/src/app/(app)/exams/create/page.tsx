@@ -12,7 +12,7 @@ export default async function CreateExamPage() {
     redirect("/login");
   }
 
-  if (session.user.rol !== "PROFESOR") {
+  if (!["ADMIN", "PROFESOR"].includes(session.user.rol)) {
     redirect("/dashboard");
   }
 
@@ -21,7 +21,7 @@ export default async function CreateExamPage() {
   return (
     <div>
       <div className="page-header">
-        <span className="page-eyebrow">PROFESOR</span>
+        <span className="page-eyebrow">{session.user.rol}</span>
         <h1 className="page-title">Nueva evaluacion</h1>
         <p className="page-subtitle">El backend validara curso, preguntas y respuesta correcta antes de guardar.</p>
       </div>

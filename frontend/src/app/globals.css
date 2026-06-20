@@ -352,6 +352,20 @@ button, input, select, textarea { font: inherit; }
   min-width: 0;
 }
 
+.recording-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.recording-form input {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
 .session-title {
   font-size: 15px;
   font-weight: 600;
@@ -863,6 +877,75 @@ button, input, select, textarea { font: inherit; }
   font-size: 18px;
 }
 
+.google-question {
+  display: grid;
+  gap: 16px;
+}
+
+.question-toolbar,
+.question-footer,
+.forms-option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.question-toolbar {
+  justify-content: space-between;
+}
+
+.question-toolbar select {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: #fff;
+}
+
+.forms-option-list {
+  display: grid;
+  gap: 10px;
+}
+
+.forms-option-row input[type="text"],
+.forms-option-row input:not([type]) {
+  flex: 1;
+  min-height: 40px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 8px 4px;
+}
+
+.forms-option-row input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  justify-content: center;
+  padding: 0;
+}
+
+.open-answer-preview {
+  border-bottom: 1px dashed var(--border);
+  color: var(--texto-tenue);
+  padding: 12px 2px;
+}
+
+.question-footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.points-field {
+  width: 120px;
+}
+
 .section-title {
   margin: 0;
   font-size: 20px;
@@ -1125,6 +1208,9 @@ button, input, select, textarea { font: inherit; }
   .mini-stats div { text-align: left; }
   .service-list div, .service-list dd { align-items: flex-start; flex-direction: column; text-align: left; }
   .enrollment-list li { align-items: flex-start; flex-direction: column; }
+  .recording-form { grid-template-columns: 1fr; }
+  .question-toolbar, .question-footer, .forms-option-row { align-items: stretch; flex-direction: column; }
+  .points-field { width: 100%; }
   .page-content { padding: 20px 16px; }
   .course-topbar { padding: 12px 16px; }
   .workspace-tabs { padding: 0 16px; }
