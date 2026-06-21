@@ -41,9 +41,10 @@ const examListSelect = {
   },
 };
 
-export async function listExams(user: AuthUser) {
+export async function listExams(user: AuthUser, cursoId?: string) {
   if (user.rol === Rol.ADMIN) {
     return prisma.examen.findMany({
+      where: cursoId ? { cursoId } : undefined,
       orderBy: { creadoEn: "desc" },
       select: examListSelect,
     });
@@ -52,6 +53,7 @@ export async function listExams(user: AuthUser) {
   if (user.rol === Rol.PROFESOR) {
     return prisma.examen.findMany({
       where: {
+        ...(cursoId ? { cursoId } : {}),
         curso: {
           profesorId: user.id,
           activo: true,
@@ -64,6 +66,7 @@ export async function listExams(user: AuthUser) {
 
   return prisma.examen.findMany({
     where: {
+      ...(cursoId ? { cursoId } : {}),
       activo: true,
       publicadoEn: { not: null },
       curso: {

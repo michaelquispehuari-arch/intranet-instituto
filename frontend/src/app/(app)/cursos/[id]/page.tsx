@@ -21,10 +21,30 @@ type Curso = {
   ciclo: number;
   anio: number;
   profesor: { id: string; nombre: string; apellido: string };
+  inscripciones?: Array<{ estudiante: { id: string; nombre: string; apellido: string; email: string; codigo?: string | null } }>;
 };
 
 type CourseResponse = {
   course?: Curso;
+};
+
+type ExamItem = {
+  id: string;
+  titulo: string;
+  descripcion: string | null;
+  duracionMinutos: number;
+  publicadoEn: string | null;
+  disponibleDesde: string | null;
+  disponibleHasta: string | null;
+  _count: { preguntas: number; envios: number };
+};
+
+type AlumnoItem = {
+  id: string;
+  nombre: string;
+  apellido: string;
+  email: string;
+  codigo: string | null;
 };
 
 type Tab = "sesiones" | "material" | "examenes" | "notas" | "alumnos";
@@ -49,6 +69,9 @@ export default function CourseWorkspacePage() {
   const [savingRecordingId, setSavingRecordingId] = useState<string | null>(null);
   const [newSession, setNewSession] = useState({ titulo: "", fecha: "", enlaceGrabacion: "" });
   const [creatingSession, setCreatingSession] = useState(false);
+  const [exams, setExams] = useState<ExamItem[] | null>(null);
+  const [examsLoading, setExamsLoading] = useState(false);
+  const [alumnos, setAlumnos] = useState<AlumnoItem[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -59,19 +82,37 @@ export default function CourseWorkspacePage() {
       fetch("/api/backend/config/zoom").then((r) => r.json()),
     ]).then(([cursoData, sesionesData, zoomData]: [CourseResponse, Sesion[], { enlaceZoom?: string }]) => {
       const loadedSessions = Array.isArray(sesionesData) ? sesionesData : [];
-      setCurso(cursoData.course ?? null);
+      const loadedCourse = cursoData.course ?? null;
+      setCurso(loadedCourse);
       setSesiones(loadedSessions);
       setRecordingDrafts(
         Object.fromEntries(loadedSessions.map((sesion) => [sesion.id, sesion.enlaceGrabacion ?? ""])),
       );
       setEnlaceZoom(zoomData?.enlaceZoom ?? null);
+      if (loadedCourse?.inscripciones) {
+        setAlumnos(loadedCourse.inscripciones.map((i) => ({ ...i.estudiante, codigo: i.estudiante.codigo ?? null })));
+      }
       setLoading(false);
     });
   }, [id]);
 
   const today = new Date().toDateString();
-  const canManageRecordings = session?.user?.rol === "ADMIN" || session?.user?.rol === "PROFESOR";
-  const canCreateSessions = session?.user?.rol === "ADMIN";
+  const rol = session?.user?.rol;
+  const canManageRecordings = rol === "ADMIN";
+  const canCreateSessions = rol === "ADMIN";
+
+  async function loadExams() {
+    if (exams !== null || examsLoading) return;
+    setExamsLoading(true);
+    const r = await fetch(`/api/backend/exams?cursoId=${id}`);
+    if (r.ok) {
+      const d = await r.json() as { exams?: ExamItem[] };
+      setExams(Array.isArray(d.exams) ? d.exams : []);
+    } else {
+      setExams([]);
+    }
+    setExamsLoading(false);
+  }
 
   async function saveSessionRecording(sesionId: string) {
     setSavingRecordingId(sesionId);
@@ -116,13 +157,19 @@ export default function CourseWorkspacePage() {
     setNewSession({ titulo: "", fecha: "", enlaceGrabacion: "" });
   }
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "sesiones", label: "Sesiones" },
-    { key: "material", label: "Material" },
-    { key: "examenes", label: "Exámenes" },
-    { key: "notas", label: "Notas" },
-    { key: "alumnos", label: "Alumnos" },
+  const allTabs: { key: Tab; label: string; roles: Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }[] = [
+    { key: "sesiones", label: "Sesiones", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+    { key: "material", label: "Material", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+    { key: "examenes", label: "Exámenes", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+    { key: "notas", label: "Notas", roles: ["ADMIN", "PROFESOR"] },
+    { key: "alumnos", label: "Alumnos", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
   ];
+  const tabs = allTabs.filter((t) => !rol || t.roles.includes(rol as "ADMIN" | "PROFESOR" | "ESTUDIANTE"));
+
+  function handleTabChange(key: Tab) {
+    setTab(key);
+    if (key === "examenes") loadExams();
+  }
 
   if (loading) {
     return <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>;
@@ -162,7 +209,7 @@ export default function CourseWorkspacePage() {
           <button
             key={t.key}
             className={`workspace-tab${tab === t.key ? " active" : ""}`}
-            onClick={() => setTab(t.key)}
+            onClick={() => handleTabChange(t.key)}
           >
             {t.label}
           </button>
@@ -172,16 +219,16 @@ export default function CourseWorkspacePage() {
       {tab === "sesiones" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Clases de la semana</h2>
-            {canCreateSessions && <span className="badge">Nueva clase abajo</span>}
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Clases grabadas</h2>
+            {canCreateSessions && <span className="badge">Agrega clases abajo</span>}
           </div>
 
           {sesiones.length === 0 && (
             <div className="card">
               <div className="empty-state">
-                <div className="empty-state-icon">📅</div>
-                <p className="empty-state-title">Sin sesiones programadas</p>
-                <p>Aún no hay clases creadas para este curso.</p>
+                <div className="empty-state-icon">🎬</div>
+                <p className="empty-state-title">Sin grabaciones aún</p>
+                <p>{canCreateSessions ? "Agrega la primera clase con su link de YouTube." : "Las grabaciones aparecerán aquí cuando estén disponibles."}</p>
               </div>
             </div>
           )}
@@ -314,20 +361,74 @@ export default function CourseWorkspacePage() {
       )}
 
       {tab === "examenes" && (
-        <div className="card">
-          <div className="card-header">
-            <h3>Exámenes</h3>
-            {(session?.user?.rol === "ADMIN" || session?.user?.rol === "PROFESOR") && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Exámenes del curso</h2>
+            {(rol === "ADMIN" || rol === "PROFESOR") && (
               <Link href={`/exams/create?cursoId=${id}`} className="btn btn-primary">
                 + Crear examen
               </Link>
             )}
           </div>
-          <div className="card-body">
-            <Link href={`/exams?cursoId=${id}`} style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
-              Ver exámenes del curso →
-            </Link>
-          </div>
+          {examsLoading && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+          {!examsLoading && exams !== null && exams.length === 0 && (
+            <div className="card">
+              <div className="empty-state">
+                <div className="empty-state-icon">📝</div>
+                <p className="empty-state-title">Sin exámenes</p>
+                <p>{(rol === "ADMIN" || rol === "PROFESOR") ? "Crea el primer examen para este curso." : "No hay exámenes disponibles aún."}</p>
+              </div>
+            </div>
+          )}
+          {!examsLoading && exams && exams.length > 0 && (
+            <div className="session-list">
+              {exams.map((exam) => {
+                const now = new Date();
+                const desde = exam.disponibleDesde ? new Date(exam.disponibleDesde) : null;
+                const hasta = exam.disponibleHasta ? new Date(exam.disponibleHasta) : null;
+                const disponible = exam.publicadoEn && (!desde || desde <= now) && (!hasta || hasta >= now);
+                const vencido = hasta && hasta < now;
+                const estado = !exam.publicadoEn ? "Borrador" : vencido ? "Vencido" : disponible ? "Disponible" : "Pendiente";
+                return (
+                  <article key={exam.id} className="session-card">
+                    <div className="session-info">
+                      <div className="session-title">{exam.titulo}</div>
+                      <div style={{ fontSize: 13, color: "var(--texto-tenue)", marginTop: 4 }}>
+                        {exam.duracionMinutos} min · {exam._count.preguntas} preguntas
+                        {exam.disponibleDesde && ` · Desde ${new Date(exam.disponibleDesde).toLocaleString("es-PE")}`}
+                        {exam.disponibleHasta && ` · Hasta ${new Date(exam.disponibleHasta).toLocaleString("es-PE")}`}
+                      </div>
+                      <div className="session-chips" style={{ marginTop: 6 }}>
+                        <span className={`chip ${estado === "Disponible" ? "chip-ok" : estado === "Vencido" ? "chip-resumen" : "chip-capturas"}`}>
+                          {estado}
+                        </span>
+                        {exam._count.envios > 0 && (
+                          <span className="chip chip-grabacion">{exam._count.envios} envío(s)</span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                      {rol === "ESTUDIANTE" && disponible && (
+                        <Link className="btn btn-primary" href={`/exams/${exam.id}`}>
+                          Dar examen
+                        </Link>
+                      )}
+                      {(rol === "ADMIN" || rol === "PROFESOR") && (
+                        <Link className="btn btn-secondary" href={`/exams/${exam.id}`}>
+                          Ver
+                        </Link>
+                      )}
+                      {(rol === "ADMIN" || rol === "PROFESOR" || exam._count.envios > 0) && (
+                        <Link className="btn btn-secondary" href={`/exams/${exam.id}/results`}>
+                          Resultados
+                        </Link>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -350,20 +451,44 @@ export default function CourseWorkspacePage() {
       )}
 
       {tab === "alumnos" && (
-        <div className="card">
-          <div className="card-header">
-            <h3>Alumnos matriculados</h3>
-            {session?.user?.rol === "ADMIN" && (
-              <Link href={`/courses?id=${id}`} className="btn btn-secondary">
-                Gestionar matrículas
-              </Link>
-            )}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Alumnos matriculados</h2>
           </div>
-          <div className="card-body">
-            <Link href="/courses" style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
-              Ver en gestión de cursos →
-            </Link>
-          </div>
+          {alumnos.length === 0 && (
+            <div className="card">
+              <div className="empty-state">
+                <div className="empty-state-icon">🎓</div>
+                <p className="empty-state-title">Sin alumnos matriculados</p>
+                {rol === "ADMIN" && <p>Matricula alumnos desde la sección Cursos.</p>}
+              </div>
+            </div>
+          )}
+          {alumnos.length > 0 && (
+            <div className="card">
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--borde)", background: "#FAFAF8" }}>
+                    {["Cód.", "Apellidos", "Nombres", "Email"].map((h) => (
+                      <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "var(--texto-secundario)" }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {alumnos.map((a) => (
+                    <tr key={a.id} style={{ borderBottom: "0.5px solid var(--borde)" }}>
+                      <td style={{ padding: "7px 12px", color: "var(--texto-tenue)" }}>{a.codigo ?? "—"}</td>
+                      <td style={{ padding: "7px 12px", fontWeight: 500 }}>{a.apellido}</td>
+                      <td style={{ padding: "7px 12px" }}>{a.nombre}</td>
+                      <td style={{ padding: "7px 12px", color: "var(--texto-tenue)" }}>{a.email}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

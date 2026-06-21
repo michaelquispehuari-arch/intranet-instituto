@@ -18,7 +18,8 @@ function getRequestUser(req: Request) {
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
-    const exams = await examService.listExams(getRequestUser(req));
+    const cursoId = typeof req.query.cursoId === "string" ? req.query.cursoId : undefined;
+    const exams = await examService.listExams(getRequestUser(req), cursoId);
     res.json({ exams });
   } catch (error) {
     next(error);

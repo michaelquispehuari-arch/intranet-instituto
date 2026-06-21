@@ -118,6 +118,14 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
       })),
     };
 
+    if (payload.disponibleDesde && payload.disponibleHasta) {
+      if (new Date(payload.disponibleHasta) <= new Date(payload.disponibleDesde)) {
+        setError("La fecha/hora de cierre debe ser posterior a la de apertura.");
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     const response = await fetch("/api/backend/exams", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -257,7 +265,11 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
                   max={20}
                   step={0.1}
                   value={question.puntaje}
-                  onChange={(event) => updateQuestion(questionIndex, { puntaje: Number(event.target.value) })}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(event) => {
+                    const v = parseFloat(event.target.value);
+                    updateQuestion(questionIndex, { puntaje: Number.isNaN(v) ? 0.1 : v });
+                  }}
                   required
                 />
               </label>

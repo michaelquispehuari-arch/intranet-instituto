@@ -8,6 +8,7 @@ const courseSelect = {
   id: true,
   nombre: true,
   descripcion: true,
+  tipo: true,
   ciclo: true,
   anio: true,
   profesorId: true,

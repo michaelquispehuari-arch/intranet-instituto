@@ -8,19 +8,29 @@ import { useState } from "react";
 type NavItem = {
   href: string;
   label: string;
+  labelByRole?: Partial<Record<"ADMIN" | "PROFESOR" | "ESTUDIANTE", string>>;
   icon: string;
   roles: Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE">;
 };
 
 const navItems: NavItem[] = [
   { href: "/inicio", label: "Inicio", icon: "⬜", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
-  { href: "/cursos", label: "Cursos", icon: "📚", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
-  { href: "/calificaciones", label: "Calificaciones", icon: "📊", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
-  { href: "/exams", label: "Exámenes", icon: "📝", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
-  { href: "/material", label: "Material", icon: "📁", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+  {
+    href: "/cursos",
+    label: "Cursos",
+    labelByRole: { PROFESOR: "Mi curso", ESTUDIANTE: "Mi curso" },
+    icon: "📚",
+    roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"],
+  },
+  {
+    href: "/calificaciones",
+    label: "Calificaciones",
+    labelByRole: { ESTUDIANTE: "Mis notas" },
+    icon: "📊",
+    roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"],
+  },
   { href: "/estudiantes", label: "Estudiantes", icon: "🎓", roles: ["ADMIN"] },
   { href: "/profesores", label: "Profesores", icon: "👨‍🏫", roles: ["ADMIN"] },
-  { href: "/usuarios", label: "Usuarios", icon: "👥", roles: ["ADMIN"] },
   { href: "/sustitutorios", label: "Sustitutorios", icon: "🔄", roles: ["ADMIN"] },
   { href: "/configuracion", label: "Configuración", icon: "⚙️", roles: ["ADMIN"] },
 ];
@@ -62,6 +72,7 @@ export function Sidebar() {
         <nav className="sidebar-nav">
           {visibleItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            const label = (rol && item.labelByRole?.[rol]) ?? item.label;
             return (
               <Link
                 key={item.href}
@@ -70,7 +81,7 @@ export function Sidebar() {
                 onClick={() => setOpen(false)}
               >
                 <span aria-hidden="true">{item.icon}</span>
-                <span>{item.label}</span>
+                <span>{label}</span>
               </Link>
             );
           })}
