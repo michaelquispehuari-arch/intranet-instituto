@@ -13,6 +13,7 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("es-PE", {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: "America/Lima",
   }).format(new Date(value));
 }
 

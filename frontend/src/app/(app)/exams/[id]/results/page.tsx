@@ -67,6 +67,7 @@ export default async function ExamResultsPage({ params }: ExamResultsPageProps) 
                       ? new Intl.DateTimeFormat("es-PE", {
                           dateStyle: "medium",
                           timeStyle: "short",
+                          timeZone: "America/Lima",
                         }).format(new Date(submission.enviadoEn))
                       : "Sin fecha"}
                   </p>

@@ -146,7 +146,7 @@ export default function CourseWorkspacePage() {
         titulo: newSession.titulo,
         fecha: newSession.fecha ? new Date(newSession.fecha).toISOString() : "",
         orden: nextOrder,
-        enlaceGrabacion: newSession.enlaceGrabacion || null,
+        enlaceGrabacion: newSession.enlaceGrabacion,
       }),
     });
     setCreatingSession(false);
@@ -404,8 +404,8 @@ export default function CourseWorkspacePage() {
                       <div className="session-title">{exam.titulo}</div>
                       <div style={{ fontSize: 13, color: "var(--texto-tenue)", marginTop: 4 }}>
                         {exam.duracionMinutos} min · {exam._count.preguntas} preguntas
-                        {exam.disponibleDesde && ` · Desde ${new Date(exam.disponibleDesde).toLocaleString("es-PE")}`}
-                        {exam.disponibleHasta && ` · Hasta ${new Date(exam.disponibleHasta).toLocaleString("es-PE")}`}
+                        {exam.disponibleDesde && ` · Desde ${new Date(exam.disponibleDesde).toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
+                        {exam.disponibleHasta && ` · Hasta ${new Date(exam.disponibleHasta).toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
                       </div>
                       <div className="session-chips" style={{ marginTop: 6 }}>
                         <span className={`chip ${estado === "Disponible" ? "chip-ok" : estado === "Vencido" ? "chip-resumen" : "chip-capturas"}`}>
