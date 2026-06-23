@@ -72,6 +72,7 @@ export default function CourseWorkspacePage() {
   const [exams, setExams] = useState<ExamItem[] | null>(null);
   const [examsLoading, setExamsLoading] = useState(false);
   const [alumnos, setAlumnos] = useState<AlumnoItem[]>([]);
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -136,20 +137,25 @@ export default function CourseWorkspacePage() {
   async function createSession(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCreatingSession(true);
+    setSessionError(null);
     const nextOrder = Math.max(0, ...sesiones.map((sesion) => sesion.orden)) + 1;
     const response = await fetch(`/api/backend/courses/${id}/sessions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         titulo: newSession.titulo,
-        fecha: newSession.fecha,
+        fecha: newSession.fecha ? new Date(newSession.fecha).toISOString() : "",
         orden: nextOrder,
-        enlaceGrabacion: newSession.enlaceGrabacion,
+        enlaceGrabacion: newSession.enlaceGrabacion || null,
       }),
     });
     setCreatingSession(false);
 
-    if (!response.ok) return;
+    if (!response.ok) {
+      const d = await response.json().catch(() => ({})) as { message?: string };
+      setSessionError(d.message ?? "Error al crear la clase. Verifica los datos.");
+      return;
+    }
 
     const created = (await response.json()) as Sesion;
     setSesiones((current) => [...current, created].sort((a, b) => a.orden - b.orden));
@@ -332,6 +338,9 @@ export default function CourseWorkspacePage() {
                   />
                 </label>
               </div>
+              {sessionError && (
+                <p style={{ margin: 0, fontSize: 13, color: "var(--desaprobado-texto)" }}>{sessionError}</p>
+              )}
               <div className="card-actions">
                 <button className="btn btn-primary" type="submit" disabled={creatingSession}>
                   {creatingSession ? "Creando..." : "Crear clase"}

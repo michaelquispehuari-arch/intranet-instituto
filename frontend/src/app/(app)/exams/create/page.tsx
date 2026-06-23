@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { backendGet } from "@/lib/backend";
 import type { CourseOption } from "../types";
@@ -20,6 +21,11 @@ export default async function CreateExamPage() {
 
   return (
     <div>
+      <div style={{ marginBottom: 12 }}>
+        <Link href="/exams" style={{ fontSize: 13, color: "var(--texto-tenue)" }}>
+          ← Exámenes
+        </Link>
+      </div>
       <div className="page-header">
         <span className="page-eyebrow">{session.user.rol}</span>
         <h1 className="page-title">Nueva evaluacion</h1>

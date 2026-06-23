@@ -102,13 +102,14 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
+    const toISOLocal = (v: string) => (v ? new Date(v).toISOString() : undefined);
     const payload = {
       titulo: String(formData.get("titulo") ?? ""),
       descripcion: String(formData.get("descripcion") ?? "") || undefined,
       cursoId: String(formData.get("cursoId") ?? ""),
       duracionMinutos: Number(formData.get("duracionMinutos") ?? 0),
-      disponibleDesde: String(formData.get("disponibleDesde") ?? "") || undefined,
-      disponibleHasta: String(formData.get("disponibleHasta") ?? "") || undefined,
+      disponibleDesde: toISOLocal(String(formData.get("disponibleDesde") ?? "")),
+      disponibleHasta: toISOLocal(String(formData.get("disponibleHasta") ?? "")),
       preguntas: questions.map((question) => ({
         texto: question.texto,
         tipo: question.tipo,

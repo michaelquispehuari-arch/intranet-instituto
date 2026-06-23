@@ -1,7 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { LogoutButton } from "@/app/dashboard/logout-button";
 
 type ModuleShellProps = {
   title: string;
@@ -23,7 +22,6 @@ export async function ModuleShell({ title, description }: ModuleShellProps) {
             <strong>{title}</strong>
             <span className="muted">{session.user.email}</span>
           </div>
-          <LogoutButton />
         </header>
 
         <section className="panel hero">
