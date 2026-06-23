@@ -4,9 +4,9 @@ export type ExamListItem = {
   descripcion: string | null;
   cursoId: string;
   duracionMinutos: number;
+  ingresoHastaMin: number;
   publicadoEn: string | null;
   disponibleDesde: string | null;
-  disponibleHasta: string | null;
   activo: boolean;
   creadoEn: string;
   curso: {
@@ -66,6 +66,7 @@ export type ExamResults = {
     titulo: string;
     descripcion: string | null;
     duracionMinutos: number;
+    cierreEn?: string | null;
     curso: {
       id: string;
       nombre: string;

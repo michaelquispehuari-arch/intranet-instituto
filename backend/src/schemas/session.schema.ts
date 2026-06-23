@@ -9,17 +9,25 @@ export const sessionIdParamSchema = z.object({
   id: z.string().min(1),
 });
 
+const grabacionUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => !v || /^https?:\/\/.+/.test(v), { message: "El enlace debe comenzar con https://" })
+  .optional();
+
 export const createSessionSchema = z.object({
   fecha: z.coerce.date(),
   titulo: z.string().trim().min(1).max(150),
-  orden: z.number().int().min(1),
-  enlaceGrabacion: z.string().url().optional().or(z.literal("")),
+  orden: z.number().int().min(1).optional().default(1),
+  enlaceGrabacion: grabacionUrl,
 });
 
 export const updateSessionSchema = z.object({
   titulo: z.string().trim().min(1).max(150).optional(),
   fecha: z.coerce.date().optional(),
-  enlaceGrabacion: z.string().url().optional().nullable().or(z.literal("")),
+  enlaceGrabacion: z.string().trim().max(500).nullable().optional()
+    .refine((v) => v == null || !v || /^https?:\/\/.+/.test(v), { message: "El enlace debe comenzar con https://" }),
   orden: z.number().int().min(1).optional(),
 });
 
@@ -44,7 +52,6 @@ export const updateSummaryDeadlineSchema = z.object({
 });
 
 export const reviewSummarySchema = z.object({
-  estado: z.literal("REVISADO"),
   notaTranscripcion: z.number().min(0).max(18).optional().nullable(),
 });
 

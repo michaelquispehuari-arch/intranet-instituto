@@ -23,7 +23,8 @@ sessionDetailRoutes.get("/:id/attendance", sessionController.listAttendance);
 sessionDetailRoutes.post("/:id/attendance", requireRole(Rol.ADMIN), sessionController.upsertAttendance);
 sessionDetailRoutes.get("/:id/summaries", sessionController.listSummaries);
 sessionDetailRoutes.post("/:id/summaries/require", requireRole(Rol.ADMIN), sessionController.requireSummaries);
+sessionDetailRoutes.post("/:id/summaries/self-submit", requireRole(Rol.ESTUDIANTE), sessionController.selfSubmitSummary);
 
 // /api/summaries/:id
 summaryRoutes.patch("/:id/deadline", requireRole(Rol.ADMIN), sessionController.updateSummaryDeadline);
-summaryRoutes.patch("/:id/review", requireRole(Rol.ADMIN), sessionController.reviewSummary);
+summaryRoutes.patch("/:id/review", requireRole(Rol.ADMIN, Rol.PROFESOR), sessionController.reviewSummary);

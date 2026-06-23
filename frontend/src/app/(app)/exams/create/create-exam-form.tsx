@@ -103,13 +103,22 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
 
     const formData = new FormData(event.currentTarget);
     const toISOLocal = (v: string) => (v ? new Date(v).toISOString() : undefined);
+    const duracionMinutos = Number(formData.get("duracionMinutos") ?? 0);
+    const ingresoHastaMin = Number(formData.get("ingresoHastaMin") ?? 10);
+
+    if (ingresoHastaMin >= duracionMinutos) {
+      setError("El tiempo de ingreso debe ser menor que la duración total del examen.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
       titulo: String(formData.get("titulo") ?? ""),
       descripcion: String(formData.get("descripcion") ?? "") || undefined,
       cursoId: String(formData.get("cursoId") ?? ""),
-      duracionMinutos: Number(formData.get("duracionMinutos") ?? 0),
+      duracionMinutos,
+      ingresoHastaMin,
       disponibleDesde: toISOLocal(String(formData.get("disponibleDesde") ?? "")),
-      disponibleHasta: toISOLocal(String(formData.get("disponibleHasta") ?? "")),
       preguntas: questions.map((question) => ({
         texto: question.texto,
         tipo: question.tipo,
@@ -118,14 +127,6 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
         puntaje: question.puntaje,
       })),
     };
-
-    if (payload.disponibleDesde && payload.disponibleHasta) {
-      if (new Date(payload.disponibleHasta) <= new Date(payload.disponibleDesde)) {
-        setError("La fecha/hora de cierre debe ser posterior a la de apertura.");
-        setIsSubmitting(false);
-        return;
-      }
-    }
 
     const response = await fetch("/api/backend/exams", {
       method: "POST",
@@ -165,18 +166,19 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
         </label>
 
         <label className="field">
-          <span>Duracion en minutos</span>
-          <input name="duracionMinutos" type="number" min={1} max={300} defaultValue={30} required />
+          <span>Duración total (min)</span>
+          <input name="duracionMinutos" type="number" min={2} max={300} defaultValue={30} required />
         </label>
 
         <label className="field">
-          <span>Disponible desde</span>
+          <span>Inicio de ingreso</span>
           <input name="disponibleDesde" type="datetime-local" />
         </label>
 
         <label className="field">
-          <span>Disponible hasta</span>
-          <input name="disponibleHasta" type="datetime-local" />
+          <span>Ventana de ingreso (min)</span>
+          <input name="ingresoHastaMin" type="number" min={1} max={299} defaultValue={10} required
+            title="Minutos desde el inicio en que se puede entrar. Debe ser menor que la duración." />
         </label>
 
         <label className="field full-row">

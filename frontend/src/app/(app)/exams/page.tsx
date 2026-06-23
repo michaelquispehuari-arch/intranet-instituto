@@ -22,7 +22,10 @@ function getExamAvailabilityLabel(exam: ExamListItem) {
 
   if (!exam.publicadoEn) return "Borrador";
   if (exam.disponibleDesde && new Date(exam.disponibleDesde) > now) return `Disponible desde ${formatDate(exam.disponibleDesde)}`;
-  if (exam.disponibleHasta && new Date(exam.disponibleHasta) < now) return "Vencido";
+  if (exam.disponibleDesde) {
+    const cierre = new Date(new Date(exam.disponibleDesde).getTime() + exam.duracionMinutos * 60_000);
+    if (cierre < now) return "Vencido";
+  }
   return "Disponible";
 }
 

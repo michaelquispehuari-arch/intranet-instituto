@@ -30,19 +30,16 @@ export const createExamSchema = z
     cursoId: z.string().min(1),
     duracionMinutos: z.number().int().min(1).max(300),
     disponibleDesde: z.coerce.date().optional(),
-    disponibleHasta: z.coerce.date().optional(),
+    ingresoHastaMin: z.number().int().min(1).max(299).default(10),
     revelarRespuestas: z.boolean().default(true),
     esSustitutorio: z.boolean().default(false),
     preguntas: z.array(questionSchema).min(1).max(100),
   })
   .refine(
-    (exam) =>
-      !exam.disponibleDesde ||
-      !exam.disponibleHasta ||
-      exam.disponibleHasta > exam.disponibleDesde,
+    (exam) => exam.ingresoHastaMin < exam.duracionMinutos,
     {
-      message: "disponibleHasta debe ser posterior a disponibleDesde",
-      path: ["disponibleHasta"],
+      message: "El tiempo de ingreso debe ser menor que la duración total",
+      path: ["ingresoHastaMin"],
     },
   );
 

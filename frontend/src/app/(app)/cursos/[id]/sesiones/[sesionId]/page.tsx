@@ -54,6 +54,7 @@ export default function SessionDetailPage() {
   const [attendanceForm, setAttendanceForm] = useState<AttendanceForm>({});
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<"grabacion" | "capturas" | "asistencia" | "resumenes">("grabacion");
+  const [ntDrafts, setNtDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!sesionId) return;
@@ -87,11 +88,11 @@ export default function SessionDetailPage() {
     setSaving(false);
   }
 
-  async function reviewSummary(summaryId: string) {
+  async function reviewSummary(summaryId: string, notaTranscripcion?: number | null) {
     await fetch(`/api/backend/summaries/${summaryId}/review`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ estado: "REVISADO" }),
+      body: JSON.stringify({ notaTranscripcion: notaTranscripcion ?? null }),
     });
     setSesion((prev) =>
       prev
@@ -348,14 +349,29 @@ export default function SessionDetailPage() {
                       {ESTADO_RESUMEN_LABEL[r.estado] ?? r.estado}
                     </span>
 
-                    {rol === "ADMIN" && r.estado === "ENTREGADO" && (
-                      <button
-                        className="btn btn-secondary"
-                        style={{ fontSize: 12, padding: "4px 10px" }}
-                        onClick={() => reviewSummary(r.id)}
-                      >
-                        Marcar revisado
-                      </button>
+                    {(rol === "ADMIN" || rol === "PROFESOR") && r.estado === "ENTREGADO" && (
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <input
+                          type="number"
+                          min={0}
+                          max={18}
+                          step={0.5}
+                          placeholder="NT (0-18)"
+                          value={ntDrafts[r.id] ?? ""}
+                          onChange={(e) => setNtDrafts((p) => ({ ...p, [r.id]: e.target.value }))}
+                          style={{ width: 80, border: "0.5px solid var(--borde)", borderRadius: 6, padding: "4px 8px", fontSize: 12 }}
+                        />
+                        <button
+                          className="btn btn-secondary"
+                          style={{ fontSize: 12, padding: "4px 10px" }}
+                          onClick={() => {
+                            const nt = ntDrafts[r.id] !== undefined && ntDrafts[r.id] !== "" ? Number(ntDrafts[r.id]) : null;
+                            reviewSummary(r.id, nt);
+                          }}
+                        >
+                          Marcar revisado
+                        </button>
+                      </div>
                     )}
 
                     {rol === "ESTUDIANTE" && r.requerido && r.estado === "PENDIENTE" && (

@@ -117,3 +117,13 @@ export async function reviewSummary(req: Request, res: Response, next: NextFunct
     next(error);
   }
 }
+
+export async function selfSubmitSummary(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id: sesionId } = sessionIdParamSchema.parse(req.params);
+    const result = await sessionService.selfSubmitSummary(sesionId, req.user!);
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}

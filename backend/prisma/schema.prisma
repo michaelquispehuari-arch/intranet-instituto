@@ -193,6 +193,7 @@ model Examen {
   publicadoEn       DateTime?
   disponibleDesde   DateTime?
   disponibleHasta   DateTime?
+  ingresoHastaMin   Int       @default(10)
   activo            Boolean   @default(true)
   creadoEn          DateTime  @default(now())
   revelarRespuestas Boolean   @default(true)

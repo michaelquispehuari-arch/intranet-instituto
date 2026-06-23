@@ -24,12 +24,27 @@ export default async function ExamResultsPage({ params }: ExamResultsPageProps) 
 
   const { id } = await params;
   let data: ExamResults | null = null;
+  let beforeCloseAt: string | null = null;
 
   try {
     data = await backendGet<ExamResults>(`/api/exams/${id}/results`, session);
-  } catch {
+  } catch (err) {
+    // Backend signals "before close" with a BEFORE_CLOSE:<iso> message in NotFoundError
+    const msg = err instanceof Error ? err.message : "";
+    const match = msg.match(/BEFORE_CLOSE:(.+)/);
+    if (match) beforeCloseAt = match[1];
     data = null;
   }
+
+  const cierreLabel = beforeCloseAt
+    ? new Intl.DateTimeFormat("es-PE", {
+        timeZone: "America/Lima",
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "short",
+      }).format(new Date(beforeCloseAt))
+    : null;
 
   return (
     <div>
@@ -41,18 +56,25 @@ export default async function ExamResultsPage({ params }: ExamResultsPageProps) 
 
         <section className="page-header">
           <span className="badge">Resultados</span>
-          <h1 className="page-title">{data?.exam.titulo ?? "Resultado no disponible"}</h1>
+          <h1 className="page-title">{data?.exam.titulo ?? "Examen"}</h1>
           <p className="page-subtitle">Resultados registrados por el backend.</p>
         </section>
 
-        {!data || data.submissions.length === 0 ? (
+        {cierreLabel && (
+          <section className="card empty-state">
+            <strong>Resultado aún no disponible</strong>
+            <p className="muted">El resultado estará disponible a partir de las {cierreLabel}, cuando cierre el examen para todos.</p>
+          </section>
+        )}
+
+        {!cierreLabel && (!data || data.submissions.length === 0) ? (
           <section className="card empty-state">
             <strong>Sin envios completados.</strong>
             <p className="muted">Cuando un estudiante envie el examen, el resultado aparecera aqui.</p>
           </section>
-        ) : (
+        ) : !cierreLabel && (
           <section className="stack" aria-label="Resultados del examen">
-            {data.submissions.map((submission) => (
+            {data!.submissions.map((submission) => (
               <article className="card result-card" style={{ padding: 20 }} key={submission.id}>
                 <div className="result-header">
                   <div>

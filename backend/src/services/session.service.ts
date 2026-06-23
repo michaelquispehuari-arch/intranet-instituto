@@ -324,8 +324,30 @@ export async function updateSummaryDeadline(
   });
 }
 
+export async function selfSubmitSummary(sesionId: string, user: AuthUser) {
+  if (user.rol !== Rol.ESTUDIANTE) throw new ForbiddenError();
+
+  const sesion = await prisma.sesion.findUnique({
+    where: { id: sesionId },
+    select: { id: true, cursoId: true },
+  });
+  if (!sesion) throw new NotFoundError("Sesión no encontrada");
+
+  const inscripcion = await prisma.inscripcion.findUnique({
+    where: { estudianteId_cursoId: { estudianteId: user.id, cursoId: sesion.cursoId } },
+    select: { id: true },
+  });
+  if (!inscripcion) throw new ForbiddenError();
+
+  return prisma.entregaResumen.upsert({
+    where: { sesionId_estudianteId: { sesionId, estudianteId: user.id } },
+    create: { sesionId, estudianteId: user.id, estado: "ENTREGADO", entregadoEn: new Date(), requerido: false },
+    update: { estado: "ENTREGADO", entregadoEn: new Date() },
+  });
+}
+
 export async function reviewSummary(summaryId: string, notaTranscripcion: number | null | undefined, user: AuthUser) {
-  if (user.rol !== Rol.ADMIN) {
+  if (user.rol !== Rol.ADMIN && user.rol !== Rol.PROFESOR) {
     throw new ForbiddenError();
   }
 

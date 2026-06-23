@@ -33,9 +33,9 @@ type ExamItem = {
   titulo: string;
   descripcion: string | null;
   duracionMinutos: number;
+  ingresoHastaMin: number;
   publicadoEn: string | null;
   disponibleDesde: string | null;
-  disponibleHasta: string | null;
   _count: { preguntas: number; envios: number };
 };
 
@@ -47,7 +47,7 @@ type AlumnoItem = {
   codigo: string | null;
 };
 
-type Tab = "sesiones" | "material" | "examenes" | "notas" | "alumnos";
+type Tab = "sesiones" | "material" | "examenes" | "notas" | "alumnos" | "transcripcion";
 
 const TIPO_LABEL: Record<string, string> = {
   REGULAR: "Curso Regular",
@@ -73,6 +73,8 @@ export default function CourseWorkspacePage() {
   const [examsLoading, setExamsLoading] = useState(false);
   const [alumnos, setAlumnos] = useState<AlumnoItem[]>([]);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [transcripciones, setTranscripciones] = useState<Record<string, string>>({});
+  const [submittingTranscripcion, setSubmittingTranscripcion] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -169,6 +171,7 @@ export default function CourseWorkspacePage() {
     { key: "examenes", label: "Exámenes", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
     { key: "notas", label: "Notas", roles: ["ADMIN", "PROFESOR"] },
     { key: "alumnos", label: "Alumnos", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+    { key: "transcripcion", label: "Transcripción", roles: ["ESTUDIANTE"] },
   ];
   const tabs = allTabs.filter((t) => !rol || t.roles.includes(rol as "ADMIN" | "PROFESOR" | "ESTUDIANTE"));
 
@@ -394,21 +397,23 @@ export default function CourseWorkspacePage() {
               {exams.map((exam) => {
                 const now = new Date();
                 const desde = exam.disponibleDesde ? new Date(exam.disponibleDesde) : null;
-                const hasta = exam.disponibleHasta ? new Date(exam.disponibleHasta) : null;
-                const disponible = exam.publicadoEn && (!desde || desde <= now) && (!hasta || hasta >= now);
-                const vencido = hasta && hasta < now;
-                const estado = !exam.publicadoEn ? "Borrador" : vencido ? "Vencido" : disponible ? "Disponible" : "Pendiente";
+                const cierre = desde ? new Date(desde.getTime() + exam.duracionMinutos * 60_000) : null;
+                const ingresoHasta = desde ? new Date(desde.getTime() + exam.ingresoHastaMin * 60_000) : null;
+                const disponible = exam.publicadoEn && desde && desde <= now && cierre && cierre > now;
+                const enVentanaIngreso = disponible && ingresoHasta && ingresoHasta > now;
+                const vencido = cierre && cierre < now;
+                const estado = !exam.publicadoEn ? "Borrador" : vencido ? "Vencido" : disponible ? "En curso" : "Pendiente";
                 return (
                   <article key={exam.id} className="session-card">
                     <div className="session-info">
                       <div className="session-title">{exam.titulo}</div>
                       <div style={{ fontSize: 13, color: "var(--texto-tenue)", marginTop: 4 }}>
                         {exam.duracionMinutos} min · {exam._count.preguntas} preguntas
-                        {exam.disponibleDesde && ` · Desde ${new Date(exam.disponibleDesde).toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
-                        {exam.disponibleHasta && ` · Hasta ${new Date(exam.disponibleHasta).toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
+                        {desde && ` · Inicio ${desde.toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
+                        {cierre && ` · Cierre ${cierre.toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
                       </div>
                       <div className="session-chips" style={{ marginTop: 6 }}>
-                        <span className={`chip ${estado === "Disponible" ? "chip-ok" : estado === "Vencido" ? "chip-resumen" : "chip-capturas"}`}>
+                        <span className={`chip ${estado === "En curso" ? "chip-ok" : estado === "Vencido" ? "chip-resumen" : "chip-capturas"}`}>
                           {estado}
                         </span>
                         {exam._count.envios > 0 && (
@@ -417,7 +422,7 @@ export default function CourseWorkspacePage() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                      {rol === "ESTUDIANTE" && disponible && (
+                      {rol === "ESTUDIANTE" && enVentanaIngreso && (
                         <Link className="btn btn-primary" href={`/exams/${exam.id}`}>
                           Dar examen
                         </Link>
@@ -498,6 +503,56 @@ export default function CourseWorkspacePage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {tab === "transcripcion" && rol === "ESTUDIANTE" && (
+        <div>
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Subir mi transcripción</h2>
+            <p style={{ marginTop: 6, fontSize: 13, color: "var(--texto-tenue)" }}>
+              Selecciona el día de clase al que corresponde tu transcripción y confirma el envío.
+            </p>
+          </div>
+          <div className="session-list">
+            {sesiones.map((sesion) => {
+              const key = sesion.id;
+              const entregado = transcripciones[key] === "ok";
+              const enviando = submittingTranscripcion === key;
+              return (
+                <article key={key} className="session-card">
+                  <div className="session-info">
+                    <div className="session-title">Día {sesion.orden} — {sesion.titulo}</div>
+                  </div>
+                  <div style={{ flexShrink: 0 }}>
+                    {entregado ? (
+                      <span className="chip chip-ok">Enviada ✓</span>
+                    ) : (
+                      <button
+                        className="btn btn-primary"
+                        disabled={enviando}
+                        onClick={async () => {
+                          setSubmittingTranscripcion(key);
+                          const r = await fetch(`/api/backend/sessions/${key}/summaries/self-submit`, { method: "POST" });
+                          setSubmittingTranscripcion(null);
+                          if (r.ok) setTranscripciones((prev) => ({ ...prev, [key]: "ok" }));
+                          else {
+                            const d = await r.json().catch(() => ({})) as { message?: string };
+                            alert(d.message ?? "Error al enviar");
+                          }
+                        }}
+                      >
+                        {enviando ? "Enviando…" : "Marcar como enviada"}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+            {sesiones.length === 0 && (
+              <div className="card"><div className="empty-state"><p>No hay sesiones aún.</p></div></div>
+            )}
+          </div>
         </div>
       )}
     </div>

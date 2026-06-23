@@ -13,9 +13,9 @@ const examListSelect = {
   descripcion: true,
   cursoId: true,
   duracionMinutos: true,
+  ingresoHastaMin: true,
   publicadoEn: true,
   disponibleDesde: true,
-  disponibleHasta: true,
   activo: true,
   creadoEn: true,
   curso: {
@@ -120,29 +120,32 @@ export async function getExamById(examId: string, user: AuthUser) {
     (inscripcion) => inscripcion.estudianteId === user.id,
   );
 
-  if (user.rol !== Rol.ESTUDIANTE || !isEnrolled || !isExamAvailable(exam)) {
+  if (user.rol !== Rol.ESTUDIANTE || !isEnrolled) {
     throw new ForbiddenError();
   }
 
-  const attempt = await prisma.examenEnvio.upsert({
-    where: {
-      estudianteId_examenId: {
-        estudianteId: user.id,
-        examenId: exam.id,
-      },
-    },
-    update: {},
-    create: {
-      estudianteId: user.id,
-      examenId: exam.id,
-    },
-    select: {
-      iniciadoEn: true,
-      completado: true,
-    },
+  // Check if student already has an attempt
+  const existingAttempt = await prisma.examenEnvio.findUnique({
+    where: { estudianteId_examenId: { estudianteId: user.id, examenId: exam.id } },
+    select: { iniciadoEn: true, completado: true },
   });
 
-  if (!attempt.completado && isExamTimeExpired(attempt.iniciadoEn, exam.duracionMinutos)) {
+  // New students can only enter within the ingreso window
+  if (!existingAttempt && !canEnterExam(exam)) {
+    throw new ForbiddenError("El examen no está disponible en este momento.");
+  }
+
+  // Existing students can still access until cierre
+  if (existingAttempt && !isExamAvailable(exam)) {
+    throw new ForbiddenError("El tiempo del examen ha cerrado.");
+  }
+
+  const attempt = existingAttempt ?? await prisma.examenEnvio.create({
+    data: { estudianteId: user.id, examenId: exam.id },
+    select: { iniciadoEn: true, completado: true },
+  });
+
+  if (!attempt.completado && isExamTimeExpired(exam, attempt.iniciadoEn)) {
     throw new ForbiddenError("El tiempo del examen ha terminado");
   }
 
@@ -155,7 +158,7 @@ export async function getExamById(examId: string, user: AuthUser) {
     },
     tiempoRestanteSegundos: attempt.completado
       ? 0
-      : getRemainingExamSeconds(attempt.iniciadoEn, exam.duracionMinutos),
+      : getRemainingExamSeconds(exam, attempt.iniciadoEn),
   };
 }
 
@@ -167,6 +170,7 @@ export async function getExamResults(examId: string, user: AuthUser) {
       titulo: true,
       descripcion: true,
       duracionMinutos: true,
+      disponibleDesde: true,
       curso: {
         select: {
           id: true,
@@ -191,6 +195,12 @@ export async function getExamResults(examId: string, user: AuthUser) {
 
   if (!canViewAll && !isEnrolledStudent) {
     throw new ForbiddenError();
+  }
+
+  // Students can only see results after cierre
+  const cierre = getCierre(exam);
+  if (isEnrolledStudent && cierre && cierre > new Date()) {
+    throw new NotFoundError(`BEFORE_CLOSE:${cierre.toISOString()}`);
   }
 
   const submissions = await prisma.examenEnvio.findMany({
@@ -261,8 +271,8 @@ export async function createExam(input: CreateExamInput, user: AuthUser) {
       descripcion: input.descripcion,
       cursoId: input.cursoId,
       duracionMinutos: input.duracionMinutos,
+      ingresoHastaMin: input.ingresoHastaMin,
       disponibleDesde: input.disponibleDesde,
-      disponibleHasta: input.disponibleHasta,
       revelarRespuestas: input.revelarRespuestas,
       esSustitutorio: input.esSustitutorio,
       preguntas: {
@@ -354,10 +364,7 @@ export async function submitExam(examId: string, input: SubmitExamInput, user: A
     return getSubmissionResult(existingSubmission.id);
   }
 
-  if (
-    existingSubmission &&
-    isExamTimeExpired(existingSubmission.iniciadoEn, exam.duracionMinutos)
-  ) {
+  if (existingSubmission && isExamTimeExpired(exam, existingSubmission.iniciadoEn)) {
     throw new ForbiddenError("El tiempo del examen ha terminado");
   }
 
@@ -529,41 +536,53 @@ async function ensureCourseExists(courseId: string) {
   }
 }
 
+function getCierre(exam: { disponibleDesde: Date | null; duracionMinutos: number }): Date | null {
+  if (!exam.disponibleDesde) return null;
+  return new Date(exam.disponibleDesde.getTime() + exam.duracionMinutos * 60_000);
+}
+
+function getIngresoHasta(exam: { disponibleDesde: Date | null; ingresoHastaMin: number }): Date | null {
+  if (!exam.disponibleDesde) return null;
+  return new Date(exam.disponibleDesde.getTime() + exam.ingresoHastaMin * 60_000);
+}
+
 function isExamAvailable(exam: {
   activo: boolean;
   publicadoEn: Date | null;
   disponibleDesde: Date | null;
-  disponibleHasta: Date | null;
+  duracionMinutos: number;
   curso: { activo: boolean };
 }) {
   const now = new Date();
-
-  if (!exam.activo || !exam.curso.activo || !exam.publicadoEn) {
-    return false;
-  }
-
-  if (exam.disponibleDesde && exam.disponibleDesde > now) {
-    return false;
-  }
-
-  if (exam.disponibleHasta && exam.disponibleHasta < now) {
-    return false;
-  }
-
+  if (!exam.activo || !exam.curso.activo || !exam.publicadoEn) return false;
+  if (exam.disponibleDesde && exam.disponibleDesde > now) return false;
+  const cierre = getCierre(exam);
+  if (cierre && cierre < now) return false;
   return true;
 }
 
-function getRemainingExamSeconds(startedAt: Date, durationMinutes: number) {
-  const endsAt = startedAt.getTime() + durationMinutes * 60_000;
-  const remainingMs = Math.max(0, endsAt - Date.now());
-
-  return Math.ceil(remainingMs / 1000);
+function canEnterExam(exam: {
+  activo: boolean;
+  publicadoEn: Date | null;
+  disponibleDesde: Date | null;
+  ingresoHastaMin: number;
+  duracionMinutos: number;
+  curso: { activo: boolean };
+}) {
+  if (!isExamAvailable(exam)) return false;
+  const ingresoHasta = getIngresoHasta(exam);
+  if (ingresoHasta && ingresoHasta < new Date()) return false;
+  return true;
 }
 
-function isExamTimeExpired(startedAt: Date, durationMinutes: number) {
-  const expiresAt = startedAt.getTime() + durationMinutes * 60_000 + EXAM_SUBMIT_GRACE_MS;
+function getRemainingExamSeconds(exam: { disponibleDesde: Date | null; duracionMinutos: number }, startedAt: Date) {
+  const cierre = getCierre(exam) ?? new Date(startedAt.getTime() + exam.duracionMinutos * 60_000);
+  return Math.max(0, Math.ceil((cierre.getTime() - Date.now()) / 1000));
+}
 
-  return Date.now() > expiresAt;
+function isExamTimeExpired(exam: { disponibleDesde: Date | null; duracionMinutos: number }, startedAt: Date) {
+  const cierre = getCierre(exam) ?? new Date(startedAt.getTime() + exam.duracionMinutos * 60_000);
+  return Date.now() > cierre.getTime() + EXAM_SUBMIT_GRACE_MS;
 }
 
 export async function gradeOpenAnswers(examId: string, input: GradeOpenInput, user: AuthUser) {
