@@ -4,7 +4,8 @@ import * as sessionController from "../controllers/session.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/require-role.middleware.js";
 
-export const sessionRoutes = Router();
+// mergeParams: true needed so /:id from app.use("/api/courses/:id/sessions", ...) reaches req.params
+export const sessionRoutes = Router({ mergeParams: true });
 export const sessionDetailRoutes = Router();
 export const summaryRoutes = Router();
 

@@ -151,8 +151,9 @@ export default function CourseWorkspacePage() {
     setCreatingSession(false);
 
     if (!response.ok) {
-      const d = await response.json().catch(() => ({})) as { message?: string };
-      setSessionError(d.message ?? "Error al crear la clase. Verifica los datos.");
+      const d = await response.json().catch(() => ({})) as { message?: string; errors?: Record<string, string[]> };
+      const fieldMsg = d.errors ? Object.entries(d.errors).map(([f, e]) => `${f}: ${e.join(", ")}`).join(" | ") : "";
+      setSessionError(fieldMsg || d.message || "Error al crear la clase.");
       return;
     }
 
