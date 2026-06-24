@@ -13,14 +13,13 @@ const grabacionUrl = z
   .string()
   .trim()
   .max(500)
-  .refine((v) => !v || /^https?:\/\/.+/.test(v), { message: "El enlace debe comenzar con https://" })
-  .optional();
+  .refine((v) => !v || /^https?:\/\/.+/.test(v), { message: "El enlace debe comenzar con https://" });
 
 export const createSessionSchema = z.object({
-  fecha: z.coerce.date(),
   titulo: z.string().trim().min(1).max(150),
-  orden: z.number().int().min(1).optional().default(1),
   enlaceGrabacion: grabacionUrl,
+  fecha: z.coerce.date().optional(),
+  orden: z.coerce.number().int().min(1).optional(),
 });
 
 export const updateSessionSchema = z.object({

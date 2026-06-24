@@ -98,14 +98,15 @@ model Usuario {
 }
 
 model Curso {
-  id          String    @id @default(cuid())
-  nombre      String
-  descripcion String?
-  ciclo       Int
-  anio        Int
-  profesorId  String
-  activo      Boolean   @default(true)
-  tipo        TipoCurso @default(REGULAR)
+  id                 String    @id @default(cuid())
+  nombre             String
+  descripcion        String?
+  ciclo              Int
+  anio               Int
+  profesorId         String
+  activo             Boolean   @default(true)
+  tipo               TipoCurso @default(REGULAR)
+  notasPublicadasEn  DateTime?
 
   profesor         Usuario                    @relation("ProfesorCurso", fields: [profesorId], references: [id])
   inscripciones    Inscripcion[]
@@ -312,11 +313,12 @@ model RegistroSemanal {
   modo            ModoEstudio @default(SINCRONICO)
   numDias         Int         @default(3)
   celdas          Json?
-  notaAsistencia  Float?
-  notaExamenNorm  Float?
-  notaExamenRecup Float?
-  notaFinal       Int?
-  actualizadoEn   DateTime    @updatedAt
+  notaAsistencia       Float?
+  notaExamenNorm       Float?
+  notaExamenRecup      Float?
+  notaFinal            Int?
+  notaFinalPublicada   Float?
+  actualizadoEn        DateTime    @updatedAt
 
   estudiante Usuario @relation(fields: [estudianteId], references: [id])
   curso      Curso   @relation(fields: [cursoId], references: [id])

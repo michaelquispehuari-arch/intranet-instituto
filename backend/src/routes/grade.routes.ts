@@ -1,6 +1,7 @@
 import { Rol } from "@prisma/client";
 import { Router } from "express";
 import * as gradeController from "../controllers/grade.controller.js";
+import * as gradesSheetController from "../controllers/grades-sheet.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/require-role.middleware.js";
 
@@ -17,3 +18,4 @@ gradeRoutes.patch("/manual/:id", requireRole(Rol.PROFESOR), gradeController.upda
 gradeRoutes.delete("/manual/:id", requireRole(Rol.PROFESOR), gradeController.removeManual);
 gradeRoutes.get("/attendance", gradeController.listAttendance);
 gradeRoutes.post("/attendance", requireRole(Rol.ADMIN), gradeController.setAttendance);
+gradeRoutes.get("/mine", requireRole(Rol.ESTUDIANTE), gradesSheetController.getMyPublishedGrades);

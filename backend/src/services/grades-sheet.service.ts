@@ -74,7 +74,7 @@ function computeNotas(modo: ModoEstudio, celdas: Record<string, unknown>, numDia
 }
 
 export async function getGradesSheet(courseId: string, user: AuthUser) {
-  if (user.rol !== Rol.ADMIN && user.rol !== Rol.PROFESOR) throw new ForbiddenError();
+  if (user.rol !== Rol.ADMIN) throw new ForbiddenError();
 
   const curso = await prisma.curso.findUnique({
     where: { id: courseId },
@@ -147,6 +147,109 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
   );
 
   return { numDias, filas };
+}
+
+export async function publishGrades(courseId: string, user: AuthUser) {
+  if (user.rol !== Rol.ADMIN) throw new ForbiddenError();
+
+  const curso = await prisma.curso.findUnique({ where: { id: courseId }, select: { id: true } });
+  if (!curso) throw new NotFoundError("Curso no encontrado");
+
+  // Prisma doesn't support field-to-field copy in updateMany, so we do it per-row
+  const registros = await prisma.registroSemanal.findMany({
+    where: { cursoId: courseId },
+    select: { id: true, notaFinal: true },
+  });
+
+  await Promise.all(
+    registros.map((r) =>
+      prisma.registroSemanal.update({
+        where: { id: r.id },
+        data: { notaFinalPublicada: r.notaFinal ?? null },
+      }),
+    ),
+  );
+
+  return prisma.curso.update({
+    where: { id: courseId },
+    data: { notasPublicadasEn: new Date() },
+    select: { id: true, notasPublicadasEn: true },
+  });
+}
+
+export async function getPublishedGrades(courseId: string, user: AuthUser) {
+  if (user.rol !== Rol.PROFESOR) throw new ForbiddenError();
+
+  const curso = await prisma.curso.findFirst({
+    where: { id: courseId, profesorId: user.id },
+    select: {
+      id: true,
+      nombre: true,
+      notasPublicadasEn: true,
+      inscripciones: {
+        include: {
+          estudiante: { select: { id: true, nombre: true, apellido: true, codigo: true } },
+        },
+      },
+    },
+  });
+  if (!curso) throw new ForbiddenError();
+
+  if (!curso.notasPublicadasEn) {
+    return { publicadas: false, notasPublicadasEn: null, filas: [] };
+  }
+
+  const filas = await Promise.all(
+    curso.inscripciones.map(async (ins) => {
+      const registro = await prisma.registroSemanal.findUnique({
+        where: { estudianteId_cursoId: { estudianteId: ins.estudianteId, cursoId: courseId } },
+        select: { notaFinalPublicada: true },
+      });
+      return {
+        estudianteId: ins.estudianteId,
+        codigo: ins.estudiante.codigo ?? "",
+        nombre: ins.estudiante.nombre,
+        apellido: ins.estudiante.apellido,
+        notaFinalPublicada: registro?.notaFinalPublicada ?? null,
+      };
+    }),
+  );
+
+  return {
+    publicadas: true,
+    notasPublicadasEn: curso.notasPublicadasEn.toISOString(),
+    filas,
+  };
+}
+
+export async function getMyPublishedGrades(user: AuthUser) {
+  if (user.rol !== Rol.ESTUDIANTE) throw new ForbiddenError();
+
+  const inscripciones = await prisma.inscripcion.findMany({
+    where: { estudianteId: user.id },
+    include: {
+      curso: {
+        select: { id: true, nombre: true, ciclo: true, anio: true, notasPublicadasEn: true },
+      },
+    },
+    orderBy: { curso: { anio: "desc" } },
+  });
+
+  return Promise.all(inscripciones.map(async (ins) => {
+    const registro = await prisma.registroSemanal.findUnique({
+      where: { estudianteId_cursoId: { estudianteId: user.id, cursoId: ins.cursoId } },
+      select: { notaFinalPublicada: true },
+    });
+    return {
+      cursoId: ins.cursoId,
+      nombre: ins.curso.nombre,
+      ciclo: ins.curso.ciclo,
+      anio: ins.curso.anio,
+      publicadas: ins.curso.notasPublicadasEn !== null,
+      notasPublicadasEn: ins.curso.notasPublicadasEn?.toISOString() ?? null,
+      notaFinalPublicada: ins.curso.notasPublicadasEn ? (registro?.notaFinalPublicada ?? null) : null,
+    };
+  }));
 }
 
 export async function upsertGradeRow(

@@ -23,7 +23,16 @@ type Fila = {
   notaFinal: number | null;
 };
 
+type FilaPublicada = {
+  estudianteId: string;
+  codigo: string;
+  nombre: string;
+  apellido: string;
+  notaFinalPublicada: number | null;
+};
+
 type SheetData = { numDias: 1 | 2 | 3; filas: Fila[] };
+type PublishedData = { publicadas: boolean; notasPublicadasEn: string | null; filas: FilaPublicada[] };
 
 const SIMBOLOS = ["", "F", "A", "M", "C", "T", "FJ", "AJ", "MJ", "CJ", "TJ"];
 const DIAS_KEYS = [
@@ -41,34 +50,47 @@ function chipClase(nota: number | null) {
 export default function NotasSheetPage() {
   const { id: cursoId } = useParams<{ id: string }>();
   const { data: session } = useSession();
-  const soloLectura = session?.user?.rol !== "ADMIN";
+  const rol = session?.user?.rol;
+
+  // ADMIN state
   const [data, setData] = useState<SheetData | null>(null);
   const [numDias, setNumDias] = useState<1 | 2 | 3>(3);
   const [edits, setEdits] = useState<Record<string, Record<string, string>>>({});
   const [modos, setModos] = useState<Record<string, ModoEstudio>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [publishing, setPublishing] = useState(false);
+  const [publishedAt, setPublishedAt] = useState<string | null>(null);
+
+  // PROFESOR state
+  const [pubData, setPubData] = useState<PublishedData | null>(null);
+
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const r = await fetch(`/api/backend/courses/${cursoId}/grades-sheet`);
-    if (r.ok) {
-      const d: SheetData = await r.json();
-      setData(d);
-      setNumDias(d.numDias ?? 3);
-      const initEdits: typeof edits = {};
-      const initModos: typeof modos = {};
-      d.filas.forEach((f) => {
-        initEdits[f.estudianteId] = { ...f.celdasCamara };
-        initModos[f.estudianteId] = f.modo;
-      });
-      setEdits(initEdits);
-      setModos(initModos);
+    if (rol === "ADMIN") {
+      const r = await fetch(`/api/backend/courses/${cursoId}/grades-sheet`);
+      if (r.ok) {
+        const d: SheetData = await r.json();
+        setData(d);
+        setNumDias(d.numDias ?? 3);
+        const initEdits: Record<string, Record<string, string>> = {};
+        const initModos: Record<string, ModoEstudio> = {};
+        d.filas.forEach((f) => {
+          initEdits[f.estudianteId] = { ...f.celdasCamara };
+          initModos[f.estudianteId] = f.modo;
+        });
+        setEdits(initEdits);
+        setModos(initModos);
+      }
+    } else if (rol === "PROFESOR") {
+      const r = await fetch(`/api/backend/courses/${cursoId}/grades`);
+      if (r.ok) setPubData(await r.json());
     }
     setLoading(false);
-  }, [cursoId]);
+  }, [cursoId, rol]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (rol) load(); }, [load, rol]);
 
   async function saveRow(estudianteId: string) {
     setSaving((s) => ({ ...s, [estudianteId]: true }));
@@ -86,8 +108,79 @@ export default function NotasSheetPage() {
     setSaving((s) => ({ ...s, [estudianteId]: false }));
   }
 
+  async function handlePublish() {
+    setPublishing(true);
+    const r = await fetch(`/api/backend/courses/${cursoId}/grades/publish`, { method: "POST" });
+    setPublishing(false);
+    if (r.ok) {
+      const d = await r.json() as { notasPublicadasEn: string };
+      setPublishedAt(d.notasPublicadasEn);
+    }
+  }
+
   if (loading) return <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>;
 
+  // ── PROFESOR view ─────────────────────────────────────────────────────────
+  if (rol === "PROFESOR") {
+    return (
+      <div>
+        <Link href={`/cursos/${cursoId}`} style={{ fontSize: 13, color: "var(--texto-tenue)", display: "inline-block", marginBottom: 12 }}>
+          ← Volver al curso
+        </Link>
+        <div className="page-header">
+          <span className="page-eyebrow">Notas del curso</span>
+          <h1 className="page-title">Calificaciones publicadas</h1>
+        </div>
+
+        {!pubData || !pubData.publicadas ? (
+          <div className="card">
+            <div className="empty-state">
+              <div className="empty-state-icon">📊</div>
+              <p className="empty-state-title">Notas aún no publicadas</p>
+              <p>El administrador aún no ha publicado las notas de este curso.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="card">
+            {pubData.notasPublicadasEn && (
+              <p style={{ fontSize: 12, color: "var(--texto-tenue)", margin: "0 0 12px" }}>
+                Publicadas el {new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Lima" }).format(new Date(pubData.notasPublicadasEn))}
+              </p>
+            )}
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "var(--verde-sidebar)", color: "#fff" }}>
+                    <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600 }}>Cód.</th>
+                    <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600 }}>Apellidos y Nombres</th>
+                    <th style={{ padding: "8px 10px", textAlign: "center", fontWeight: 600 }}>Nota Final</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pubData.filas.map((f) => {
+                    const chip = chipClase(f.notaFinalPublicada);
+                    return (
+                      <tr key={f.estudianteId} style={{ borderBottom: "0.5px solid var(--borde)" }}>
+                        <td style={{ padding: "7px 10px", color: "var(--texto-tenue)" }}>{f.codigo || "—"}</td>
+                        <td style={{ padding: "7px 10px", fontWeight: 500 }}>{f.apellido}, {f.nombre}</td>
+                        <td style={{ padding: "7px 10px", textAlign: "center" }}>
+                          <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: 6, fontWeight: 700, color: chip.color, background: chip.bg }}>
+                            {f.notaFinalPublicada ?? "—"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── ADMIN view ────────────────────────────────────────────────────────────
   if (!data || data.filas.length === 0) {
     return (
       <div>
@@ -120,7 +213,7 @@ export default function NotasSheetPage() {
           <span className="page-eyebrow">Notas semanales</span>
           <h1 className="page-title">Grilla de calificaciones</h1>
         </div>
-        {!soloLectura && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <label style={{ fontSize: 13, fontWeight: 600 }}>Días de clase:</label>
             {([1, 2, 3] as const).map((n) => (
@@ -134,7 +227,22 @@ export default function NotasSheetPage() {
               </button>
             ))}
           </div>
-        )}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+            <button
+              className="btn btn-primary"
+              style={{ fontSize: 13 }}
+              onClick={handlePublish}
+              disabled={publishing}
+            >
+              {publishing ? "Publicando…" : "Mandar notas"}
+            </button>
+            {publishedAt && (
+              <span style={{ fontSize: 11, color: "var(--texto-tenue)" }}>
+                Publicadas {new Intl.DateTimeFormat("es-PE", { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(publishedAt))}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Leyenda */}
@@ -162,7 +270,7 @@ export default function NotasSheetPage() {
               <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Asist.</th>
               <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Exam.</th>
               <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Final</th>
-              {!soloLectura && <th style={{ padding: "8px 6px", textAlign: "center" }}></th>}
+              <th style={{ padding: "8px 6px", textAlign: "center" }}></th>
             </tr>
           </thead>
           <tbody>
@@ -180,45 +288,33 @@ export default function NotasSheetPage() {
                     {fila.apellido}, {fila.nombre}
                   </td>
                   <td style={{ padding: "4px 4px", textAlign: "center" }}>
-                    {soloLectura ? (
-                      <span style={{ fontSize: 11, color: "var(--texto-tenue)" }}>
-                        {(modos[fila.estudianteId] ?? fila.modo).charAt(0)}
-                      </span>
-                    ) : (
-                      <select
-                        value={modos[fila.estudianteId] ?? fila.modo}
-                        onChange={(e) => setModos((m) => ({ ...m, [fila.estudianteId]: e.target.value as ModoEstudio }))}
-                        style={{ fontSize: 11, border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 4px" }}
-                      >
-                        <option value="SINCRONICO">S</option>
-                        <option value="ASINCRONICO">A</option>
-                        <option value="MIXTO">M</option>
-                      </select>
-                    )}
+                    <select
+                      value={modos[fila.estudianteId] ?? fila.modo}
+                      onChange={(e) => setModos((m) => ({ ...m, [fila.estudianteId]: e.target.value as ModoEstudio }))}
+                      style={{ fontSize: 11, border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 4px" }}
+                    >
+                      <option value="SINCRONICO">S</option>
+                      <option value="ASINCRONICO">A</option>
+                      <option value="MIXTO">M</option>
+                    </select>
                   </td>
 
                   {dias.map((diaKeys, di) => (
                     <>
                       {diaKeys.map((key) => (
                         <td key={key} style={{ padding: "2px 2px", textAlign: "center" }}>
-                          {soloLectura ? (
-                            <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                              {edits[fila.estudianteId]?.[key] || "✓"}
-                            </span>
-                          ) : (
-                            <select
-                              value={edits[fila.estudianteId]?.[key] ?? ""}
-                              onChange={(e) =>
-                                setEdits((prev) => ({
-                                  ...prev,
-                                  [fila.estudianteId]: { ...prev[fila.estudianteId], [key]: e.target.value },
-                                }))
-                              }
-                              style={{ fontSize: 12, border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 4px", width: 48 }}
-                            >
-                              {SIMBOLOS.map((s) => <option key={s} value={s}>{s || "✓"}</option>)}
-                            </select>
-                          )}
+                          <select
+                            value={edits[fila.estudianteId]?.[key] ?? ""}
+                            onChange={(e) =>
+                              setEdits((prev) => ({
+                                ...prev,
+                                [fila.estudianteId]: { ...prev[fila.estudianteId], [key]: e.target.value },
+                              }))
+                            }
+                            style={{ fontSize: 12, border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 4px", width: 48 }}
+                          >
+                            {SIMBOLOS.map((s) => <option key={s} value={s}>{s || "✓"}</option>)}
+                          </select>
                         </td>
                       ))}
                       <td key={`nt${di}`} style={{ padding: "4px 6px", textAlign: "center", color: "var(--texto-tenue)", fontSize: 12 }}>
@@ -246,18 +342,16 @@ export default function NotasSheetPage() {
                       {notaFinal ?? "—"}
                     </span>
                   </td>
-                  {!soloLectura && (
-                    <td style={{ padding: "4px 6px", textAlign: "center" }}>
-                      <button
-                        className="btn btn-primary"
-                        style={{ fontSize: 12, padding: "4px 10px" }}
-                        onClick={() => saveRow(fila.estudianteId)}
-                        disabled={saving[fila.estudianteId]}
-                      >
-                        {saving[fila.estudianteId] ? "…" : "Guardar"}
-                      </button>
-                    </td>
-                  )}
+                  <td style={{ padding: "4px 6px", textAlign: "center" }}>
+                    <button
+                      className="btn btn-primary"
+                      style={{ fontSize: 12, padding: "4px 10px" }}
+                      onClick={() => saveRow(fila.estudianteId)}
+                      disabled={saving[fila.estudianteId]}
+                    >
+                      {saving[fila.estudianteId] ? "…" : "Guardar"}
+                    </button>
+                  </td>
                 </tr>
               );
             })}

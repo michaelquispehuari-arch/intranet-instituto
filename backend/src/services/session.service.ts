@@ -76,12 +76,14 @@ export async function createSession(courseId: string, input: CreateSessionInput,
 
   await ensureCourseExists(courseId);
 
+  const nextOrden = input.orden ?? await prisma.sesion.count({ where: { cursoId: courseId } }) + 1;
+
   return prisma.sesion.create({
     data: {
       cursoId: courseId,
-      fecha: input.fecha,
+      fecha: input.fecha ?? new Date(),
       titulo: input.titulo,
-      orden: input.orden,
+      orden: nextOrden,
       enlaceGrabacion: input.enlaceGrabacion || null,
     },
   });

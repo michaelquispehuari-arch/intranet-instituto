@@ -38,3 +38,26 @@ export async function upsertRow(req: Request, res: Response, next: NextFunction)
     res.json(result);
   } catch (e) { next(e); }
 }
+
+export async function publishGrades(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = courseIdParam.parse(req.params);
+    const result = await gradesSheetService.publishGrades(id, req.user!);
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
+export async function getPublishedGrades(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = courseIdParam.parse(req.params);
+    const result = await gradesSheetService.getPublishedGrades(id, req.user!);
+    res.json(result);
+  } catch (e) { next(e); }
+}
+
+export async function getMyPublishedGrades(req: Request, res: Response, next: NextFunction) {
+  try {
+    const result = await gradesSheetService.getMyPublishedGrades(req.user!);
+    res.json(result);
+  } catch (e) { next(e); }
+}

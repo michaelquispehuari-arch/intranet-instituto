@@ -17,5 +17,7 @@ courseRoutes.patch("/:id", requireRole(Rol.ADMIN), courseController.update);
 courseRoutes.delete("/:id/enrollments/:studentId", requireRole(Rol.ADMIN), courseController.unenroll);
 courseRoutes.delete("/:id", requireRole(Rol.ADMIN), courseController.remove);
 
-courseRoutes.get("/:id/grades-sheet", gradesSheetController.getSheet);
+courseRoutes.get("/:id/grades-sheet", requireRole(Rol.ADMIN), gradesSheetController.getSheet);
 courseRoutes.post("/:id/grades-sheet", requireRole(Rol.ADMIN), gradesSheetController.upsertRow);
+courseRoutes.post("/:id/grades/publish", requireRole(Rol.ADMIN), gradesSheetController.publishGrades);
+courseRoutes.get("/:id/grades", requireRole(Rol.PROFESOR), gradesSheetController.getPublishedGrades);

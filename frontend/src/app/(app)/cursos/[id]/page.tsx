@@ -67,7 +67,7 @@ export default function CourseWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [recordingDrafts, setRecordingDrafts] = useState<Record<string, string>>({});
   const [savingRecordingId, setSavingRecordingId] = useState<string | null>(null);
-  const [newSession, setNewSession] = useState({ titulo: "", fecha: "", enlaceGrabacion: "" });
+  const [newSession, setNewSession] = useState({ titulo: "", enlaceGrabacion: "" });
   const [creatingSession, setCreatingSession] = useState(false);
   const [exams, setExams] = useState<ExamItem[] | null>(null);
   const [examsLoading, setExamsLoading] = useState(false);
@@ -140,14 +140,11 @@ export default function CourseWorkspacePage() {
     event.preventDefault();
     setCreatingSession(true);
     setSessionError(null);
-    const nextOrder = Math.max(0, ...sesiones.map((sesion) => sesion.orden)) + 1;
     const response = await fetch(`/api/backend/courses/${id}/sessions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         titulo: newSession.titulo,
-        fecha: newSession.fecha ? new Date(newSession.fecha).toISOString() : "",
-        orden: nextOrder,
         enlaceGrabacion: newSession.enlaceGrabacion,
       }),
     });
@@ -162,7 +159,7 @@ export default function CourseWorkspacePage() {
     const created = (await response.json()) as Sesion;
     setSesiones((current) => [...current, created].sort((a, b) => a.orden - b.orden));
     setRecordingDrafts((current) => ({ ...current, [created.id]: created.enlaceGrabacion ?? "" }));
-    setNewSession({ titulo: "", fecha: "", enlaceGrabacion: "" });
+    setNewSession({ titulo: "", enlaceGrabacion: "" });
   }
 
   const allTabs: { key: Tab; label: string; roles: Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }[] = [
@@ -310,34 +307,26 @@ export default function CourseWorkspacePage() {
           </div>
           {canCreateSessions && (
             <form className="card form wide-form" onSubmit={createSession} style={{ marginTop: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 16 }}>Nueva clase</h3>
+              <h3 style={{ margin: 0, fontSize: 16 }}>Publicar grabación de clase</h3>
               <div className="form-grid">
                 <label className="field">
-                  <span>Titulo</span>
+                  <span>Título</span>
                   <input
-                    placeholder={`Clase ${sesiones.length + 1} ${curso.nombre}`}
+                    placeholder={`Clase ${sesiones.length + 1} — ${curso.nombre}`}
                     value={newSession.titulo}
                     onChange={(event) => setNewSession((current) => ({ ...current, titulo: event.target.value }))}
                     required
                   />
                 </label>
                 <label className="field">
-                  <span>Fecha</span>
+                  <span>Link YouTube</span>
                   <input
-                    type="datetime-local"
-                    value={newSession.fecha}
-                    onChange={(event) => setNewSession((current) => ({ ...current, fecha: event.target.value }))}
-                    required
-                  />
-                </label>
-                <label className="field full-row">
-                  <span>Grabacion</span>
-                  <input
-                    placeholder="https://www.youtube.com/watch?v=..."
+                    placeholder="https://youtu.be/... o https://www.youtube.com/watch?v=..."
                     value={newSession.enlaceGrabacion}
                     onChange={(event) =>
                       setNewSession((current) => ({ ...current, enlaceGrabacion: event.target.value }))
                     }
+                    required
                   />
                 </label>
               </div>
@@ -346,7 +335,7 @@ export default function CourseWorkspacePage() {
               )}
               <div className="card-actions">
                 <button className="btn btn-primary" type="submit" disabled={creatingSession}>
-                  {creatingSession ? "Creando..." : "Crear clase"}
+                  {creatingSession ? "Publicando..." : "Publicar clase"}
                 </button>
               </div>
             </form>
