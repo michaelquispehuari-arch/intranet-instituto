@@ -127,3 +127,27 @@ export async function selfSubmitSummary(req: Request, res: Response, next: NextF
     next(error);
   }
 }
+
+export async function selfUploadSummary(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id: sesionId } = sessionIdParamSchema.parse(req.params);
+    if (!req.file) {
+      res.status(400).json({ message: "Se requiere un archivo" });
+      return;
+    }
+    const result = await sessionService.selfUploadSummary(sesionId, req.file, req.user!);
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getMySummariesForCourse(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id: courseId } = courseIdParamSchema.parse(req.params);
+    const summaries = await sessionService.getMySummariesForCourse(courseId, req.user!);
+    res.json(summaries);
+  } catch (error) {
+    next(error);
+  }
+}

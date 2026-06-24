@@ -47,6 +47,22 @@ type AlumnoItem = {
   codigo: string | null;
 };
 
+type MaterialItem = {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  tipoArchivo: string;
+  creadoEn: string;
+};
+
+type MySummary = {
+  sesionId: string;
+  estado: string;
+  urlR2: string | null;
+  entregadoEn: string | null;
+  notaTranscripcion: number | null;
+};
+
 type Tab = "sesiones" | "material" | "examenes" | "notas" | "alumnos" | "transcripcion";
 
 const TIPO_LABEL: Record<string, string> = {
@@ -73,8 +89,12 @@ export default function CourseWorkspacePage() {
   const [examsLoading, setExamsLoading] = useState(false);
   const [alumnos, setAlumnos] = useState<AlumnoItem[]>([]);
   const [sessionError, setSessionError] = useState<string | null>(null);
-  const [transcripciones, setTranscripciones] = useState<Record<string, string>>({});
-  const [submittingTranscripcion, setSubmittingTranscripcion] = useState<string | null>(null);
+  const [materiales, setMateriales] = useState<MaterialItem[] | null>(null);
+  const [materialesLoading, setMaterialesLoading] = useState(false);
+  const [mySummaries, setMySummaries] = useState<Record<string, MySummary>>({});
+  const [summariesLoaded, setSummariesLoaded] = useState(false);
+  const [uploadFiles, setUploadFiles] = useState<Record<string, File | null>>({});
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -115,6 +135,47 @@ export default function CourseWorkspacePage() {
       setExams([]);
     }
     setExamsLoading(false);
+  }
+
+  async function loadMateriales() {
+    if (materiales !== null || materialesLoading) return;
+    setMaterialesLoading(true);
+    const r = await fetch(`/api/backend/content?cursoId=${id}`);
+    if (r.ok) {
+      const d = await r.json() as { materials?: MaterialItem[] };
+      setMateriales(Array.isArray(d.materials) ? d.materials : []);
+    } else {
+      setMateriales([]);
+    }
+    setMaterialesLoading(false);
+  }
+
+  async function loadMySummaries() {
+    if (summariesLoaded) return;
+    const r = await fetch(`/api/backend/courses/${id}/summaries/mine`);
+    if (r.ok) {
+      const data = await r.json() as MySummary[];
+      setMySummaries(Object.fromEntries((Array.isArray(data) ? data : []).map((s) => [s.sesionId, s])));
+    }
+    setSummariesLoaded(true);
+  }
+
+  async function uploadTranscripcion(sesionId: string) {
+    const file = uploadFiles[sesionId];
+    if (!file) return;
+    setUploadingId(sesionId);
+    const fd = new FormData();
+    fd.append("file", file);
+    const r = await fetch(`/api/backend/sessions/${sesionId}/summaries/self-upload`, { method: "POST", body: fd });
+    setUploadingId(null);
+    if (r.ok) {
+      const data = await r.json() as MySummary;
+      setMySummaries((prev) => ({ ...prev, [sesionId]: data }));
+      setUploadFiles((prev) => ({ ...prev, [sesionId]: null }));
+    } else {
+      const d = await r.json().catch(() => ({})) as { message?: string };
+      alert(d.message ?? "Error al subir el archivo");
+    }
   }
 
   async function saveSessionRecording(sesionId: string) {
@@ -176,6 +237,8 @@ export default function CourseWorkspacePage() {
   function handleTabChange(key: Tab) {
     setTab(key);
     if (key === "examenes") loadExams();
+    if (key === "material") loadMateriales();
+    if (key === "transcripcion") loadMySummaries();
   }
 
   if (loading) {
@@ -255,7 +318,13 @@ export default function CourseWorkspacePage() {
                     <div className="session-date-month">{MESES[fecha.getMonth()]}</div>
                   </div>
                   <div className="session-info">
-                    <div className="session-title">{sesion.titulo}</div>
+                    <div className="session-title">
+                      {canManageRecordings ? (
+                        <Link href={`/cursos/${id}/sesiones/${sesion.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+                          {sesion.titulo}
+                        </Link>
+                      ) : sesion.titulo}
+                    </div>
                     {sesion.enlaceGrabacion ? (
                       <a
                         href={sesion.enlaceGrabacion}
@@ -299,9 +368,6 @@ export default function CourseWorkspacePage() {
                       {sesion.enlaceGrabacion && <span className="chip chip-grabacion">🎬 Grabación</span>}
                     </div>
                   </div>
-                  <Link className="btn btn-secondary" href={`/cursos/${id}/sesiones/${sesion.id}`}>
-                    Detalle
-                  </Link>
                 </article>
               );
             })}
@@ -345,20 +411,42 @@ export default function CourseWorkspacePage() {
       )}
 
       {tab === "material" && (
-        <div className="card">
-          <div className="card-header">
-            <h3>Material del curso</h3>
-            {(session?.user?.rol === "ADMIN" || session?.user?.rol === "PROFESOR") && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Material del curso</h2>
+            {(rol === "ADMIN" || rol === "PROFESOR") && (
               <Link href={`/material/subir?cursoId=${id}`} className="btn btn-primary">
                 + Subir material
               </Link>
             )}
           </div>
-          <div className="card-body">
-            <Link href={`/material?cursoId=${id}`} style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
-              Ver todo el material de este curso →
-            </Link>
-          </div>
+          {materialesLoading && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+          {!materialesLoading && materiales !== null && materiales.length === 0 && (
+            <div className="card">
+              <div className="empty-state">
+                <div className="empty-state-icon">📁</div>
+                <p className="empty-state-title">Sin material aún</p>
+                <p>{(rol === "ADMIN" || rol === "PROFESOR") ? "Sube el primer archivo con el botón de arriba." : "El profesor aún no ha subido material."}</p>
+              </div>
+            </div>
+          )}
+          {!materialesLoading && materiales && materiales.length > 0 && (
+            <div className="card">
+              {materiales.map((m, i) => (
+                <div key={m.id} style={{ padding: "12px 16px", borderBottom: i < materiales.length - 1 ? "0.5px solid var(--borde)" : "none", display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 20 }}>{m.tipoArchivo === "pdf" ? "📄" : m.tipoArchivo === "mp4" || m.tipoArchivo === "mov" ? "🎥" : "📎"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, fontSize: 14 }}>{m.nombre}</div>
+                    {m.descripcion && <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{m.descripcion}</div>}
+                    <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{new Date(m.creadoEn).toLocaleDateString("es-PE")}</div>
+                  </div>
+                  <a href={`/api/backend/content/${m.id}/download`} className="btn btn-secondary" style={{ flexShrink: 0, fontSize: 13 }}>
+                    Descargar
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -501,48 +589,67 @@ export default function CourseWorkspacePage() {
           <div style={{ marginBottom: 16 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Subir mi transcripción</h2>
             <p style={{ marginTop: 6, fontSize: 13, color: "var(--texto-tenue)" }}>
-              Selecciona el día de clase al que corresponde tu transcripción y confirma el envío.
+              Selecciona el día de clase donde faltaste, adjunta tu transcripción (PDF, Word, imagen) y súbela. El admin revisará y colocará tu nota.
             </p>
           </div>
-          <div className="session-list">
-            {sesiones.map((sesion) => {
-              const key = sesion.id;
-              const entregado = transcripciones[key] === "ok";
-              const enviando = submittingTranscripcion === key;
-              return (
-                <article key={key} className="session-card">
-                  <div className="session-info">
-                    <div className="session-title">Día {sesion.orden} — {sesion.titulo}</div>
-                  </div>
-                  <div style={{ flexShrink: 0 }}>
-                    {entregado ? (
-                      <span className="chip chip-ok">Enviada ✓</span>
-                    ) : (
-                      <button
-                        className="btn btn-primary"
-                        disabled={enviando}
-                        onClick={async () => {
-                          setSubmittingTranscripcion(key);
-                          const r = await fetch(`/api/backend/sessions/${key}/summaries/self-submit`, { method: "POST" });
-                          setSubmittingTranscripcion(null);
-                          if (r.ok) setTranscripciones((prev) => ({ ...prev, [key]: "ok" }));
-                          else {
-                            const d = await r.json().catch(() => ({})) as { message?: string };
-                            alert(d.message ?? "Error al enviar");
-                          }
-                        }}
-                      >
-                        {enviando ? "Enviando…" : "Marcar como enviada"}
-                      </button>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-            {sesiones.length === 0 && (
-              <div className="card"><div className="empty-state"><p>No hay sesiones aún.</p></div></div>
-            )}
-          </div>
+          {!summariesLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+          {summariesLoaded && sesiones.length === 0 && (
+            <div className="card"><div className="empty-state"><p>No hay sesiones aún.</p></div></div>
+          )}
+          {summariesLoaded && sesiones.length > 0 && (
+            <div className="session-list">
+              {sesiones.map((sesion) => {
+                const summary = mySummaries[sesion.id];
+                const yaSubio = !!summary?.urlR2;
+                const file = uploadFiles[sesion.id] ?? null;
+                const subiendo = uploadingId === sesion.id;
+                return (
+                  <article key={sesion.id} className="session-card" style={{ flexWrap: "wrap", gap: 12 }}>
+                    <div className="session-info" style={{ minWidth: 0 }}>
+                      <div className="session-title">Día {sesion.orden} — {sesion.titulo}</div>
+                      {yaSubio && (
+                        <div style={{ fontSize: 12, color: "var(--aprobado-texto)", marginTop: 4 }}>
+                          Archivo subido{summary.entregadoEn ? ` · ${new Date(summary.entregadoEn).toLocaleDateString("es-PE")}` : ""}
+                          {summary.notaTranscripcion !== null && (
+                            <span style={{ marginLeft: 8 }}>· Nota: <strong>{summary.notaTranscripcion}</strong></span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+                      <label style={{ fontSize: 13 }}>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] ?? null;
+                            setUploadFiles((prev) => ({ ...prev, [sesion.id]: f }));
+                          }}
+                        />
+                        <span className="btn btn-secondary" style={{ cursor: "pointer", fontSize: 13 }}>
+                          {file ? file.name.slice(0, 20) + (file.name.length > 20 ? "…" : "") : yaSubio ? "Reemplazar" : "Elegir archivo"}
+                        </span>
+                      </label>
+                      {file && (
+                        <button
+                          className="btn btn-primary"
+                          disabled={subiendo}
+                          onClick={() => uploadTranscripcion(sesion.id)}
+                          style={{ fontSize: 13 }}
+                        >
+                          {subiendo ? "Subiendo…" : "Subir"}
+                        </button>
+                      )}
+                      {yaSubio && !file && (
+                        <span className="chip chip-ok">Entregada ✓</span>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

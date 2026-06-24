@@ -2,6 +2,7 @@ import { Rol } from "@prisma/client";
 import { Router } from "express";
 import * as courseController from "../controllers/course.controller.js";
 import * as gradesSheetController from "../controllers/grades-sheet.controller.js";
+import * as sessionController from "../controllers/session.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/require-role.middleware.js";
 
@@ -21,3 +22,4 @@ courseRoutes.get("/:id/grades-sheet", requireRole(Rol.ADMIN), gradesSheetControl
 courseRoutes.post("/:id/grades-sheet", requireRole(Rol.ADMIN), gradesSheetController.upsertRow);
 courseRoutes.post("/:id/grades/publish", requireRole(Rol.ADMIN), gradesSheetController.publishGrades);
 courseRoutes.get("/:id/grades", requireRole(Rol.PROFESOR), gradesSheetController.getPublishedGrades);
+courseRoutes.get("/:id/summaries/mine", requireRole(Rol.ESTUDIANTE), sessionController.getMySummariesForCourse);

@@ -3,6 +3,7 @@ import { Router } from "express";
 import * as sessionController from "../controllers/session.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/require-role.middleware.js";
+import { uploadMaterialFile } from "../middleware/upload.middleware.js";
 
 // mergeParams: true needed so /:id from app.use("/api/courses/:id/sessions", ...) reaches req.params
 export const sessionRoutes = Router({ mergeParams: true });
@@ -25,6 +26,7 @@ sessionDetailRoutes.post("/:id/attendance", requireRole(Rol.ADMIN), sessionContr
 sessionDetailRoutes.get("/:id/summaries", sessionController.listSummaries);
 sessionDetailRoutes.post("/:id/summaries/require", requireRole(Rol.ADMIN), sessionController.requireSummaries);
 sessionDetailRoutes.post("/:id/summaries/self-submit", requireRole(Rol.ESTUDIANTE), sessionController.selfSubmitSummary);
+sessionDetailRoutes.post("/:id/summaries/self-upload", requireRole(Rol.ESTUDIANTE), uploadMaterialFile.single("file"), sessionController.selfUploadSummary);
 
 // /api/summaries/:id
 summaryRoutes.patch("/:id/deadline", requireRole(Rol.ADMIN), sessionController.updateSummaryDeadline);

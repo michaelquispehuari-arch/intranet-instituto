@@ -371,6 +371,54 @@ export async function reviewSummary(summaryId: string, notaTranscripcion: number
   });
 }
 
+export async function selfUploadSummary(
+  sessionId: string,
+  file: Express.Multer.File,
+  user: AuthUser,
+) {
+  const sesion = await prisma.sesion.findUnique({
+    where: { id: sessionId },
+    select: { cursoId: true },
+  });
+  if (!sesion) {
+    await fs.promises.rm(file.path, { force: true });
+    throw new NotFoundError("Sesion no encontrada");
+  }
+  await ensureCanAccessCourse(sesion.cursoId, user);
+
+  const objectKey = `resumenes/${sessionId}/${user.id}-${Date.now()}-${sanitizeFileName(file.originalname)}`;
+  try {
+    const r2Config = getR2Config();
+    const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+    const r2Client = await getR2Client();
+    await r2Client.send(new PutObjectCommand({
+      Bucket: r2Config.bucketName,
+      Key: objectKey,
+      Body: fs.createReadStream(file.path),
+      ContentType: file.mimetype,
+    }));
+    return prisma.entregaResumen.upsert({
+      where: { sesionId_estudianteId: { sesionId: sessionId, estudianteId: user.id } },
+      create: { sesionId: sessionId, estudianteId: user.id, estado: "ENTREGADO", entregadoEn: new Date(), requerido: false, urlR2: objectKey },
+      update: { urlR2: objectKey, entregadoEn: new Date(), estado: "ENTREGADO" },
+    });
+  } finally {
+    await fs.promises.rm(file.path, { force: true });
+  }
+}
+
+export async function getMySummariesForCourse(courseId: string, user: AuthUser) {
+  await ensureCanAccessCourse(courseId, user);
+  const sesiones = await prisma.sesion.findMany({
+    where: { cursoId: courseId },
+    select: { id: true },
+  });
+  return prisma.entregaResumen.findMany({
+    where: { sesionId: { in: sesiones.map((s) => s.id) }, estudianteId: user.id },
+    select: { sesionId: true, estado: true, urlR2: true, entregadoEn: true, notaTranscripcion: true },
+  });
+}
+
 export async function uploadSessionContent(
   sessionId: string,
   file: Express.Multer.File,
