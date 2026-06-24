@@ -10,7 +10,7 @@
     "dev": "tsx watch src/server.ts",
     "dev:email-worker": "tsx watch src/workers/email.worker.ts",
     "build": "tsc",
-    "start": "node dist/src/server.js",
+    "start": "npx prisma migrate deploy && node dist/src/server.js",
     "start:email-worker": "node dist/src/workers/email.worker.js",
     "reset:demo": "node dist/src/scripts/reset-demo-data.js",
     "prisma:generate": "prisma generate",
