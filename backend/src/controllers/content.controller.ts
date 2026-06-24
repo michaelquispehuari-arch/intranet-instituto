@@ -37,13 +37,11 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 
 export async function upload(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.file) {
-      throw new ForbiddenError("Archivo requerido");
-    }
-
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (files.length === 0) throw new ForbiddenError("Se requiere al menos un archivo");
     const input = uploadContentSchema.parse(req.body);
-    const material = await contentService.uploadContent(input, req.file, getRequestUser(req));
-    res.status(201).json({ material });
+    const materials = await contentService.uploadContentBatch(input, files, getRequestUser(req));
+    res.status(201).json({ materials });
   } catch (error) {
     next(error);
   }

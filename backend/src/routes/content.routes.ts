@@ -14,7 +14,7 @@ contentRoutes.get("/:id", contentController.getById);
 contentRoutes.post(
   "/",
   requireRole(Rol.ADMIN, Rol.PROFESOR),
-  uploadMaterialFile.single("file"),
+  uploadMaterialFile.array("files", 20),
   contentController.upload,
 );
 contentRoutes.get("/:id/download", contentController.download);

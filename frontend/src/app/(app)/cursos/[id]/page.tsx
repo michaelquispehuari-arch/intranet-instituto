@@ -91,6 +91,8 @@ export default function CourseWorkspacePage() {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [materiales, setMateriales] = useState<MaterialItem[] | null>(null);
   const [materialesLoading, setMaterialesLoading] = useState(false);
+  const [profNotas, setProfNotas] = useState<{ publicadas: boolean; notasPublicadasEn: string | null; filas: Array<{ estudianteId: string; codigo: string; nombre: string; apellido: string; notaFinalPublicada: number | null }> } | null>(null);
+  const [profNotasLoaded, setProfNotasLoaded] = useState(false);
   const [mySummaries, setMySummaries] = useState<Record<string, MySummary>>({});
   const [summariesLoaded, setSummariesLoaded] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<Record<string, File | null>>({});
@@ -137,6 +139,13 @@ export default function CourseWorkspacePage() {
     setExamsLoading(false);
   }
 
+  async function loadProfNotas() {
+    if (profNotasLoaded) return;
+    const r = await fetch(`/api/backend/courses/${id}/grades`);
+    if (r.ok) setProfNotas(await r.json());
+    setProfNotasLoaded(true);
+  }
+
   async function loadMateriales() {
     if (materiales !== null || materialesLoading) return;
     setMaterialesLoading(true);
@@ -161,11 +170,11 @@ export default function CourseWorkspacePage() {
   }
 
   async function uploadTranscripcion(sesionId: string) {
-    const file = uploadFiles[sesionId];
-    if (!file) return;
+    const fileList = uploadFiles[sesionId] as unknown as FileList | null;
+    if (!fileList || fileList.length === 0) return;
     setUploadingId(sesionId);
     const fd = new FormData();
-    fd.append("file", file);
+    for (let i = 0; i < fileList.length; i++) fd.append("files", fileList[i]);
     const r = await fetch(`/api/backend/sessions/${sesionId}/summaries/self-upload`, { method: "POST", body: fd });
     setUploadingId(null);
     if (r.ok) {
@@ -174,7 +183,7 @@ export default function CourseWorkspacePage() {
       setUploadFiles((prev) => ({ ...prev, [sesionId]: null }));
     } else {
       const d = await r.json().catch(() => ({})) as { message?: string };
-      alert(d.message ?? "Error al subir el archivo");
+      alert(d.message ?? "Error al subir los archivos");
     }
   }
 
@@ -229,7 +238,7 @@ export default function CourseWorkspacePage() {
     { key: "material", label: "Material", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
     { key: "examenes", label: "Exámenes", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
     { key: "notas", label: "Notas", roles: ["ADMIN", "PROFESOR"] },
-    { key: "alumnos", label: "Alumnos", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+    { key: "alumnos", label: "Alumnos", roles: ["ADMIN", "PROFESOR"] },
     { key: "transcripcion", label: "Transcripción", roles: ["ESTUDIANTE"] },
   ];
   const tabs = allTabs.filter((t) => !rol || t.roles.includes(rol as "ADMIN" | "PROFESOR" | "ESTUDIANTE"));
@@ -239,6 +248,7 @@ export default function CourseWorkspacePage() {
     if (key === "examenes") loadExams();
     if (key === "material") loadMateriales();
     if (key === "transcripcion") loadMySummaries();
+    if (key === "notas" && rol === "PROFESOR") loadProfNotas();
   }
 
   if (loading) {
@@ -440,8 +450,8 @@ export default function CourseWorkspacePage() {
                     {m.descripcion && <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{m.descripcion}</div>}
                     <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{new Date(m.creadoEn).toLocaleDateString("es-PE")}</div>
                   </div>
-                  <a href={`/api/backend/content/${m.id}/download`} className="btn btn-secondary" style={{ flexShrink: 0, fontSize: 13 }}>
-                    Descargar
+                  <a href={`/api/backend/content/${m.id}/download`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ flexShrink: 0, fontSize: 13 }}>
+                    Ver / Descargar
                   </a>
                 </div>
               ))}
@@ -524,21 +534,65 @@ export default function CourseWorkspacePage() {
         </div>
       )}
 
-      {tab === "notas" && (
-        <div className="card">
-          <div className="card-header">
-            <h3>Calificaciones</h3>
-            {(session?.user?.rol === "ADMIN" || session?.user?.rol === "PROFESOR") && (
-              <Link href={`/cursos/${id}/notas`} className="btn btn-primary">
-                Abrir grilla de notas
-              </Link>
-            )}
+      {tab === "notas" && rol === "ADMIN" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Calificaciones</h2>
+            <Link href={`/cursos/${id}/notas`} className="btn btn-primary">Abrir grilla de notas</Link>
           </div>
-          <div className="card-body">
-            <Link href="/calificaciones" style={{ color: "var(--ambar-accion)", fontWeight: 600 }}>
-              Ver cronograma de calificaciones →
-            </Link>
+          <div className="card">
+            <div className="card-body" style={{ color: "var(--texto-tenue)", fontSize: 13 }}>
+              Edita celdas de cámara, NT y publica notas desde la grilla completa.
+            </div>
           </div>
+        </div>
+      )}
+
+      {tab === "notas" && rol === "PROFESOR" && (
+        <div>
+          <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>Calificaciones publicadas</h2>
+          {!profNotasLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+          {profNotasLoaded && (!profNotas || !profNotas.publicadas) && (
+            <div className="card">
+              <div className="empty-state">
+                <div className="empty-state-icon">📊</div>
+                <p className="empty-state-title">Notas aún no publicadas</p>
+                <p>El administrador aún no ha publicado las notas de este curso.</p>
+              </div>
+            </div>
+          )}
+          {profNotasLoaded && profNotas?.publicadas && (
+            <div className="card">
+              {profNotas.notasPublicadasEn && (
+                <p style={{ fontSize: 12, color: "var(--texto-tenue)", margin: "0 0 0", padding: "12px 16px 0" }}>
+                  Publicadas el {new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Lima" }).format(new Date(profNotas.notasPublicadasEn))}
+                </p>
+              )}
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "var(--verde-sidebar)", color: "#fff" }}>
+                    <th style={{ padding: "8px 16px", textAlign: "left", fontWeight: 600 }}>Apellidos y Nombres</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 600 }}>Nota Final</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profNotas.filas.map((f) => {
+                    const ap = f.notaFinalPublicada !== null ? f.notaFinalPublicada >= 11 : null;
+                    return (
+                      <tr key={f.estudianteId} style={{ borderBottom: "0.5px solid var(--borde)" }}>
+                        <td style={{ padding: "7px 16px", fontWeight: 500 }}>{f.apellido}, {f.nombre}</td>
+                        <td style={{ padding: "7px 12px", textAlign: "center" }}>
+                          <span style={{ padding: "2px 10px", borderRadius: 6, fontWeight: 700, color: ap === true ? "var(--aprobado-texto)" : ap === false ? "var(--desaprobado-texto)" : "var(--texto-tenue)", background: ap === true ? "var(--aprobado-fondo)" : ap === false ? "var(--desaprobado-fondo)" : "#F6F7F5" }}>
+                            {f.notaFinalPublicada ?? "—"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -589,30 +643,31 @@ export default function CourseWorkspacePage() {
           <div style={{ marginBottom: 16 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Subir mi transcripción</h2>
             <p style={{ marginTop: 6, fontSize: 13, color: "var(--texto-tenue)" }}>
-              Selecciona el día de clase donde faltaste, adjunta tu transcripción (PDF, Word, imagen) y súbela. El admin revisará y colocará tu nota.
+              Elige el día que faltaste, selecciona uno o varios archivos (PDF, Word, imágenes) y presiona Subir. El admin revisará y colocará tu nota.
             </p>
           </div>
           {!summariesLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
           {summariesLoaded && sesiones.length === 0 && (
-            <div className="card"><div className="empty-state"><p>No hay sesiones aún.</p></div></div>
+            <div className="card"><div className="empty-state"><p>No hay sesiones publicadas aún.</p></div></div>
           )}
           {summariesLoaded && sesiones.length > 0 && (
             <div className="session-list">
-              {sesiones.map((sesion) => {
+              {sesiones.slice(0, 3).map((sesion, idx) => {
+                const dayLabel = `Día ${idx + 1}`;
                 const summary = mySummaries[sesion.id];
-                const yaSubio = !!summary?.urlR2;
-                const file = uploadFiles[sesion.id] ?? null;
+                const fileCount = summary?.urlR2 ? (() => { try { const a = JSON.parse(summary.urlR2); return Array.isArray(a) ? a.length : 1; } catch { return 1; } })() : 0;
+                const yaSubio = fileCount > 0;
+                const selectedFiles = uploadFiles[sesion.id] as unknown as FileList | null;
+                const count = selectedFiles ? selectedFiles.length : 0;
                 const subiendo = uploadingId === sesion.id;
                 return (
                   <article key={sesion.id} className="session-card" style={{ flexWrap: "wrap", gap: 12 }}>
                     <div className="session-info" style={{ minWidth: 0 }}>
-                      <div className="session-title">Día {sesion.orden} — {sesion.titulo}</div>
+                      <div className="session-title">{dayLabel} — {sesion.titulo}</div>
                       {yaSubio && (
                         <div style={{ fontSize: 12, color: "var(--aprobado-texto)", marginTop: 4 }}>
-                          Archivo subido{summary.entregadoEn ? ` · ${new Date(summary.entregadoEn).toLocaleDateString("es-PE")}` : ""}
-                          {summary.notaTranscripcion !== null && (
-                            <span style={{ marginLeft: 8 }}>· Nota: <strong>{summary.notaTranscripcion}</strong></span>
-                          )}
+                          {fileCount} archivo{fileCount !== 1 ? "s" : ""} subido{fileCount !== 1 ? "s" : ""}{summary.entregadoEn ? ` · ${new Date(summary.entregadoEn).toLocaleDateString("es-PE")}` : ""}
+                          {summary.notaTranscripcion !== null && <span style={{ marginLeft: 8 }}>· NT: <strong>{summary.notaTranscripcion}</strong></span>}
                         </div>
                       )}
                     </div>
@@ -621,29 +676,22 @@ export default function CourseWorkspacePage() {
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
+                          multiple
                           style={{ display: "none" }}
                           onChange={(e) => {
-                            const f = e.target.files?.[0] ?? null;
-                            setUploadFiles((prev) => ({ ...prev, [sesion.id]: f }));
+                            setUploadFiles((prev) => ({ ...prev, [sesion.id]: e.target.files as unknown as File | null }));
                           }}
                         />
                         <span className="btn btn-secondary" style={{ cursor: "pointer", fontSize: 13 }}>
-                          {file ? file.name.slice(0, 20) + (file.name.length > 20 ? "…" : "") : yaSubio ? "Reemplazar" : "Elegir archivo"}
+                          {count > 0 ? `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}` : yaSubio ? "Reemplazar" : "Elegir archivos"}
                         </span>
                       </label>
-                      {file && (
-                        <button
-                          className="btn btn-primary"
-                          disabled={subiendo}
-                          onClick={() => uploadTranscripcion(sesion.id)}
-                          style={{ fontSize: 13 }}
-                        >
+                      {count > 0 && (
+                        <button className="btn btn-primary" disabled={subiendo} onClick={() => uploadTranscripcion(sesion.id)} style={{ fontSize: 13 }}>
                           {subiendo ? "Subiendo…" : "Subir"}
                         </button>
                       )}
-                      {yaSubio && !file && (
-                        <span className="chip chip-ok">Entregada ✓</span>
-                      )}
+                      {yaSubio && count === 0 && <span className="chip chip-ok">Entregada ✓</span>}
                     </div>
                   </article>
                 );

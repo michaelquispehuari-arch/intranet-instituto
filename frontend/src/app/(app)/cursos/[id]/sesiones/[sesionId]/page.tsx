@@ -349,6 +349,18 @@ export default function SessionDetailPage() {
                       {ESTADO_RESUMEN_LABEL[r.estado] ?? r.estado}
                     </span>
 
+                    {(rol === "ADMIN" || rol === "PROFESOR") && r.urlR2 && (
+                      <a href={`/api/backend/summaries/${r.id}/files-redirect`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: 12, padding: "4px 10px" }} onClick={async (e) => {
+                        e.preventDefault();
+                        const res = await fetch(`/api/backend/summaries/${r.id}/files`);
+                        if (res.ok) {
+                          const d = await res.json() as { urls: Array<{ filename: string; url: string }> };
+                          d.urls.forEach((u) => window.open(u.url, "_blank", "noopener"));
+                        }
+                      }}>
+                        Ver archivos ({(() => { try { const a = JSON.parse(r.urlR2); return Array.isArray(a) ? a.length : 1; } catch { return 1; } })()})
+                      </a>
+                    )}
                     {(rol === "ADMIN" || rol === "PROFESOR") && r.estado === "ENTREGADO" && (
                       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                         <input

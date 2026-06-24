@@ -62,12 +62,13 @@ export function UploadForm({ courses, selectedCourseId }: UploadFormProps) {
       </div>
 
       <div className="field">
-        <label htmlFor="file">Archivo</label>
+        <label htmlFor="files">Archivos (puedes seleccionar varios)</label>
         <input
-          id="file"
-          name="file"
+          id="files"
+          name="files"
           type="file"
           accept=".pdf,.mp4,.mp3,.docx,.pptx,.xlsx,.jpg,.jpeg,.png"
+          multiple
           required
         />
       </div>

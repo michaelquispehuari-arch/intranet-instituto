@@ -114,6 +114,48 @@ export async function uploadContent(input: UploadContentInput, file: Express.Mul
   }
 }
 
+export async function uploadContentBatch(input: UploadContentInput, files: Express.Multer.File[], user: AuthUser) {
+  await ensureCanUploadToCourse(input.cursoId, user);
+  const results: ReturnType<typeof serializeMaterial>[] = [];
+  for (const file of files) {
+    const extension = getFileExtension(file.originalname);
+    if (!allowedExtensions.has(extension)) {
+      await removeLocalFile(file.path);
+      continue;
+    }
+    const objectKey = `materials/${input.cursoId}/${Date.now()}-${sanitizeFileName(file.originalname)}`;
+    try {
+      const r2Config = getR2Config();
+      const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+      const r2Client = await getR2Client();
+      await r2Client.send(new PutObjectCommand({
+        Bucket: r2Config.bucketName,
+        Key: objectKey,
+        Body: fs.createReadStream(file.path),
+        ContentType: file.mimetype,
+      }));
+      const material = await prisma.material.create({
+        data: {
+          nombre: file.originalname,
+          descripcion: input.descripcion,
+          cursoId: input.cursoId,
+          sesionId: input.sesionId ?? null,
+          profesorId: user.id,
+          urlR2: objectKey,
+          tipoArchivo: extension,
+          tamanoBytes: BigInt(file.size),
+          tipo: input.tipo ?? TipoMaterial.MATERIAL_CURSO,
+        },
+        include: materialInclude,
+      });
+      results.push(serializeMaterial(material));
+    } finally {
+      await removeLocalFile(file.path);
+    }
+  }
+  return results;
+}
+
 export async function createDownloadUrl(contentId: string, user: AuthUser) {
   const material = await findAccessibleMaterial(contentId, user);
   const r2Config = getR2Config();
@@ -187,7 +229,7 @@ async function findAccessibleMaterial(contentId: string, user: AuthUser) {
     return material;
   }
 
-  if (user.rol === Rol.PROFESOR && material.profesorId === user.id) {
+  if (user.rol === Rol.PROFESOR && material.curso.profesorId === user.id) {
     return material;
   }
 

@@ -131,12 +131,23 @@ export async function selfSubmitSummary(req: Request, res: Response, next: NextF
 export async function selfUploadSummary(req: Request, res: Response, next: NextFunction) {
   try {
     const { id: sesionId } = sessionIdParamSchema.parse(req.params);
-    if (!req.file) {
-      res.status(400).json({ message: "Se requiere un archivo" });
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (files.length === 0) {
+      res.status(400).json({ message: "Se requiere al menos un archivo" });
       return;
     }
-    const result = await sessionService.selfUploadSummary(sesionId, req.file, req.user!);
+    const result = await sessionService.selfUploadSummary(sesionId, files, req.user!);
     res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getSummaryDownloadUrls(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = summaryIdParamSchema.parse(req.params);
+    const result = await sessionService.getSummaryDownloadUrls(id, req.user!);
+    res.json(result);
   } catch (error) {
     next(error);
   }

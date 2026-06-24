@@ -19,6 +19,9 @@ type CoursesResponse = {
   courses?: Curso[];
 };
 
+type UserItem = { id: string; nombre: string; apellido: string; rol: string };
+type UsersResponse = { users?: UserItem[] };
+
 const TIPO_LABEL: Record<string, string> = {
   REGULAR: "Regular",
   ENTRENAMIENTO: "Entrenamiento",
@@ -30,6 +33,10 @@ export default function CursosPage() {
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [profesores, setProfesores] = useState<UserItem[]>([]);
+  const [newCurso, setNewCurso] = useState({ nombre: "", profesorId: "", ciclo: 1, anio: new Date().getFullYear(), descripcion: "" });
+  const [creating, setCreating] = useState(false);
 
   async function loadCourses() {
     setLoading(true);
@@ -42,6 +49,36 @@ export default function CursosPage() {
   }
 
   useEffect(() => { loadCourses(); }, []);
+
+  async function openCreate() {
+    setShowCreate(true);
+    if (profesores.length === 0) {
+      const r = await fetch("/api/backend/users");
+      if (r.ok) {
+        const d = await r.json() as UsersResponse;
+        setProfesores((d.users ?? []).filter((u) => u.rol === "PROFESOR"));
+      }
+    }
+  }
+
+  async function createCurso(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setCreating(true);
+    const r = await fetch("/api/backend/courses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newCurso),
+    });
+    setCreating(false);
+    if (r.ok) {
+      setShowCreate(false);
+      setNewCurso({ nombre: "", profesorId: "", ciclo: 1, anio: new Date().getFullYear(), descripcion: "" });
+      loadCourses();
+    } else {
+      const d = await r.json().catch(() => ({})) as { message?: string };
+      setStatus(d.message ?? "Error al crear curso");
+    }
+  }
 
   async function deleteCourse(curso: Curso) {
     const ok = window.confirm(`Eliminar curso "${curso.nombre}"? Quedara inactivo y no se borrara el historial.`);
@@ -75,11 +112,50 @@ export default function CursosPage() {
           <h1 className="page-title">Cursos</h1>
         </div>
         {rol === "ADMIN" && (
-          <Link href="/courses" className="btn btn-primary">
+          <button className="btn btn-primary" onClick={openCreate}>
             + Nuevo curso
-          </Link>
+          </button>
         )}
       </div>
+
+      {showCreate && rol === "ADMIN" && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-header">
+            <h3 style={{ margin: 0 }}>Nuevo curso</h3>
+            <button className="btn btn-secondary" style={{ fontSize: 13 }} onClick={() => setShowCreate(false)}>Cancelar</button>
+          </div>
+          <form className="card-body" onSubmit={createCurso} style={{ display: "grid", gap: 14 }}>
+            <div className="form-grid">
+              <label className="field">
+                <span>Nombre del curso</span>
+                <input required minLength={3} maxLength={120} value={newCurso.nombre} onChange={(e) => setNewCurso((p) => ({ ...p, nombre: e.target.value }))} />
+              </label>
+              <label className="field">
+                <span>Profesor</span>
+                <select required value={newCurso.profesorId} onChange={(e) => setNewCurso((p) => ({ ...p, profesorId: e.target.value }))}>
+                  <option value="">Seleccionar…</option>
+                  {profesores.map((p) => <option key={p.id} value={p.id}>{p.nombre} {p.apellido}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Ciclo</span>
+                <input type="number" min={1} max={2} required value={newCurso.ciclo} onChange={(e) => setNewCurso((p) => ({ ...p, ciclo: Number(e.target.value) }))} />
+              </label>
+              <label className="field">
+                <span>Año</span>
+                <input type="number" min={2026} max={2100} required value={newCurso.anio} onChange={(e) => setNewCurso((p) => ({ ...p, anio: Number(e.target.value) }))} />
+              </label>
+              <label className="field full-row">
+                <span>Descripción (opcional)</span>
+                <textarea rows={2} maxLength={500} value={newCurso.descripcion} onChange={(e) => setNewCurso((p) => ({ ...p, descripcion: e.target.value }))} />
+              </label>
+            </div>
+            <div className="card-actions">
+              <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? "Creando…" : "Crear curso"}</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {loading && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
       {status && <p style={{ fontSize: 13, color: "var(--texto-secundario)", marginBottom: 12 }}>{status}</p>}

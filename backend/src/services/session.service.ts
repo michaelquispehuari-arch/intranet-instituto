@@ -373,7 +373,7 @@ export async function reviewSummary(summaryId: string, notaTranscripcion: number
 
 export async function selfUploadSummary(
   sessionId: string,
-  file: Express.Multer.File,
+  files: Express.Multer.File[],
   user: AuthUser,
 ) {
   const sesion = await prisma.sesion.findUnique({
@@ -381,30 +381,71 @@ export async function selfUploadSummary(
     select: { cursoId: true },
   });
   if (!sesion) {
-    await fs.promises.rm(file.path, { force: true });
+    await Promise.all(files.map((f) => fs.promises.rm(f.path, { force: true })));
     throw new NotFoundError("Sesion no encontrada");
   }
   await ensureCanAccessCourse(sesion.cursoId, user);
 
-  const objectKey = `resumenes/${sessionId}/${user.id}-${Date.now()}-${sanitizeFileName(file.originalname)}`;
-  try {
-    const r2Config = getR2Config();
-    const { PutObjectCommand } = await import("@aws-sdk/client-s3");
-    const r2Client = await getR2Client();
-    await r2Client.send(new PutObjectCommand({
-      Bucket: r2Config.bucketName,
-      Key: objectKey,
-      Body: fs.createReadStream(file.path),
-      ContentType: file.mimetype,
-    }));
-    return prisma.entregaResumen.upsert({
-      where: { sesionId_estudianteId: { sesionId: sessionId, estudianteId: user.id } },
-      create: { sesionId: sessionId, estudianteId: user.id, estado: "ENTREGADO", entregadoEn: new Date(), requerido: false, urlR2: objectKey },
-      update: { urlR2: objectKey, entregadoEn: new Date(), estado: "ENTREGADO" },
-    });
-  } finally {
-    await fs.promises.rm(file.path, { force: true });
+  const r2Config = getR2Config();
+  const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+  const r2Client = await getR2Client();
+  const objectKeys: string[] = [];
+
+  for (const file of files) {
+    const key = `resumenes/${sessionId}/${user.id}-${Date.now()}-${sanitizeFileName(file.originalname)}`;
+    try {
+      await r2Client.send(new PutObjectCommand({
+        Bucket: r2Config.bucketName,
+        Key: key,
+        Body: fs.createReadStream(file.path),
+        ContentType: file.mimetype,
+      }));
+      objectKeys.push(key);
+    } finally {
+      await fs.promises.rm(file.path, { force: true });
+    }
   }
+
+  return prisma.entregaResumen.upsert({
+    where: { sesionId_estudianteId: { sesionId: sessionId, estudianteId: user.id } },
+    create: { sesionId: sessionId, estudianteId: user.id, estado: "ENTREGADO", entregadoEn: new Date(), requerido: false, urlR2: JSON.stringify(objectKeys) },
+    update: { urlR2: JSON.stringify(objectKeys), entregadoEn: new Date(), estado: "ENTREGADO" },
+  });
+}
+
+export async function getSummaryDownloadUrls(summaryId: string, user: AuthUser) {
+  const entrega = await prisma.entregaResumen.findUnique({
+    where: { id: summaryId },
+    include: {
+      sesion: { select: { cursoId: true } },
+    },
+  });
+  if (!entrega) throw new NotFoundError("Entrega no encontrada");
+  await ensureCanAccessCourse(entrega.sesion.cursoId, user);
+  if (!entrega.urlR2) return { urls: [] };
+
+  let keys: string[];
+  try {
+    keys = JSON.parse(entrega.urlR2);
+    if (!Array.isArray(keys)) keys = [entrega.urlR2];
+  } catch {
+    keys = [entrega.urlR2];
+  }
+
+  const r2Config = getR2Config();
+  const [{ GetObjectCommand }, { getSignedUrl }, r2Client] = await Promise.all([
+    import("@aws-sdk/client-s3"),
+    import("@aws-sdk/s3-request-presigner"),
+    getR2Client(),
+  ]);
+
+  const urls = await Promise.all(
+    keys.map(async (key, i) => ({
+      filename: `archivo_${i + 1}.${key.split(".").pop() ?? "file"}`,
+      url: await getSignedUrl(r2Client, new GetObjectCommand({ Bucket: r2Config.bucketName, Key: key }), { expiresIn: 900 }),
+    })),
+  );
+  return { urls };
 }
 
 export async function getMySummariesForCourse(courseId: string, user: AuthUser) {

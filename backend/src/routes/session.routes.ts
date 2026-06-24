@@ -26,8 +26,9 @@ sessionDetailRoutes.post("/:id/attendance", requireRole(Rol.ADMIN), sessionContr
 sessionDetailRoutes.get("/:id/summaries", sessionController.listSummaries);
 sessionDetailRoutes.post("/:id/summaries/require", requireRole(Rol.ADMIN), sessionController.requireSummaries);
 sessionDetailRoutes.post("/:id/summaries/self-submit", requireRole(Rol.ESTUDIANTE), sessionController.selfSubmitSummary);
-sessionDetailRoutes.post("/:id/summaries/self-upload", requireRole(Rol.ESTUDIANTE), uploadMaterialFile.single("file"), sessionController.selfUploadSummary);
+sessionDetailRoutes.post("/:id/summaries/self-upload", requireRole(Rol.ESTUDIANTE), uploadMaterialFile.array("files", 10), sessionController.selfUploadSummary);
 
 // /api/summaries/:id
 summaryRoutes.patch("/:id/deadline", requireRole(Rol.ADMIN), sessionController.updateSummaryDeadline);
 summaryRoutes.patch("/:id/review", requireRole(Rol.ADMIN, Rol.PROFESOR), sessionController.reviewSummary);
+summaryRoutes.get("/:id/files", sessionController.getSummaryDownloadUrls);
