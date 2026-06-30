@@ -42,13 +42,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const rol = session?.user?.rol as Role | undefined;
   const visible = navItems.filter(item => !rol || item.roles.includes(rol));
 
-  const currentItem = visible.find(
-    item => pathname === item.href || pathname.startsWith(item.href + "/")
-  );
-  const pageTitle = currentItem
-    ? (rol && currentItem.labelByRole?.[rol]) ?? currentItem.label
-    : "";
-
   const initials = session?.user
     ? `${session.user.nombre?.[0] ?? ""}${session.user.apellido?.[0] ?? ""}`.toUpperCase()
     : "";
@@ -115,8 +108,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Image
             src="/brand/flag-mascot.png"
             alt=""
-            width={110}
-            height={170}
+            width={138}
+            height={213}
             aria-hidden="true"
           />
         </div>
@@ -124,22 +117,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ── Contenido derecho: blanco + textura ── */}
       <main className="shell__main">
-        <header className="topbar">
-          <div className="topbar__left">
-            <button
-              className="topbar__menu-btn"
-              onClick={() => setOpen(v => !v)}
-              aria-label={open ? "Cerrar menú" : "Abrir menú"}
-            >
-              {open ? <X size={20} /> : <Menu size={20} />}
-            </button>
-            {pageTitle && <span className="topbar__title">{pageTitle}</span>}
-          </div>
-          <div className="topbar__right">
-            <span className="topbar__username">{session?.user?.nombre} {session?.user?.apellido}</span>
-            <span className="topbar__avatar" aria-hidden="true">{initials}</span>
-          </div>
-        </header>
+        <div className="mobile-bar">
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={() => setOpen(v => !v)}
+            aria-label={open ? "Cerrar menú" : "Abrir menú"}
+          >
+            {open ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
 
         <div className="shell__content">
           {children}
