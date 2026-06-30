@@ -1,8 +1,15 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import {
+  BookOpen, BarChart3, Users, GraduationCap, RefreshCw,
+  Settings, FileText, Video, ArrowRight, CalendarDays,
+  FolderOpen, CheckCircle2,
+} from "lucide-react";
 import { authOptions } from "@/lib/auth";
 import { backendGet } from "@/lib/backend";
-import Link from "next/link";
+import { SectionHead } from "@/components/ui/SectionHead";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 type Curso = {
   id: string;
@@ -12,13 +19,23 @@ type Curso = {
   activo: boolean;
   profesor: { nombre: string; apellido: string };
 };
-
 type ZoomConfig = { enlaceZoom?: string };
 type CoursesResponse = { courses: Curso[] };
 
 async function fetchSafe<T>(fn: () => Promise<T>): Promise<T | null> {
   try { return await fn(); } catch { return null; }
 }
+
+/* ── Admin quick-access items ── */
+const adminItems = [
+  { href: "/cursos",         label: "Cursos",        desc: "Gestionar cursos y sesiones",    Icon: BookOpen },
+  { href: "/calificaciones", label: "Calificaciones", desc: "Cronograma de notas por alumno", Icon: BarChart3 },
+  { href: "/exams",          label: "Exámenes",      desc: "Crear y revisar exámenes",       Icon: FileText },
+  { href: "/usuarios",       label: "Usuarios",      desc: "Todos los usuarios",             Icon: Users },
+  { href: "/profesores",     label: "Profesores",    desc: "Registro y cuentas docentes",    Icon: GraduationCap },
+  { href: "/sustitutorios",  label: "Sustitutorios", desc: "Alumnos elegibles",              Icon: RefreshCw },
+  { href: "/configuracion",  label: "Configuración", desc: "Zoom y ajustes globales",        Icon: Settings },
+] as const;
 
 export default async function InicioPage() {
   const session = await getServerSession(authOptions);
@@ -31,55 +48,54 @@ export default async function InicioPage() {
     fetchSafe(() => backendGet<ZoomConfig>("/api/config/zoom", session)),
   ]);
 
-  const cursosActivos = (cursos?.courses ?? []).filter((c) => c.activo);
-  const enlaceZoom = zoom?.enlaceZoom ?? null;
+  const todosLosCursos = cursos?.courses ?? [];
+  const cursosActivos  = todosLosCursos.filter((c) => c.activo);
+  const enlaceZoom     = zoom?.enlaceZoom ?? null;
 
-  // ── ADMIN ──────────────────────────────────────────────────────────────────
+  /* ════════════════════════════════════════════════════
+     ADMIN
+  ════════════════════════════════════════════════════ */
   if (rol === "ADMIN") {
     return (
       <div>
-        <div className="page-header">
-          <span className="page-eyebrow">Administración</span>
-          <h1 className="page-title">
-            Hola, {session.user.nombre}
-          </h1>
-          <p className="page-subtitle">Panel de control del ciclo académico</p>
-        </div>
+        <SectionHead
+          eyebrow="Administración"
+          title={`Hola, ${session.user.nombre}`}
+          description="Panel de control del ciclo académico."
+        />
 
-        <div className="stat-grid" style={{ marginBottom: 24 }}>
+        {/* Stat cards */}
+        <div className="stat-grid stagger" style={{ marginBottom: "var(--s-8)" }}>
           <div className="stat-card">
-            <div className="stat-value">{cursosActivos.length}</div>
-            <div className="stat-label">Cursos activos</div>
+            <div className="stat-card-label">Cursos activos</div>
+            <div className="stat-card-value">{cursosActivos.length}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value">{(cursos?.courses ?? []).length}</div>
-            <div className="stat-label">Cursos totales</div>
+            <div className="stat-card-label">Cursos totales</div>
+            <div className="stat-card-value">{todosLosCursos.length}</div>
           </div>
-          {enlaceZoom && (
-            <div className="stat-card">
-              <div className="stat-value" style={{ fontSize: 20 }}>🎥</div>
-              <div className="stat-label">Zoom configurado</div>
+          <div className="stat-card">
+            <div className="stat-card-label">Zoom</div>
+            <div className="stat-card-value stat-card-zoom">
+              {enlaceZoom
+                ? <><CheckCircle2 size={18} aria-hidden /> Configurado</>
+                : <span style={{ color: "var(--ink-mute)", fontSize: "1rem" }}>Sin configurar</span>
+              }
             </div>
-          )}
+          </div>
         </div>
 
-        <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 12px" }}>Accesos rápidos</h2>
-        <div className="stat-grid">
-          {[
-            { href: "/cursos", label: "Cursos", desc: "Gestionar cursos y sesiones", icon: "📚" },
-            { href: "/calificaciones", label: "Calificaciones", desc: "Cronograma de notas por alumno", icon: "📊" },
-            { href: "/usuarios", label: "Usuarios", desc: "Profesores y alumnos", icon: "👥" },
-            { href: "/profesores", label: "Profesores", desc: "Registro y cuentas docentes", icon: "👨‍🏫" },
-            { href: "/sustitutorios", label: "Sustitutorios", desc: "Alumnos elegibles", icon: "🔄" },
-            { href: "/configuracion", label: "Configuración", desc: "Zoom y ajustes globales", icon: "⚙️" },
-            { href: "/exams", label: "Exámenes", desc: "Crear y revisar exámenes", icon: "📝" },
-          ].map((item) => (
-            <Link key={item.href} href={item.href} style={{ textDecoration: "none", color: "inherit" }}>
-              <div className="card" style={{ padding: "16px 20px", cursor: "pointer" }}>
-                <div style={{ fontSize: 22, marginBottom: 6 }}>{item.icon}</div>
-                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{item.label}</div>
-                <div style={{ fontSize: 13, color: "var(--texto-secundario)" }}>{item.desc}</div>
-              </div>
+        {/* Accesos rápidos */}
+        <h2 className="h3" style={{ margin: "0 0 var(--s-4)" }}>Accesos rápidos</h2>
+        <div className="qa-grid stagger">
+          {adminItems.map(({ href, label, desc, Icon }) => (
+            <Link key={href} href={href} className="card card--link qa-card">
+              <span className="qa-icon" aria-hidden="true"><Icon /></span>
+              <span className="qa-body">
+                <span className="qa-title">{label}</span>
+                <span className="qa-desc">{desc}</span>
+              </span>
+              <span className="qa-arrow" aria-hidden="true"><ArrowRight /></span>
             </Link>
           ))}
         </div>
@@ -87,128 +103,133 @@ export default async function InicioPage() {
     );
   }
 
-  // ── PROFESOR ───────────────────────────────────────────────────────────────
+  /* ════════════════════════════════════════════════════
+     PROFESOR
+  ════════════════════════════════════════════════════ */
   if (rol === "PROFESOR") {
     const miCurso = cursosActivos[0] ?? null;
     return (
       <div>
-        <div className="page-header">
-          <span className="page-eyebrow">Bienvenido</span>
-          <h1 className="page-title">
-            Hola, {session.user.nombre}
-          </h1>
-          <p className="page-subtitle">Tu clase de esta semana</p>
-        </div>
+        <SectionHead
+          eyebrow="Docente"
+          title={`Hola, ${session.user.nombre}`}
+          description="Tu clase de esta semana."
+        />
 
         {enlaceZoom && (
           <a
             href={enlaceZoom}
             target="_blank"
             rel="noopener noreferrer"
-            className="zoom-button"
-            style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 24, fontSize: 15 }}
+            className="btn btn--accent"
+            style={{ marginBottom: "var(--s-6)", display: "inline-flex" }}
           >
-            🎥 Unirse a Zoom ahora
+            <Video size={18} aria-hidden /> Unirse a la clase ahora
           </a>
         )}
 
         {miCurso ? (
-          <Link href={`/cursos/${miCurso.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-            <div className="card" style={{ padding: 24, cursor: "pointer" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ambar-accion)", marginBottom: 6 }}>
-                {miCurso.tipo}
-              </div>
-              <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 600 }}>{miCurso.nombre}</h2>
-              <p style={{ margin: 0, color: "var(--texto-secundario)", fontSize: 14 }}>
-                {miCurso.descripcion ?? "Ver sesiones, material y exámenes del curso →"}
+          <>
+            <Link href={`/cursos/${miCurso.id}`} className="card card--link" style={{ display: "block", marginBottom: "var(--s-4)" }}>
+              <span className="chip chip--ok" style={{ marginBottom: "var(--s-3)", display: "inline-flex" }}>
+                <CheckCircle2 size={13} aria-hidden /> Curso activo
+              </span>
+              <h2 className="h2" style={{ margin: "0 0 var(--s-2)" }}>{miCurso.nombre}</h2>
+              <p className="small" style={{ margin: "0 0 var(--s-3)" }}>
+                {miCurso.descripcion ?? "Ver sesiones, material y exámenes del curso."}
               </p>
-            </div>
-          </Link>
-        ) : (
-          <div className="card">
-            <div className="empty-state">
-              <div className="empty-state-icon">📅</div>
-              <p className="empty-state-title">Sin curso asignado esta semana</p>
-              <p>El administrador asignará tu curso próximamente.</p>
-            </div>
-          </div>
-        )}
-
-        {cursosActivos.length > 1 && (
-          <div style={{ marginTop: 16 }}>
-            <Link href="/cursos" style={{ color: "var(--ambar-accion)", fontWeight: 600, fontSize: 14 }}>
-              Ver todos mis cursos ({cursosActivos.length}) →
+              <span className="small">
+                Prof. {miCurso.profesor.nombre} {miCurso.profesor.apellido}
+              </span>
             </Link>
+
+            {cursosActivos.length > 1 && (
+              <Link href="/cursos" className="btn btn--ghost btn--sm" style={{ display: "inline-flex", marginBottom: "var(--s-6)" }}>
+                Ver mis cursos ({cursosActivos.length}) <ArrowRight size={16} aria-hidden />
+              </Link>
+            )}
+          </>
+        ) : (
+          <div className="card" style={{ marginBottom: "var(--s-6)" }}>
+            <EmptyState
+              icon={<CalendarDays size={32} />}
+              title="Aún no tienes un curso asignado."
+              description="El administrador asignará tu curso próximamente."
+            />
           </div>
         )}
       </div>
     );
   }
 
-  // ── ESTUDIANTE ─────────────────────────────────────────────────────────────
+  /* ════════════════════════════════════════════════════
+     ESTUDIANTE
+  ════════════════════════════════════════════════════ */
   const miCurso = cursosActivos[0] ?? null;
+
+  const estudianteItems = miCurso ? [
+    { href: `/cursos/${miCurso.id}`, label: "Ver sesiones",   desc: "Sesiones del ciclo",   Icon: CalendarDays },
+    { href: "/exams",                label: "Mis exámenes",   desc: "Exámenes disponibles", Icon: FileText },
+    { href: "/material",             label: "Material",       desc: "Archivos y recursos",  Icon: FolderOpen },
+    { href: "/calificaciones",       label: "Mis notas",      desc: "Historial de notas",   Icon: BarChart3 },
+  ] : [];
+
   return (
     <div>
-      <div className="page-header">
-        <span className="page-eyebrow">Bienvenido</span>
-        <h1 className="page-title">
-          Hola, {session.user.nombre}
-        </h1>
-        <p className="page-subtitle">Tu curso activo esta semana</p>
-      </div>
+      <SectionHead
+        eyebrow="Estudiante"
+        title={`Hola, ${session.user.nombre}`}
+        description="Tu curso activo esta semana."
+      />
 
       {enlaceZoom && (
         <a
           href={enlaceZoom}
           target="_blank"
           rel="noopener noreferrer"
-          className="zoom-button"
-          style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 24, fontSize: 16 }}
+          className="btn btn--accent"
+          style={{ marginBottom: "var(--s-6)", display: "inline-flex" }}
         >
-          🎥 Unirse a la clase por Zoom
+          <Video size={18} aria-hidden /> Unirse a la clase ahora
         </a>
       )}
 
       {miCurso ? (
-        <div style={{ display: "grid", gap: 16 }}>
-          <Link href={`/cursos/${miCurso.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-            <div className="card" style={{ padding: 24, cursor: "pointer" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ambar-accion)", marginBottom: 6 }}>
-                Curso activo
-              </div>
-              <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 600 }}>{miCurso.nombre}</h2>
-              <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--texto-secundario)" }}>
-                {miCurso.descripcion ?? "—"}
-              </p>
-              <div style={{ fontSize: 13, color: "var(--texto-tenue)" }}>
-                Prof. {miCurso.profesor.nombre} {miCurso.profesor.apellido}
-              </div>
-            </div>
+        <>
+          <Link href={`/cursos/${miCurso.id}`} className="card card--link" style={{ display: "block", marginBottom: "var(--s-6)" }}>
+            <span className="chip chip--ok" style={{ marginBottom: "var(--s-3)", display: "inline-flex" }}>
+              <CheckCircle2 size={13} aria-hidden /> Curso activo
+            </span>
+            <h2 className="h2" style={{ margin: "0 0 var(--s-2)" }}>{miCurso.nombre}</h2>
+            <p className="small" style={{ margin: "0 0 var(--s-3)" }}>
+              {miCurso.descripcion ?? "—"}
+            </p>
+            <span className="small">
+              Prof. {miCurso.profesor.nombre} {miCurso.profesor.apellido}
+            </span>
           </Link>
 
-          <div className="stat-grid">
-            {[
-              { href: `/cursos/${miCurso.id}`, label: "Ver sesiones", icon: "📅" },
-              { href: `/exams`, label: "Mis exámenes", icon: "📝" },
-              { href: `/content`, label: "Material", icon: "📁" },
-              { href: "/calificaciones", label: "Mis notas", icon: "📊" },
-            ].map((item) => (
-              <Link key={item.href} href={item.href} style={{ textDecoration: "none", color: "inherit" }}>
-                <div className="card" style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 20 }}>{item.icon}</span>
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>{item.label}</span>
-                </div>
+          <h2 className="h3" style={{ margin: "0 0 var(--s-4)" }}>Accesos rápidos</h2>
+          <div className="qa-grid stagger">
+            {estudianteItems.map(({ href, label, desc, Icon }) => (
+              <Link key={href} href={href} className="card card--link qa-card">
+                <span className="qa-icon" aria-hidden="true"><Icon /></span>
+                <span className="qa-body">
+                  <span className="qa-title">{label}</span>
+                  <span className="qa-desc">{desc}</span>
+                </span>
+                <span className="qa-arrow" aria-hidden="true"><ArrowRight /></span>
               </Link>
             ))}
           </div>
-        </div>
+        </>
       ) : (
         <div className="card">
-          <div className="empty-state">
-            <div className="empty-state-icon">📚</div>
-            <p className="empty-state-title">Sin curso inscrito</p>
-            <p>El administrador te inscribirá en un curso próximamente.</p>
-          </div>
+          <EmptyState
+            icon={<BookOpen size={32} />}
+            title="Aún no tienes un curso inscrito."
+            description="El administrador te inscribirá en un curso próximamente."
+          />
         </div>
       )}
     </div>

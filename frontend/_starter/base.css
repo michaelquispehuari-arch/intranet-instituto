@@ -1,0 +1,114 @@
+/* ============================================================
+   PeRTS · base.css — tipografía, botones, inputs, animaciones.
+   Importar después de tokens.css en globals.css.
+   ============================================================ */
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font:400 .975rem/1.55 var(--font-body);
+  -webkit-font-smoothing:antialiased;}
+
+/* ---- Tipografía ---- */
+.display-xl{font:600 clamp(2.4rem,4vw,3.4rem)/1.05 var(--font-display);letter-spacing:-.02em}
+.display-l{font:600 clamp(1.8rem,3vw,2.4rem)/1.1 var(--font-display);letter-spacing:-.015em}
+.h1{font:600 1.6rem/1.2 var(--font-body);letter-spacing:-.01em;color:var(--ink)}
+.h2{font:600 1.25rem/1.25 var(--font-body)}
+.h3{font:600 1.05rem/1.3 var(--font-body)}
+.small{font:400 .85rem/1.5 var(--font-body);color:var(--ink-soft)}
+.data{font:500 .9rem/1.2 var(--font-mono);font-variant-numeric:tabular-nums}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;
+  font:600 .72rem/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--pine-500)}
+.eyebrow-tick{width:22px;height:2px;background:var(--gold);border-radius:2px}
+
+/* ---- Botón ---- */
+.btn{--bg:var(--pine-700);--fg:#fff;--bd:transparent;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 18px;border-radius:var(--r-md);border:1px solid var(--bd);
+  background:var(--bg);color:var(--fg);font:600 .94rem/1 var(--font-body);letter-spacing:.01em;
+  cursor:pointer;user-select:none;box-shadow:var(--sh-1);
+  transition:transform var(--t-fast) var(--ease),box-shadow var(--t-base) var(--ease),
+    background var(--t-base) var(--ease),filter var(--t-base) var(--ease)}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--sh-2);filter:brightness(1.04)}
+.btn:active{transform:translateY(0);box-shadow:var(--sh-1);filter:brightness(.97)}
+.btn:focus-visible{outline:none;box-shadow:var(--sh-focus),var(--sh-1)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;filter:none}
+.btn svg{width:18px;height:18px;stroke-width:1.9}
+.btn--primary{--bg:var(--pine-700);--fg:#fff}
+.btn--accent{--bg:var(--flag);--fg:#fff}
+.btn--accent:hover{background:var(--flag-600)}
+.btn--secondary{--bg:#fff;--fg:var(--pine-700);--bd:var(--line);box-shadow:none}
+.btn--secondary:hover{background:var(--sage-100)}
+.btn--ghost{--bg:transparent;--fg:var(--ink-soft);--bd:transparent;box-shadow:none}
+.btn--ghost:hover{background:var(--sage-100);color:var(--ink)}
+.btn--danger{--bg:var(--danger-bg);--fg:var(--danger);--bd:var(--danger-line);box-shadow:none}
+.btn--danger:hover{background:#F6DBD7}
+.btn--sm{padding:8px 13px;font-size:.86rem}
+.btn--lg{padding:14px 22px;font-size:1rem}
+.btn--block{width:100%}
+
+/* ---- Inputs ---- */
+.field{display:flex;flex-direction:column;gap:6px}
+.label{font:600 .82rem/1 var(--font-body);color:var(--ink-soft)}
+.input,.select,.textarea{width:100%;padding:11px 13px;border-radius:var(--r-md);
+  border:1px solid var(--line);background:#fff;color:var(--ink);font:400 .95rem/1.4 var(--font-body);
+  transition:border-color var(--t-base) var(--ease),box-shadow var(--t-base) var(--ease)}
+.input::placeholder{color:var(--ink-mute)}
+.input:hover{border-color:#D2D6D1}
+.input:focus{outline:none;border-color:var(--pine-500);box-shadow:var(--sh-focus)}
+.input[aria-invalid="true"]{border-color:var(--danger)}
+.field-error{font:400 .8rem/1.3 var(--font-body);color:var(--danger)}
+.field-hint{font:400 .8rem/1.3 var(--font-body);color:var(--ink-mute)}
+/* input con icono a la izquierda */
+.input-wrap{position:relative}
+.input-wrap .lead-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  color:var(--ink-mute);width:18px;height:18px;pointer-events:none}
+.input-wrap .input{padding-left:40px}
+
+/* ---- Card ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+  box-shadow:var(--sh-1);padding:var(--s-6);
+  transition:transform var(--t-base) var(--ease),box-shadow var(--t-base) var(--ease),
+    border-color var(--t-base) var(--ease)}
+.card--link{cursor:pointer}
+.card--link:hover{transform:translateY(-3px);box-shadow:var(--sh-3);border-color:var(--sage-200)}
+.card--link:active{transform:translateY(-1px)}
+
+/* ---- Chip ---- */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--r-pill);
+  font:600 .76rem/1 var(--font-body);border:1px solid transparent}
+.chip svg{width:13px;height:13px}
+.chip--ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line)}
+.chip--warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line)}
+.chip--danger{background:var(--danger-bg);color:var(--danger);border-color:var(--danger-line)}
+.chip--neutral{background:var(--sage-100);color:var(--ink-soft);border-color:var(--line)}
+
+/* ---- Animaciones ---- */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.stagger>*{opacity:0;animation:rise var(--t-slow) var(--ease-out) forwards}
+.stagger>*:nth-child(1){animation-delay:40ms}
+.stagger>*:nth-child(2){animation-delay:90ms}
+.stagger>*:nth-child(3){animation-delay:140ms}
+.stagger>*:nth-child(4){animation-delay:190ms}
+.stagger>*:nth-child(5){animation-delay:240ms}
+.stagger>*:nth-child(n+6){animation-delay:280ms}
+@keyframes pop-in{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}
+.pop-in{animation:pop-in var(--t-base) var(--ease-out)}
+@keyframes slide-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes shimmer{to{transform:translateX(100%)}}
+.skel{position:relative;overflow:hidden;background:var(--line-2);border-radius:var(--r-sm)}
+.skel::after{content:"";position:absolute;inset:0;transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);
+  animation:shimmer 1.3s infinite}
+
+/* ---- Banda de marca (signature, login/cabeceras) ---- */
+.brand-band{position:relative;overflow:hidden;
+  background:
+    radial-gradient(circle at 1px 1px,rgba(255,255,255,.10) 1px,transparent 0) 0 0/18px 18px,
+    linear-gradient(115deg,var(--pine-900),var(--pine-700));}
+.brand-band::before{content:"";position:absolute;inset:-40%;
+  background:repeating-linear-gradient(115deg,transparent 0 60px,rgba(255,255,255,.02) 60px 62px);
+  animation:drift 24s linear infinite}
+@keyframes drift{to{transform:translateX(40px)}}
+
+/* Degradado verde de la marca (fondo auth) — sin imagen */
+.brand-gradient{background:linear-gradient(180deg,var(--pine-900) 0%,var(--pine-600) 45%,var(--sage-200) 100%)}

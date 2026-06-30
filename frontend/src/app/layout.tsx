@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { fraunces, hanken, plexMono } from "./fonts";
 
 export const metadata: Metadata = {
-  title: "Intranet Instituto",
-  description: "Plataforma interna educativa",
+  title: "Intranet PeRTS",
+  description: "Plataforma interna educativa del Seminario Teológico de Remanentes",
 };
 
 export default function RootLayout({
@@ -13,11 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
+    <html lang="es" className={`${fraunces.variable} ${hanken.variable} ${plexMono.variable}`}>
       <body>
         <Providers>{children}</Providers>
       </body>

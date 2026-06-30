@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Mail, Lock } from "lucide-react";
+import { PrivacyModal } from "./PrivacyModal";
 
 export function LoginForm() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export function LoginForm() {
   const callbackUrl = searchParams.get("callbackUrl") ?? "/inicio";
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,7 +30,7 @@ export function LoginForm() {
     setIsLoading(false);
 
     if (!result?.ok) {
-      setError("Credenciales incorrectas");
+      setError("Correo o contraseña incorrectos.");
       return;
     }
 
@@ -37,22 +39,73 @@ export function LoginForm() {
   }
 
   return (
-    <form className="form" onSubmit={handleSubmit}>
-      <div className="field">
-        <label htmlFor="email">Correo institucional</label>
-        <input id="email" name="email" type="email" autoComplete="email" required />
-      </div>
-      <div className="field">
-        <label htmlFor="password">Contrasena</label>
-        <input id="password" name="password" type="password" autoComplete="current-password" required />
-      </div>
-      {error ? <p className="error">{error}</p> : null}
-      <button className="button" type="submit" disabled={isLoading}>
-        {isLoading ? "Ingresando..." : "Ingresar"}
-      </button>
-      <Link className="text-link" href="/forgot-password">
-        Olvide mi contrasena
-      </Link>
-    </form>
+    <>
+      <form className="login__form stagger" onSubmit={handleSubmit} noValidate>
+        <div className="field">
+          <label className="label" htmlFor="email">Correo</label>
+          <div className="input-wrap">
+            <Mail className="lead-icon" aria-hidden />
+            <input
+              id="email"
+              name="email"
+              type="email"
+              className="input"
+              placeholder="correo@gmail.com"
+              autoComplete="email"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="field">
+          <label className="label" htmlFor="password">Contraseña</label>
+          <div className="input-wrap">
+            <Lock className="lead-icon" aria-hidden />
+            <input
+              id="password"
+              name="password"
+              type="password"
+              className="input"
+              placeholder="Tu contraseña"
+              autoComplete="current-password"
+              required
+            />
+          </div>
+        </div>
+
+        {error && (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          className="btn btn--primary btn--block btn--lg"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <span className="btn-loading">
+              <span className="spinner-sm" aria-hidden="true" />
+              Ingresando…
+            </span>
+          ) : (
+            "Ingresar"
+          )}
+        </button>
+
+        <div className="login__links">
+          <button
+            type="button"
+            className="login__legal"
+            onClick={() => setShowPrivacy(true)}
+          >
+            Política de privacidad
+          </button>
+        </div>
+      </form>
+
+      <PrivacyModal open={showPrivacy} onClose={() => setShowPrivacy(false)} />
+    </>
   );
 }

@@ -1,0 +1,107 @@
+:root {
+  /* — Verdes de marca (pino) — */
+  --pine-900: #122E2A;
+  --pine-800: #173A35;
+  --pine-700: #1E453F;
+  --pine-600: #2B5A52;
+  --pine-500: #3C6E64;
+  --sage-200: #C6D3CF;
+  --sage-100: #E7EDEA;
+
+  /* — Acentos — */
+  --flag:      #D9742F;
+  --flag-600:  #C2641F;
+  --gold:      #CBA85E;
+  --gold-soft: #E3C988;
+  --slate:     #8FA0B3;
+
+  /* — Neutros / superficie — */
+  --paper:     #F5F4EF;
+  --card:      #FFFFFF;
+  --ink:       #14201E;
+  --ink-soft:  #4A5957;
+  --ink-mute:  #8A938F;
+  --line:      #E4E6E2;
+  --line-2:    #EFF0EC;
+
+  /* — Estados semánticos — */
+  --ok:        #2F7D54; --ok-bg:    #E6F2EB; --ok-line:   #BFE0CC;
+  --warn:      #B07A18; --warn-bg:  #FAF1DC; --warn-line: #EAD6A2;
+  --danger:    #B23B36; --danger-bg:#FBEAE7; --danger-line:#F0C9C4;
+  --info:      #3C6E8F; --info-bg:  #E7F0F5; --info-line: #C5DDE8;
+
+  /* — Radios — */
+  --r-sm:   8px;
+  --r-md:   12px;
+  --r-lg:   16px;
+  --r-xl:   22px;
+  --r-pill: 999px;
+
+  /* — Sombras — */
+  --sh-1:     0 1px 2px rgba(18,46,42,.06), 0 1px 3px rgba(18,46,42,.05);
+  --sh-2:     0 4px 12px rgba(18,46,42,.08), 0 2px 4px rgba(18,46,42,.05);
+  --sh-3:     0 12px 32px rgba(18,46,42,.12), 0 4px 8px rgba(18,46,42,.06);
+  --sh-focus: 0 0 0 3px rgba(203,168,94,.35);
+
+  /* — Espaciado — */
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px;
+  --s-6:24px; --s-8:32px; --s-10:40px; --s-12:48px; --s-16:64px;
+
+  /* — Tipografía — */
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-body:    var(--font-hanken), system-ui, sans-serif;
+  --font-mono:    var(--font-plexmono), ui-monospace, monospace;
+
+  /* — Movimiento — */
+  --ease:     cubic-bezier(.22,.61,.36,1);
+  --ease-out: cubic-bezier(.16,1,.3,1);
+  --t-fast:   120ms;
+  --t-base:   200ms;
+  --t-slow:   360ms;
+
+  /* — Anchos — */
+  --sidebar-w:   264px;
+  --content-max: 1180px;
+
+  /* — Compatibilidad con pantallas existentes — */
+  --verde-sidebar:       var(--pine-900);
+  --verde-sidebar-hover: var(--pine-800);
+  --verde-texto:         #CFE0DB;
+  --verde-activo:        #F5F4EF;
+  --ambar-accion:        var(--flag);
+  --ambar-texto:         #ffffff;
+  --ambar-acento:        var(--gold);
+  --fondo-pagina:        var(--paper);
+  --superficie:          var(--card);
+  --borde:               var(--line);
+  --texto-principal:     var(--ink);
+  --texto-secundario:    var(--ink-soft);
+  --texto-tenue:         var(--ink-mute);
+  --aprobado-texto:      var(--ok);
+  --aprobado-fondo:      var(--ok-bg);
+  --desaprobado-texto:   var(--danger);
+  --desaprobado-fondo:   var(--danger-bg);
+  --pendiente-texto:     var(--warn);
+  --pendiente-fondo:     var(--warn-bg);
+  --info-texto:          var(--info);
+  --info-fondo:          var(--info-bg);
+  --background:          var(--paper);
+  --surface:             var(--card);
+  --surface-muted:       var(--sage-100);
+  --border:              var(--line);
+  --text:                var(--ink);
+  --muted:               var(--ink-soft);
+  --primary:             var(--pine-900);
+  --primary-dark:        var(--pine-800);
+  --shadow:              var(--sh-1);
+  --font-ui:             var(--font-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
