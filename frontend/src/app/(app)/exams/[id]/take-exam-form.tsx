@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { readApiError } from "@/lib/api-error";
 import type { ExamDetail } from "../types";
@@ -14,6 +15,7 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [finished, setFinished] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(exam.tiempoRestanteSegundos ?? null);
 
   useEffect(() => {
@@ -65,8 +67,29 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
       return;
     }
 
+    if (exam.esSustitutorio) {
+      setFinished(true);
+      return;
+    }
+
     router.push(`/exams/${exam.id}/results`);
     router.refresh();
+  }
+
+  if (finished) {
+    return (
+      <section className="card empty-state">
+        <h2>Examen finalizado</h2>
+        <p className="muted">
+          Tu respuesta fue registrada. El administrador revisará y publicará la nota correspondiente.
+        </p>
+        <div className="card-actions">
+          <Link href="/exams" className="btn btn-secondary">
+            Volver a exámenes
+          </Link>
+        </div>
+      </section>
+    );
   }
 
   const remainingLabel =

@@ -6,7 +6,7 @@ import { ModoEstudio } from "@prisma/client";
 const modoSchema = z.nativeEnum(ModoEstudio).optional();
 
 const createStudentSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email().toLowerCase(),
   nombre: z.string().min(2).max(80),
   apellido: z.string().min(2).max(80),
   codigo: z.string().max(30).optional(),

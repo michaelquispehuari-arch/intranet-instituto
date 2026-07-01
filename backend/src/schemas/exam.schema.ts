@@ -65,6 +65,11 @@ export const gradeOpenSchema = z.object({
     .min(1),
 });
 
+export const reviewParamsSchema = z.object({
+  id: z.string().min(1),
+  submissionId: z.string().min(1),
+});
+
 export type CreateExamInput = z.infer<typeof createExamSchema>;
 export type SubmitExamInput = z.infer<typeof submitExamSchema>;
 export type GradeOpenInput = z.infer<typeof gradeOpenSchema>;

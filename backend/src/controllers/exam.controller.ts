@@ -3,6 +3,7 @@ import {
   createExamSchema,
   examIdParamSchema,
   gradeOpenSchema,
+  reviewParamsSchema,
   submitExamSchema,
 } from "../schemas/exam.schema.js";
 import * as examService from "../services/exam.service.js";
@@ -83,6 +84,16 @@ export async function gradeOpen(req: Request, res: Response, next: NextFunction)
     const input = gradeOpenSchema.parse(req.body);
     const result = await examService.gradeOpenAnswers(id, input, getRequestUser(req));
     res.json({ result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function review(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id, submissionId } = reviewParamsSchema.parse(req.params);
+    const result = await examService.reviewSubmission(id, submissionId, getRequestUser(req));
+    res.json(result);
   } catch (error) {
     next(error);
   }

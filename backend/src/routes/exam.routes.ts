@@ -15,3 +15,4 @@ examRoutes.post("/", requireRole(Rol.ADMIN, Rol.PROFESOR), examController.create
 examRoutes.patch("/:id/publish", requireRole(Rol.ADMIN, Rol.PROFESOR), examController.publish);
 examRoutes.post("/:id/submit", requireRole(Rol.ESTUDIANTE), examController.submit);
 examRoutes.patch("/:id/grade-open", requireRole(Rol.ADMIN), examController.gradeOpen);
+examRoutes.patch("/:id/submissions/:submissionId/review", requireRole(Rol.ADMIN), examController.review);

@@ -94,22 +94,14 @@ export async function getTimeline(user: AuthUser) {
   const courses = await prisma.curso.findMany({
     where: buildCourseAccessWhere(undefined, user),
     include: {
-      config: true,
       inscripciones: {
         where: user.rol === Rol.ESTUDIANTE ? { estudianteId: user.id } : undefined,
         include: {
           estudiante: { select: { id: true, nombre: true, apellido: true, email: true } },
         },
       },
-      notasManuales: true,
-      examenes: {
-        include: {
-          preguntas: { select: { puntaje: true } },
-          envios: {
-            where: { completado: true },
-            select: { estudianteId: true, puntajeTotal: true },
-          },
-        },
+      registrosSemanal: {
+        select: { estudianteId: true, notaFinal: true },
       },
     },
     orderBy: [{ anio: "desc" }, { ciclo: "asc" }],
@@ -118,31 +110,13 @@ export async function getTimeline(user: AuthUser) {
   const studentMap = new Map<string, { estudiante: object; semanas: object[] }>();
 
   for (const course of courses) {
-    const config = course.config ?? defaultGradeConfig;
+    const regMap = new Map(course.registrosSemanal.map((r) => [r.estudianteId, r]));
 
     for (const inscripcion of course.inscripciones) {
-      const { estudianteId, estudiante, notaAsistencia } = inscripcion;
-
-      const manualGrades = course.notasManuales
-        .filter((g) => g.estudianteId === estudianteId)
-        .map((g) => g.valor);
-
-      const examGrades = course.examenes.flatMap((exam) => {
-        const maxScore = exam.preguntas.reduce((sum, q) => sum + q.puntaje, 0);
-        if (maxScore <= 0) return [];
-        return exam.envios
-          .filter((e) => e.estudianteId === estudianteId)
-          .map((e) => ((e.puntajeTotal ?? 0) / maxScore) * 20);
-      });
-
-      const promedioAcademico = average([...examGrades, ...manualGrades]);
-      const notaFinal = calculateFinalGrade(
-        notaAsistencia,
-        promedioAcademico,
-        config.pesoAsistencia,
-        config.pesoAcademico,
-      );
-      const aprobado = notaFinal === null ? null : notaFinal >= config.notaAprobatoria;
+      const { estudianteId, estudiante } = inscripcion;
+      const registro = regMap.get(estudianteId);
+      const notaFinal = registro?.notaFinal ?? null;
+      const aprobado = notaFinal === null ? null : notaFinal >= 11;
 
       if (!studentMap.has(estudianteId)) {
         studentMap.set(estudianteId, { estudiante, semanas: [] });

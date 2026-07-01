@@ -1,6 +1,6 @@
 import { Rol, TipoPregunta, EstadoCalificacion } from "@prisma/client";
 import type { AuthUser } from "../types/auth.js";
-import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
+import { ForbiddenError, HttpError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
 import type { CreateExamInput, SubmitExamInput, GradeOpenInput } from "../schemas/exam.schema.js";
 import { sendExamPublishedEmail } from "./email.service.js";
@@ -18,6 +18,8 @@ const examListSelect = {
   disponibleDesde: true,
   activo: true,
   creadoEn: true,
+  esSustitutorio: true,
+  revelarRespuestas: true,
   curso: {
     select: {
       id: true,
@@ -64,23 +66,30 @@ export async function listExams(user: AuthUser, cursoId?: string) {
     });
   }
 
-  return prisma.examen.findMany({
-    where: {
-      ...(cursoId ? { cursoId } : {}),
-      activo: true,
-      publicadoEn: { not: null },
-      curso: {
-        activo: true,
-        inscripciones: {
-          some: {
-            estudianteId: user.id,
-          },
-        },
-      },
-    },
-    orderBy: { creadoEn: "desc" },
-    select: examListSelect,
-  });
+  const enrolledWhere = {
+    activo: true,
+    publicadoEn: { not: null as null },
+    curso: { activo: true, inscripciones: { some: { estudianteId: user.id } } },
+  };
+  const [regularExams, allSustitutorios] = await Promise.all([
+    prisma.examen.findMany({
+      where: { ...enrolledWhere, ...(cursoId ? { cursoId } : {}), esSustitutorio: false },
+      orderBy: { creadoEn: "desc" },
+      select: examListSelect,
+    }),
+    prisma.examen.findMany({
+      where: { ...enrolledWhere, ...(cursoId ? { cursoId } : {}), esSustitutorio: true },
+      orderBy: { creadoEn: "desc" },
+      select: examListSelect,
+    }),
+  ]);
+  const eligibleSustitutorios: typeof allSustitutorios = [];
+  for (const exam of allSustitutorios) {
+    if (await isStudentEligibleForSubstitutory(user.id, exam.cursoId)) {
+      eligibleSustitutorios.push(exam);
+    }
+  }
+  return [...regularExams, ...eligibleSustitutorios];
 }
 
 export async function getExamById(examId: string, user: AuthUser) {
@@ -122,6 +131,11 @@ export async function getExamById(examId: string, user: AuthUser) {
 
   if (user.rol !== Rol.ESTUDIANTE || !isEnrolled) {
     throw new ForbiddenError();
+  }
+
+  if (exam.esSustitutorio) {
+    const eligible = await isStudentEligibleForSubstitutory(user.id, exam.cursoId);
+    if (!eligible) throw new ForbiddenError("No estás habilitado para este examen sustitutorio");
   }
 
   // Check if student already has an attempt
@@ -171,6 +185,8 @@ export async function getExamResults(examId: string, user: AuthUser) {
       descripcion: true,
       duracionMinutos: true,
       disponibleDesde: true,
+      revelarRespuestas: true,
+      esSustitutorio: true,
       curso: {
         select: {
           id: true,
@@ -195,6 +211,10 @@ export async function getExamResults(examId: string, user: AuthUser) {
 
   if (!canViewAll && !isEnrolledStudent) {
     throw new ForbiddenError();
+  }
+
+  if (isEnrolledStudent && !exam.revelarRespuestas) {
+    throw new NotFoundError("RESULTS_NOT_AVAILABLE");
   }
 
   // Students can only see results after cierre
@@ -273,7 +293,7 @@ export async function createExam(input: CreateExamInput, user: AuthUser) {
       duracionMinutos: input.duracionMinutos,
       ingresoHastaMin: input.ingresoHastaMin,
       disponibleDesde: input.disponibleDesde,
-      revelarRespuestas: input.revelarRespuestas,
+      revelarRespuestas: input.esSustitutorio ? false : input.revelarRespuestas,
       esSustitutorio: input.esSustitutorio,
       preguntas: {
         create: input.preguntas.map((question, index) => ({
@@ -315,7 +335,6 @@ export async function publishExam(examId: string, user: AuthUser) {
   const students = exam.curso.inscripciones.map((i) => i.estudiante);
   await sendExamPublishedEmail(students, exam.titulo, exam.curso.nombre);
 
-  const { curso: _curso, ...examData } = exam;
   return prisma.examen.findUnique({ where: { id: examId }, select: examListSelect });
 }
 
@@ -344,6 +363,11 @@ export async function submitExam(examId: string, input: SubmitExamInput, user: A
 
   if (user.rol !== Rol.ESTUDIANTE || exam.curso.inscripciones.length === 0 || !isExamAvailable(exam)) {
     throw new ForbiddenError();
+  }
+
+  if (exam.esSustitutorio) {
+    const eligible = await isStudentEligibleForSubstitutory(user.id, exam.cursoId);
+    if (!eligible) throw new ForbiddenError("No estás habilitado para este examen sustitutorio");
   }
 
   const existingSubmission = await prisma.examenEnvio.findUnique({
@@ -480,6 +504,21 @@ async function getSubmissionResult(submissionId: string) {
   return submission;
 }
 
+async function isStudentEligibleForSubstitutory(studentId: string, cursoId: string): Promise<boolean> {
+  const [habilitacion, mainExamSubmission] = await Promise.all([
+    prisma.habilitacionSustitutorio.findUnique({
+      where: { estudianteId_cursoId: { estudianteId: studentId, cursoId } },
+      select: { id: true },
+    }),
+    prisma.examenEnvio.findFirst({
+      where: { estudianteId: studentId, completado: true, examen: { cursoId, esSustitutorio: false } },
+      select: { id: true },
+    }),
+  ]);
+  if (habilitacion) return true;
+  return !mainExamSubmission;
+}
+
 async function ensureProfessorOwnsCourse(courseId: string, professorId: string) {
   const course = await prisma.curso.findFirst({
     where: {
@@ -614,4 +653,46 @@ export async function gradeOpenAnswers(examId: string, input: GradeOpenInput, us
   );
 
   return results;
+}
+
+export async function reviewSubmission(examId: string, submissionId: string, user: AuthUser) {
+  if (user.rol !== Rol.ADMIN) throw new ForbiddenError();
+
+  const exam = await prisma.examen.findUnique({
+    where: { id: examId },
+    select: { id: true, cursoId: true, esSustitutorio: true, preguntas: { select: { puntaje: true } } },
+  });
+  if (!exam) throw new NotFoundError("Examen no encontrado");
+  if (!exam.esSustitutorio) throw new HttpError(400, "Solo se puede revisar envíos de exámenes sustitutorios");
+
+  const submission = await prisma.examenEnvio.findUnique({
+    where: { id: submissionId },
+    select: {
+      id: true,
+      estudianteId: true,
+      examenId: true,
+      respuestas: { select: { puntajeObtenido: true, estadoCalificacion: true } },
+    },
+  });
+  if (!submission || submission.examenId !== examId) throw new NotFoundError("Envío no encontrado");
+
+  const ungraded = submission.respuestas.filter((r) => r.estadoCalificacion === EstadoCalificacion.PENDIENTE);
+  if (ungraded.length > 0) {
+    throw new HttpError(400, `Hay ${ungraded.length} respuesta(s) sin calificar`);
+  }
+
+  const totalScore = submission.respuestas.reduce((sum, r) => sum + r.puntajeObtenido, 0);
+  const maxScore = exam.preguntas.reduce((sum, q) => sum + q.puntaje, 0);
+  const notaExamenRecup = maxScore > 0 ? Math.round((totalScore / maxScore) * 20 * 100) / 100 : 0;
+
+  await prisma.$transaction([
+    prisma.examenEnvio.update({ where: { id: submissionId }, data: { puntajeTotal: totalScore } }),
+    prisma.registroSemanal.upsert({
+      where: { estudianteId_cursoId: { estudianteId: submission.estudianteId, cursoId: exam.cursoId } },
+      update: { notaExamenRecup },
+      create: { estudianteId: submission.estudianteId, cursoId: exam.cursoId, notaExamenRecup },
+    }),
+  ]);
+
+  return { notaExamenRecup, submissionId };
 }

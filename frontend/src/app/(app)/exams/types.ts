@@ -9,6 +9,8 @@ export type ExamListItem = {
   disponibleDesde: string | null;
   activo: boolean;
   creadoEn: string;
+  esSustitutorio: boolean;
+  revelarRespuestas: boolean;
   curso: {
     id: string;
     nombre: string;
@@ -40,6 +42,8 @@ export type ExamDetail = {
   descripcion: string | null;
   duracionMinutos: number;
   publicadoEn: string | null;
+  esSustitutorio: boolean;
+  revelarRespuestas: boolean;
   intento?: {
     iniciadoEn: string;
     completado: boolean;
@@ -87,6 +91,8 @@ export type ExamResults = {
       respuesta: string;
       esCorrecta: boolean;
       puntajeObtenido: number;
+      puntajeManual: number | null;
+      estadoCalificacion: "AUTO" | "PENDIENTE" | "CALIFICADA";
       pregunta: {
         id: string;
         texto: string;

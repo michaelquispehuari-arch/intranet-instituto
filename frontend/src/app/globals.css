@@ -270,23 +270,31 @@ button, input, select, textarea { font: inherit; }
 /* ══════════════════════════════════════
    APP SHELL — dos zonas
    ══════════════════════════════════════ */
-.shell { display: flex; min-height: 100dvh; }
+.shell { display: flex; align-items: flex-start; min-height: 100dvh; }
 
 /* ── Panel izquierdo: degradado verde vertical ── */
 .shell__rail {
   width: 290px; flex: 0 0 290px;
+  height: 100vh;                 /* alto de la ventana, no del contenido */
+  position: sticky; top: 0;      /* se queda fijo aunque el contenido baje */
+  align-self: flex-start;
   display: flex; flex-direction: column;
   background: linear-gradient(180deg, #173A35 0%, #2B5A52 38%, #3C6E64 60%, #C6D3CF 100%);
-  position: relative;
+  overflow: hidden;
 }
 
-.rail__logo { padding: 26px 22px 8px; display: flex; justify-content: center; }
-.rail__logo img { width: 96px; height: 96px; }
-.rail__nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 12px; margin-top: 6px; }
+/* Logo grande de fondo (watermark), centrado, detrás del menú */
+.rail__watermark {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 0; pointer-events: none; opacity: .3;
+}
+.rail__watermark img { width: 236px; height: auto; }
+
+.rail__nav { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 2px; padding: 24px 12px 12px; }
 .rail__spacer { flex: 1; }
 
 .rail__footer {
-  position: absolute; left: 0; bottom: 0; z-index: 2;
+  position: absolute; left: 0; bottom: 0; z-index: 3;
   padding: 16px 18px;
   max-width: 158px;
 }

@@ -66,13 +66,19 @@ export default async function ExamPage({ params }: ExamPageProps) {
 
         {canTakeExam && exam.intento?.completado ? (
           <section className="card empty-state">
-            <h2>Examen enviado</h2>
-            <p className="muted">Tu envio ya fue registrado.</p>
-            <div className="card-actions">
-              <Link className="btn btn-primary" href={`/exams/${exam.id}/results`}>
-                Ver resultado
-              </Link>
-            </div>
+            <h2>{exam.esSustitutorio ? "Examen finalizado" : "Examen enviado"}</h2>
+            <p className="muted">
+              {exam.esSustitutorio
+                ? "Tu respuesta fue registrada. El administrador revisará y publicará la nota."
+                : "Tu envío ya fue registrado."}
+            </p>
+            {!exam.esSustitutorio && (
+              <div className="card-actions">
+                <Link className="btn btn-primary" href={`/exams/${exam.id}/results`}>
+                  Ver resultado
+                </Link>
+              </div>
+            )}
           </section>
         ) : canTakeExam ? (
           <TakeExamForm exam={exam} />

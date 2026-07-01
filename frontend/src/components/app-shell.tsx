@@ -59,8 +59,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ── Panel izquierdo: degradado verde ── */}
       <aside className={`shell__rail${open ? " is-open" : ""}`}>
-        <div className="rail__logo">
-          <Image src="/brand/logo-perts.png" alt="PeRTS" width={96} height={96} priority />
+        <div className="rail__watermark">
+          <Image src="/brand/logo-perts.png" alt="" width={236} height={236} aria-hidden priority />
         </div>
 
         <nav className="rail__nav" aria-label="Navegación principal">
