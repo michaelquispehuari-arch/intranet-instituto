@@ -98,8 +98,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Image
             src="/brand/flag-mascot.png"
             alt=""
-            width={168}
-            height={259}
+            width={192}
+            height={296}
             aria-hidden="true"
           />
         </div>
