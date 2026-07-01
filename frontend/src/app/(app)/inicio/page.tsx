@@ -31,7 +31,7 @@ const adminItems = [
   { href: "/cursos",         label: "Cursos",        desc: "Gestionar cursos y sesiones",    Icon: BookOpen },
   { href: "/calificaciones", label: "Calificaciones", desc: "Cronograma de notas por alumno", Icon: BarChart3 },
   { href: "/exams",          label: "Exámenes",      desc: "Crear y revisar exámenes",       Icon: FileText },
-  { href: "/usuarios",       label: "Usuarios",      desc: "Todos los usuarios",             Icon: Users },
+  { href: "/estudiantes",    label: "Estudiantes",   desc: "Registro y cuentas de alumnos",  Icon: Users },
   { href: "/profesores",     label: "Profesores",    desc: "Registro y cuentas docentes",    Icon: GraduationCap },
   { href: "/sustitutorios",  label: "Sustitutorios", desc: "Alumnos elegibles",              Icon: RefreshCw },
   { href: "/configuracion",  label: "Configuración", desc: "Zoom y ajustes globales",        Icon: Settings },

@@ -290,29 +290,24 @@ button, input, select, textarea { font: inherit; }
 }
 .rail__watermark img { width: 236px; height: auto; }
 
-.rail__nav { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 2px; padding: 24px 12px 12px; }
-.rail__spacer { flex: 1; }
+/* Envoltura que centra el nav en el alto disponible del panel */
+.rail__nav-wrap {
+  position: relative; z-index: 2; flex: 1;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.rail__nav { display: flex; flex-direction: column; gap: 2px; padding: 0 12px; }
 
 .rail__footer {
-  position: absolute; left: 0; bottom: 0; z-index: 3;
-  padding: 16px 18px;
-  max-width: 158px;
-}
-.rail__user { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.rail__avatar {
-  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
-  background: rgba(255,255,255,.2); color: #fff;
-  display: grid; place-items: center;
-  font: 600 .8rem/1 var(--font-body);
-}
-.rail__username {
-  font: 600 .85rem/1.2 var(--font-body); color: #E7EDEA;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+  padding: 26px 18px 18px;
+  /* degradado oscuro del mismo tono verde para que el texto se lea sobre
+     la franja clara del fondo, sin romper el tono del resto del panel */
+  background: linear-gradient(180deg, rgba(23,58,53,0) 0%, rgba(15,36,32,.7) 55%, rgba(15,36,32,.85) 100%);
 }
 .rail__logout {
   display: inline-flex; align-items: center; gap: 6px;
   background: none; border: none; cursor: pointer;
-  font: 400 .8rem/1 var(--font-body); color: rgba(255,255,255,.6);
+  font: 400 .8rem/1 var(--font-body); color: rgba(255,255,255,.85);
   padding: 4px 0;
   transition: color var(--t-fast) var(--ease);
 }
@@ -322,7 +317,7 @@ button, input, select, textarea { font: inherit; }
   position: absolute; bottom: 0; right: -12px; z-index: 1;
   pointer-events: none;
 }
-.rail__mascot img { width: 138px; height: auto; }
+.rail__mascot img { width: 168px; height: auto; }
 
 /* ── Ítems de navegación legibles sobre el degradado ── */
 .nav-item {

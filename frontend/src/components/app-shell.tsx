@@ -42,10 +42,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const rol = session?.user?.rol as Role | undefined;
   const visible = navItems.filter(item => !rol || item.roles.includes(rol));
 
-  const initials = session?.user
-    ? `${session.user.nombre?.[0] ?? ""}${session.user.apellido?.[0] ?? ""}`.toUpperCase()
-    : "";
-
   return (
     <div className="shell">
       {/* Overlay móvil */}
@@ -63,36 +59,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Image src="/brand/logo-perts.png" alt="" width={236} height={236} aria-hidden priority />
         </div>
 
-        <nav className="rail__nav" aria-label="Navegación principal">
-          {visible.map(item => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            const label = (rol && item.labelByRole?.[rol]) ?? item.label;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="nav-item"
-                aria-current={isActive ? "page" : undefined}
-                onClick={() => setOpen(false)}
-              >
-                <item.Icon aria-hidden />
-                <span>{label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="rail__nav-wrap">
+          <nav className="rail__nav" aria-label="Navegación principal">
+            {visible.map(item => {
+              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+              const label = (rol && item.labelByRole?.[rol]) ?? item.label;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="nav-item"
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => setOpen(false)}
+                >
+                  <item.Icon aria-hidden />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
 
-        <div className="rail__spacer" />
-
-        {/* Usuario + logout */}
+        {/* Logout */}
         {session?.user && (
           <div className="rail__footer">
-            <div className="rail__user">
-              <span className="rail__avatar" aria-hidden="true">{initials}</span>
-              <span className="rail__username">
-                {session.user.nombre} {session.user.apellido}
-              </span>
-            </div>
             <button
               className="rail__logout"
               onClick={() => signOut({ callbackUrl: "/login" })}
@@ -108,8 +98,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Image
             src="/brand/flag-mascot.png"
             alt=""
-            width={138}
-            height={213}
+            width={168}
+            height={259}
             aria-hidden="true"
           />
         </div>
