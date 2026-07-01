@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   BookOpen, BarChart3, Users, GraduationCap, RefreshCw,
   Settings, FileText, Video, ArrowRight, CalendarDays,
-  FolderOpen, CheckCircle2,
+  CheckCircle2,
 } from "lucide-react";
 import { authOptions } from "@/lib/auth";
 import { backendGet } from "@/lib/backend";
@@ -167,13 +167,6 @@ export default async function InicioPage() {
   ════════════════════════════════════════════════════ */
   const miCurso = cursosActivos[0] ?? null;
 
-  const estudianteItems = miCurso ? [
-    { href: `/cursos/${miCurso.id}`, label: "Ver sesiones",   desc: "Sesiones del ciclo",   Icon: CalendarDays },
-    { href: "/exams",                label: "Mis exámenes",   desc: "Exámenes disponibles", Icon: FileText },
-    { href: "/material",             label: "Material",       desc: "Archivos y recursos",  Icon: FolderOpen },
-    { href: "/calificaciones",       label: "Mis notas",      desc: "Historial de notas",   Icon: BarChart3 },
-  ] : [];
-
   return (
     <div>
       <SectionHead
@@ -208,20 +201,6 @@ export default async function InicioPage() {
               Prof. {miCurso.profesor.nombre} {miCurso.profesor.apellido}
             </span>
           </Link>
-
-          <h2 className="h3" style={{ margin: "0 0 var(--s-4)" }}>Accesos rápidos</h2>
-          <div className="qa-grid stagger">
-            {estudianteItems.map(({ href, label, desc, Icon }) => (
-              <Link key={href} href={href} className="card card--link qa-card">
-                <span className="qa-icon" aria-hidden="true"><Icon /></span>
-                <span className="qa-body">
-                  <span className="qa-title">{label}</span>
-                  <span className="qa-desc">{desc}</span>
-                </span>
-                <span className="qa-arrow" aria-hidden="true"><ArrowRight /></span>
-              </Link>
-            ))}
-          </div>
         </>
       ) : (
         <div className="card">
