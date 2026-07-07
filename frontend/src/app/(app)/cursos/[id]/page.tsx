@@ -11,6 +11,7 @@ type Sesion = {
   titulo: string;
   enlaceGrabacion: string | null;
   orden: number;
+  fechaLimiteEntrega: string | null;
 };
 
 type Curso = {
@@ -98,6 +99,8 @@ export default function CourseWorkspacePage() {
   const [summariesLoaded, setSummariesLoaded] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<Record<string, File | null>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [deadlineDrafts, setDeadlineDrafts] = useState<Record<string, string>>({});
+  const [savingDeadlineId, setSavingDeadlineId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -113,6 +116,9 @@ export default function CourseWorkspacePage() {
       setSesiones(loadedSessions);
       setRecordingDrafts(
         Object.fromEntries(loadedSessions.map((sesion) => [sesion.id, sesion.enlaceGrabacion ?? ""])),
+      );
+      setDeadlineDrafts(
+        Object.fromEntries(loadedSessions.map((sesion) => [sesion.id, sesion.fechaLimiteEntrega ? sesion.fechaLimiteEntrega.slice(0, 10) : ""])),
       );
       setEnlaceZoom(zoomData?.enlaceZoom ?? null);
       if (loadedCourse?.inscripciones) {
@@ -186,6 +192,24 @@ export default function CourseWorkspacePage() {
       const d = await r.json().catch(() => ({})) as { message?: string };
       alert(d.message ?? "Error al subir los archivos");
     }
+  }
+
+  async function saveDeadline(sesionId: string) {
+    setSavingDeadlineId(sesionId);
+    const fecha = deadlineDrafts[sesionId] ?? "";
+    const fechaLimiteEntrega = fecha ? new Date(`${fecha}T23:59:59`).toISOString() : null;
+    const response = await fetch(`/api/backend/sessions/${sesionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fechaLimiteEntrega }),
+    });
+    setSavingDeadlineId(null);
+
+    if (!response.ok) return;
+
+    setSesiones((current) =>
+      current.map((sesion) => (sesion.id === sesionId ? { ...sesion, fechaLimiteEntrega } : sesion)),
+    );
   }
 
   async function saveSessionRecording(sesionId: string) {
@@ -302,8 +326,8 @@ export default function CourseWorkspacePage() {
       {tab === "sesiones" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Clases grabadas</h2>
-            {canCreateSessions && <span className="badge">Agrega clases abajo</span>}
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{esDiplomado ? "Días del diplomado" : "Clases grabadas"}</h2>
+            {canCreateSessions && !esDiplomado && <span className="badge">Agrega clases abajo</span>}
           </div>
 
           {sesiones.length === 0 && (
@@ -353,7 +377,7 @@ export default function CourseWorkspacePage() {
                         Grabacion pendiente.
                       </p>
                     )}
-                    {canManageRecordings && (
+                    {canManageRecordings && !esDiplomado && (
                       <div className="recording-form">
                         <input
                           aria-label={`Link de grabacion para ${sesion.titulo}`}
@@ -376,16 +400,47 @@ export default function CourseWorkspacePage() {
                         </button>
                       </div>
                     )}
+                    {canManageRecordings && esDiplomado && (
+                      <div className="recording-form">
+                        <label style={{ fontSize: 13, color: "var(--texto-secundario)" }}>
+                          Fecha límite de entrega:{" "}
+                          <input
+                            type="date"
+                            aria-label={`Fecha límite de entrega para ${sesion.titulo}`}
+                            value={deadlineDrafts[sesion.id] ?? ""}
+                            onChange={(event) =>
+                              setDeadlineDrafts((current) => ({
+                                ...current,
+                                [sesion.id]: event.target.value,
+                              }))
+                            }
+                          />
+                        </label>
+                        <button
+                          className="btn btn-secondary"
+                          type="button"
+                          disabled={savingDeadlineId === sesion.id}
+                          onClick={() => saveDeadline(sesion.id)}
+                        >
+                          {savingDeadlineId === sesion.id ? "Guardando..." : "Guardar fecha"}
+                        </button>
+                      </div>
+                    )}
                     <div className="session-chips">
                       {esHoy && <span className="chip chip-ok">Hoy</span>}
                       {sesion.enlaceGrabacion && <span className="chip chip-grabacion">🎬 Grabación</span>}
+                      {esDiplomado && sesion.fechaLimiteEntrega && (
+                        <span className="chip chip-capturas">
+                          Cierra {new Date(sesion.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </article>
               );
             })}
           </div>
-          {canCreateSessions && (
+          {canCreateSessions && !esDiplomado && (
             <form className="card form wide-form" onSubmit={createSession} style={{ marginTop: 16 }}>
               <h3 style={{ margin: 0, fontSize: 16 }}>Publicar grabación de clase</h3>
               <div className="form-grid">
@@ -658,17 +713,24 @@ export default function CourseWorkspacePage() {
           {summariesLoaded && sesiones.length > 0 && (
             <div className="session-list">
               {sesiones.slice(0, 3).map((sesion, idx) => {
-                const dayLabel = `Día ${idx + 1}`;
+                const dayLabel = esDiplomado ? sesion.titulo : `Día ${idx + 1} — ${sesion.titulo}`;
                 const summary = mySummaries[sesion.id];
                 const fileCount = summary?.urlR2 ? (() => { try { const a = JSON.parse(summary.urlR2); return Array.isArray(a) ? a.length : 1; } catch { return 1; } })() : 0;
                 const yaSubio = fileCount > 0;
                 const selectedFiles = uploadFiles[sesion.id] as unknown as FileList | null;
                 const count = selectedFiles ? selectedFiles.length : 0;
                 const subiendo = uploadingId === sesion.id;
+                const vencido = !!sesion.fechaLimiteEntrega && new Date() > new Date(sesion.fechaLimiteEntrega);
                 return (
                   <article key={sesion.id} className="session-card" style={{ flexWrap: "wrap", gap: 12 }}>
                     <div className="session-info" style={{ minWidth: 0 }}>
-                      <div className="session-title">{dayLabel} — {sesion.titulo}</div>
+                      <div className="session-title">{dayLabel}</div>
+                      {sesion.fechaLimiteEntrega && (
+                        <div style={{ fontSize: 12, color: vencido ? "var(--desaprobado-texto)" : "var(--texto-tenue)", marginTop: 2 }}>
+                          {vencido ? "Plazo vencido: " : "Cierra: "}
+                          {new Date(sesion.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                        </div>
+                      )}
                       {yaSubio && (
                         <div style={{ fontSize: 12, color: "var(--aprobado-texto)", marginTop: 4 }}>
                           {fileCount} archivo{fileCount !== 1 ? "s" : ""} subido{fileCount !== 1 ? "s" : ""}{summary.entregadoEn ? ` · ${new Date(summary.entregadoEn).toLocaleDateString("es-PE")}` : ""}
@@ -677,26 +739,32 @@ export default function CourseWorkspacePage() {
                       )}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
-                      <label style={{ fontSize: 13 }}>
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
-                          multiple
-                          style={{ display: "none" }}
-                          onChange={(e) => {
-                            setUploadFiles((prev) => ({ ...prev, [sesion.id]: e.target.files as unknown as File | null }));
-                          }}
-                        />
-                        <span className="btn btn-secondary" style={{ cursor: "pointer", fontSize: 13 }}>
-                          {count > 0 ? `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}` : yaSubio ? "Reemplazar" : "Elegir archivos"}
-                        </span>
-                      </label>
-                      {count > 0 && (
-                        <button className="btn btn-primary" disabled={subiendo} onClick={() => uploadTranscripcion(sesion.id)} style={{ fontSize: 13 }}>
-                          {subiendo ? "Subiendo…" : "Subir"}
-                        </button>
+                      {vencido && !yaSubio ? (
+                        <span className="chip chip-resumen">Plazo vencido</span>
+                      ) : (
+                        <>
+                          <label style={{ fontSize: 13 }}>
+                            <input
+                              type="file"
+                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip,.mp4,.mov"
+                              multiple
+                              style={{ display: "none" }}
+                              onChange={(e) => {
+                                setUploadFiles((prev) => ({ ...prev, [sesion.id]: e.target.files as unknown as File | null }));
+                              }}
+                            />
+                            <span className="btn btn-secondary" style={{ cursor: "pointer", fontSize: 13 }}>
+                              {count > 0 ? `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}` : yaSubio ? "Reemplazar" : "Elegir archivos"}
+                            </span>
+                          </label>
+                          {count > 0 && (
+                            <button className="btn btn-primary" disabled={subiendo} onClick={() => uploadTranscripcion(sesion.id)} style={{ fontSize: 13 }}>
+                              {subiendo ? "Subiendo…" : "Subir"}
+                            </button>
+                          )}
+                          {yaSubio && count === 0 && <span className="chip chip-ok">Entregada ✓</span>}
+                        </>
                       )}
-                      {yaSubio && count === 0 && <span className="chip chip-ok">Entregada ✓</span>}
                     </div>
                   </article>
                 );

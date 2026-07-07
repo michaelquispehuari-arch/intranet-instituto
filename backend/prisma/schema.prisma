@@ -134,13 +134,14 @@ model Inscripcion {
 }
 
 model Sesion {
-  id              String   @id @default(cuid())
-  cursoId         String
-  fecha           DateTime
-  titulo          String
-  enlaceGrabacion String?
-  orden           Int
-  creadoEn        DateTime @default(now())
+  id                  String    @id @default(cuid())
+  cursoId             String
+  fecha               DateTime
+  titulo              String
+  enlaceGrabacion     String?
+  orden               Int
+  creadoEn            DateTime  @default(now())
+  fechaLimiteEntrega  DateTime?
 
   curso       Curso            @relation(fields: [cursoId], references: [id])
   asistencias Asistencia[]

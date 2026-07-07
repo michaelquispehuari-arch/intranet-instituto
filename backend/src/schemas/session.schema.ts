@@ -28,6 +28,7 @@ export const updateSessionSchema = z.object({
   enlaceGrabacion: z.string().trim().max(500).nullable().optional()
     .refine((v) => v == null || !v || /^https?:\/\/.+/.test(v), { message: "El enlace debe comenzar con https://" }),
   orden: z.number().int().min(1).optional(),
+  fechaLimiteEntrega: z.coerce.date().nullable().optional(),
 });
 
 export const upsertSessionAttendanceSchema = z.object({

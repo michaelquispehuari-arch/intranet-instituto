@@ -124,6 +124,18 @@ export async function createCourse(input: CreateCourseInput) {
     });
 
     await enrollActiveStudentsInCourse(tx, course.id);
+
+    if (course.tipo === "DIPLOMADO") {
+      await tx.sesion.createMany({
+        data: [1, 2, 3].map((dia) => ({
+          cursoId: course.id,
+          fecha: new Date(),
+          titulo: `Día ${dia}`,
+          orden: dia,
+        })),
+      });
+    }
+
     return tx.curso.findUniqueOrThrow({
       where: { id: course.id },
       select: courseSelect,

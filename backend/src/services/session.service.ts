@@ -25,6 +25,7 @@ export async function listSessions(courseId: string, user: AuthUser) {
       enlaceGrabacion: true,
       orden: true,
       creadoEn: true,
+      fechaLimiteEntrega: true,
     },
   });
 }
@@ -382,13 +383,18 @@ export async function selfUploadSummary(
 ) {
   const sesion = await prisma.sesion.findUnique({
     where: { id: sessionId },
-    select: { cursoId: true },
+    select: { cursoId: true, fechaLimiteEntrega: true },
   });
   if (!sesion) {
     await Promise.all(files.map((f) => fs.promises.rm(f.path, { force: true })));
     throw new NotFoundError("Sesion no encontrada");
   }
   await ensureCanAccessCourse(sesion.cursoId, user);
+
+  if (sesion.fechaLimiteEntrega && new Date() > sesion.fechaLimiteEntrega) {
+    await Promise.all(files.map((f) => fs.promises.rm(f.path, { force: true })));
+    throw new ForbiddenError("El plazo de entrega ha vencido");
+  }
 
   const entregaExistente = await prisma.entregaResumen.findUnique({
     where: { sesionId_estudianteId: { sesionId: sessionId, estudianteId: user.id } },

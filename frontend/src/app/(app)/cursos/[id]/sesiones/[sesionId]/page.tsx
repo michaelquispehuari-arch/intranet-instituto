@@ -11,6 +11,7 @@ type Sesion = {
   titulo: string;
   enlaceGrabacion: string | null;
   orden: number;
+  fechaLimiteEntrega: string | null;
   curso: { id: string; nombre: string; tipo: string };
   materiales: Array<{ id: string; nombre: string; tipo: string; tipoArchivo: string }>;
   asistencias: Array<{
@@ -302,6 +303,11 @@ export default function SessionDetailPage() {
         <div className="card">
           <div className="card-header">
             <h3>{esDiplomado ? "Entregas del día (video/informe)" : "Resúmenes de alumnos"}</h3>
+            {esDiplomado && sesion.fechaLimiteEntrega && (
+              <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
+                Cierra el {new Date(sesion.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+              </span>
+            )}
           </div>
           <div className="card-body">
             {sesion.resumenes.length === 0 ? (
@@ -351,8 +357,7 @@ export default function SessionDetailPage() {
                     </span>
 
                     {(rol === "ADMIN" || rol === "PROFESOR") && r.urlR2 && (
-                      <a href={`/api/backend/summaries/${r.id}/files-redirect`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: 12, padding: "4px 10px" }} onClick={async (e) => {
-                        e.preventDefault();
+                      <button type="button" className="btn btn-secondary" style={{ fontSize: 12, padding: "4px 10px" }} onClick={async () => {
                         const res = await fetch(`/api/backend/summaries/${r.id}/files`);
                         if (res.ok) {
                           const d = await res.json() as { urls: Array<{ filename: string; url: string }> };
@@ -360,7 +365,7 @@ export default function SessionDetailPage() {
                         }
                       }}>
                         Ver archivos ({(() => { try { const a = JSON.parse(r.urlR2); return Array.isArray(a) ? a.length : 1; } catch { return 1; } })()})
-                      </a>
+                      </button>
                     )}
                     {(rol === "ADMIN" || rol === "PROFESOR") && r.estado === "ENTREGADO" && (
                       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
