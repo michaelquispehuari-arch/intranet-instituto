@@ -31,7 +31,7 @@ type FilaPublicada = {
   notaFinalPublicada: number | null;
 };
 
-type SheetData = { numDias: 1 | 2 | 3; filas: Fila[] };
+type SheetData = { numDias: 1 | 2 | 3; tipo?: string; filas: Fila[] };
 type PublishedData = { publicadas: boolean; notasPublicadasEn: string | null; filas: FilaPublicada[] };
 
 const SIMBOLOS = ["", "F", "A", "M", "C", "T", "FJ", "AJ", "MJ", "CJ", "TJ"];
@@ -268,7 +268,7 @@ export default function NotasSheetPage() {
                 </>
               ))}
               <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Asist.</th>
-              <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Exam.</th>
+              <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>{data.tipo === "DIPLOMADO" ? "Prom." : "Exam."}</th>
               <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Final</th>
               <th style={{ padding: "8px 6px", textAlign: "center" }}></th>
             </tr>
@@ -360,7 +360,9 @@ export default function NotasSheetPage() {
       </div>
 
       <div style={{ marginTop: 12, fontSize: 12, color: "var(--texto-tenue)" }}>
-        NT = nota de transcripción (puesta por revisor) · Exam. = nota del examen del módulo · Final = ⌊(Asist + Exam) / 2⌋
+        {data.tipo === "DIPLOMADO"
+          ? "NT = nota de la entrega del día (video/informe) · Prom. = promedio de las entregas subidas · Final = ⌊(Asist + Prom) / 2⌋"
+          : "NT = nota de transcripción (puesta por revisor) · Exam. = nota del examen del módulo · Final = ⌊(Asist + Exam) / 2⌋"}
       </div>
     </div>
   );

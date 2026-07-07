@@ -26,6 +26,7 @@ const TIPO_LABEL: Record<string, string> = {
   REGULAR: "Regular",
   ENTRENAMIENTO: "Entrenamiento",
   ESPECIAL: "Especial",
+  DIPLOMADO: "Diplomado",
 };
 
 export default function CursosPage() {
@@ -35,7 +36,7 @@ export default function CursosPage() {
   const [status, setStatus] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [profesores, setProfesores] = useState<UserItem[]>([]);
-  const [newCurso, setNewCurso] = useState({ nombre: "", profesorId: "", ciclo: 1, anio: new Date().getFullYear(), descripcion: "" });
+  const [newCurso, setNewCurso] = useState({ nombre: "", profesorId: "", ciclo: 1, anio: new Date().getFullYear(), descripcion: "", tipo: "REGULAR" });
   const [creating, setCreating] = useState(false);
 
   async function loadCourses() {
@@ -72,7 +73,7 @@ export default function CursosPage() {
     setCreating(false);
     if (r.ok) {
       setShowCreate(false);
-      setNewCurso({ nombre: "", profesorId: "", ciclo: 1, anio: new Date().getFullYear(), descripcion: "" });
+      setNewCurso({ nombre: "", profesorId: "", ciclo: 1, anio: new Date().getFullYear(), descripcion: "", tipo: "REGULAR" });
       loadCourses();
     } else {
       const d = await r.json().catch(() => ({})) as { message?: string };
@@ -135,6 +136,13 @@ export default function CursosPage() {
                 <select required value={newCurso.profesorId} onChange={(e) => setNewCurso((p) => ({ ...p, profesorId: e.target.value }))}>
                   <option value="">Seleccionar…</option>
                   {profesores.map((p) => <option key={p.id} value={p.id}>{p.nombre} {p.apellido}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Tipo de curso</span>
+                <select value={newCurso.tipo} onChange={(e) => setNewCurso((p) => ({ ...p, tipo: e.target.value }))}>
+                  <option value="REGULAR">Regular (con examen)</option>
+                  <option value="DIPLOMADO">Diplomado (sin examen, con entregas diarias)</option>
                 </select>
               </label>
               <label className="field">

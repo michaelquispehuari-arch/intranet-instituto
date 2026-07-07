@@ -1,4 +1,4 @@
-import { ModoEstudio, Prisma, Rol } from "@prisma/client";
+import { ModoEstudio, Prisma, Rol, TipoCurso } from "@prisma/client";
 import { prisma } from "../utils/prisma.js";
 import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
 import { notaAsistencia13 } from "../utils/nota-asistencia.js";
@@ -45,6 +45,14 @@ async function fetchExamNotes(estudianteId: string, cursoId: string) {
   }
 
   return { notaExamenNorm, notaExamenRecup };
+}
+
+function averageDiplomadoNota(ntMap: Record<number, number | null>, numDias: 1 | 2 | 3) {
+  const valores = Array.from({ length: numDias }, (_, i) => ntMap[i + 1]).filter(
+    (v): v is number => v !== null && v !== undefined,
+  );
+  if (valores.length === 0) return null;
+  return valores.reduce((sum, v) => sum + v, 0) / valores.length;
 }
 
 async function fetchNTForCourse(estudianteId: string, cursoId: string) {
@@ -104,7 +112,13 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
       });
 
       const ntMap = await fetchNTForCourse(est.id, courseId);
-      const { notaExamenNorm, notaExamenRecup } = await fetchExamNotes(est.id, courseId);
+      const modo = (registro?.modo ?? est.modo ?? ModoEstudio.SINCRONICO) as ModoEstudio;
+      const rowNumDias = (registro?.numDias ?? numDias) as 1 | 2 | 3;
+
+      const { notaExamenNorm, notaExamenRecup } =
+        curso.tipo === TipoCurso.DIPLOMADO
+          ? { notaExamenNorm: averageDiplomadoNota(ntMap, rowNumDias), notaExamenRecup: null }
+          : await fetchExamNotes(est.id, courseId);
 
       const celdasCamara = (registro?.celdas as Record<string, unknown> | null) ?? {};
       const celdas: Record<string, unknown> = {
@@ -114,8 +128,6 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
         d3NT: ntMap[3] ?? null,
       };
 
-      const modo = (registro?.modo ?? est.modo ?? ModoEstudio.SINCRONICO) as ModoEstudio;
-      const rowNumDias = (registro?.numDias ?? numDias) as 1 | 2 | 3;
       const { notaAsistencia, notaFinal } = computeNotas(modo, celdas, rowNumDias, notaExamenNorm, notaExamenRecup);
 
       return {
@@ -146,7 +158,7 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
     })
   );
 
-  return { numDias, filas };
+  return { numDias, tipo: curso.tipo, filas };
 }
 
 export async function publishGrades(courseId: string, user: AuthUser) {
@@ -264,8 +276,16 @@ export async function upsertGradeRow(
   });
   if (!ins) throw new NotFoundError("Estudiante no inscrito en este curso");
 
+  const curso = await prisma.curso.findUniqueOrThrow({
+    where: { id: courseId },
+    select: { tipo: true },
+  });
+
   const ntMap = await fetchNTForCourse(input.estudianteId, courseId);
-  const { notaExamenNorm, notaExamenRecup } = await fetchExamNotes(input.estudianteId, courseId);
+  const { notaExamenNorm, notaExamenRecup } =
+    curso.tipo === TipoCurso.DIPLOMADO
+      ? { notaExamenNorm: averageDiplomadoNota(ntMap, input.numDias), notaExamenRecup: null }
+      : await fetchExamNotes(input.estudianteId, courseId);
 
   const celdas: Record<string, unknown> = {
     ...input.celdasCamara,

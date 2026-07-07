@@ -69,6 +69,7 @@ const TIPO_LABEL: Record<string, string> = {
   REGULAR: "Curso Regular",
   ENTRENAMIENTO: "Entrenamiento",
   ESPECIAL: "Especial",
+  DIPLOMADO: "Diplomado",
 };
 
 const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -233,13 +234,15 @@ export default function CourseWorkspacePage() {
     setNewSession({ titulo: "", enlaceGrabacion: "" });
   }
 
+  const esDiplomado = curso?.tipo === "DIPLOMADO";
+
   const allTabs: { key: Tab; label: string; roles: Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }[] = [
     { key: "sesiones", label: "Sesiones", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
     { key: "material", label: "Material", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
-    { key: "examenes", label: "Exámenes", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+    ...(esDiplomado ? [] : [{ key: "examenes" as const, label: "Exámenes", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
     { key: "notas", label: "Notas", roles: ["ADMIN", "PROFESOR"] },
     { key: "alumnos", label: "Alumnos", roles: ["ADMIN", "PROFESOR"] },
-    { key: "transcripcion", label: "Transcripción", roles: ["ESTUDIANTE"] },
+    { key: "transcripcion", label: esDiplomado ? "Mis entregas" : "Transcripción", roles: ["ESTUDIANTE"] },
   ];
   const tabs = allTabs.filter((t) => !rol || t.roles.includes(rol as "ADMIN" | "PROFESOR" | "ESTUDIANTE"));
 
@@ -641,9 +644,11 @@ export default function CourseWorkspacePage() {
       {tab === "transcripcion" && rol === "ESTUDIANTE" && (
         <div>
           <div style={{ marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Subir mi transcripción</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{esDiplomado ? "Subir mi video o informe del día" : "Subir mi transcripción"}</h2>
             <p style={{ marginTop: 6, fontSize: 13, color: "var(--texto-tenue)" }}>
-              Elige el día que faltaste, selecciona uno o varios archivos (PDF, Word, imágenes) y presiona Subir. El admin revisará y colocará tu nota.
+              {esDiplomado
+                ? "Por cada día de clase sube tu video (2-3 min) o informe de lo aprendido. El admin lo revisará y pondrá tu nota; el promedio de tus entregas reemplaza la nota de examen."
+                : "Elige el día que faltaste, selecciona uno o varios archivos (PDF, Word, imágenes) y presiona Subir. El admin revisará y colocará tu nota."}
             </p>
           </div>
           {!summariesLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}

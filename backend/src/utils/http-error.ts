@@ -24,3 +24,9 @@ export class NotFoundError extends HttpError {
     super(404, message);
   }
 }
+
+export class ValidationError extends HttpError {
+  constructor(message = "Datos invalidos") {
+    super(400, message);
+  }
+}

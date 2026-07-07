@@ -23,6 +23,7 @@ enum TipoCurso {
   REGULAR
   ENTRENAMIENTO
   ESPECIAL
+  DIPLOMADO
 }
 
 enum TipoPregunta {

@@ -284,6 +284,7 @@ export async function createExam(input: CreateExamInput, user: AuthUser) {
   } else {
     await ensureProfessorOwnsCourse(input.cursoId, user.id);
   }
+  await ensureCourseAllowsExams(input.cursoId);
 
   return prisma.examen.create({
     data: {
@@ -572,6 +573,17 @@ async function ensureCourseExists(courseId: string) {
 
   if (!course) {
     throw new NotFoundError("Curso no encontrado");
+  }
+}
+
+async function ensureCourseAllowsExams(courseId: string) {
+  const course = await prisma.curso.findUnique({
+    where: { id: courseId },
+    select: { tipo: true },
+  });
+
+  if (course?.tipo === "DIPLOMADO") {
+    throw new HttpError(400, "Los cursos de diplomado no usan examenes: la nota se calcula desde las entregas diarias.");
   }
 }
 

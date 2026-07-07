@@ -51,7 +51,7 @@ export const updateSummaryDeadlineSchema = z.object({
 });
 
 export const reviewSummarySchema = z.object({
-  notaTranscripcion: z.number().min(0).max(18).optional().nullable(),
+  notaTranscripcion: z.number().min(0).max(20).optional().nullable(),
 });
 
 export const summaryIdParamSchema = z.object({

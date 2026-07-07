@@ -117,6 +117,7 @@ export async function createCourse(input: CreateCourseInput) {
         ciclo: input.ciclo,
         anio: input.anio,
         profesorId: input.profesorId,
+        tipo: input.tipo,
         config: { create: {} },
       },
       select: courseSelect,

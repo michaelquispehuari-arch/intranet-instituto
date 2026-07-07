@@ -1,7 +1,7 @@
 import fs from "node:fs";
-import { Rol } from "@prisma/client";
+import { Rol, TipoCurso } from "@prisma/client";
 import type { AuthUser } from "../types/auth.js";
-import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
 import { getR2Client, getR2Config } from "../utils/r2.js";
 import type {
@@ -355,11 +355,15 @@ export async function reviewSummary(summaryId: string, notaTranscripcion: number
 
   const entrega = await prisma.entregaResumen.findUnique({
     where: { id: summaryId },
-    select: { id: true },
+    select: { id: true, sesion: { select: { curso: { select: { tipo: true } } } } },
   });
 
   if (!entrega) {
     throw new NotFoundError("Entrega no encontrada");
+  }
+
+  if (entrega.sesion.curso.tipo !== TipoCurso.DIPLOMADO && typeof notaTranscripcion === "number" && notaTranscripcion > 18) {
+    throw new ValidationError("La nota de transcripcion para justificar una falta no puede superar 18.");
   }
 
   return prisma.entregaResumen.update({
@@ -385,6 +389,16 @@ export async function selfUploadSummary(
     throw new NotFoundError("Sesion no encontrada");
   }
   await ensureCanAccessCourse(sesion.cursoId, user);
+
+  const entregaExistente = await prisma.entregaResumen.findUnique({
+    where: { sesionId_estudianteId: { sesionId: sessionId, estudianteId: user.id } },
+    select: { fechaLimite: true },
+  });
+
+  if (entregaExistente?.fechaLimite && new Date() > entregaExistente.fechaLimite) {
+    await Promise.all(files.map((f) => fs.promises.rm(f.path, { force: true })));
+    throw new ForbiddenError("El plazo de entrega ha vencido");
+  }
 
   const r2Config = getR2Config();
   const { PutObjectCommand } = await import("@aws-sdk/client-s3");

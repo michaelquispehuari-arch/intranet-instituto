@@ -1,3 +1,4 @@
+import { TipoCurso } from "@prisma/client";
 import { z } from "zod";
 
 export const courseIdParamSchema = z.object({
@@ -19,6 +20,7 @@ export const createCourseSchema = z.object({
   ciclo: z.number().int().min(1).max(2),
   anio: z.number().int().min(2020).max(2100),
   profesorId: z.string().min(1),
+  tipo: z.nativeEnum(TipoCurso).optional(),
 });
 
 export const updateCourseSchema = createCourseSchema.partial().extend({
