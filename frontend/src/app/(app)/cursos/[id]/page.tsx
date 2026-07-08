@@ -319,15 +319,13 @@ export default function CourseWorkspacePage() {
         ))}
       </div>
 
-      {tab === "sesiones" && (
+      {tab === "sesiones" && esDiplomado && (
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Clases grabadas</h2>
-            {canCreateSessions && <span className="badge">Agrega clases abajo</span>}
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Entregas de forums</h2>
           </div>
-
-          {canManageRecordings && esDiplomado && (
-            <div className="card" style={{ marginBottom: 16, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {canManageRecordings ? (
+            <div className="card" style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <label style={{ fontSize: 13, fontWeight: 600 }}>
                 Fecha Límite para Alumnos Forums:{" "}
                 <input
@@ -346,7 +344,24 @@ export default function CourseWorkspacePage() {
                 </span>
               )}
             </div>
+          ) : (
+            <div className="card">
+              <div className="card-body" style={{ color: "var(--texto-tenue)", fontSize: 13 }}>
+                {curso.fechaLimiteEntrega
+                  ? `Fecha límite para subir forums: ${new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}`
+                  : "Aún no hay fecha límite definida para subir los forums."}
+              </div>
+            </div>
           )}
+        </div>
+      )}
+
+      {tab === "sesiones" && !esDiplomado && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Clases grabadas</h2>
+            {canCreateSessions && <span className="badge">Agrega clases abajo</span>}
+          </div>
 
           {sesiones.length === 0 && (
             <div className="card">
