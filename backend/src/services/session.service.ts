@@ -25,7 +25,6 @@ export async function listSessions(courseId: string, user: AuthUser) {
       enlaceGrabacion: true,
       orden: true,
       creadoEn: true,
-      fechaLimiteEntrega: true,
     },
   });
 }
@@ -383,7 +382,7 @@ export async function selfUploadSummary(
 ) {
   const sesion = await prisma.sesion.findUnique({
     where: { id: sessionId },
-    select: { cursoId: true, fechaLimiteEntrega: true },
+    select: { cursoId: true, curso: { select: { fechaLimiteEntrega: true } } },
   });
   if (!sesion) {
     await Promise.all(files.map((f) => fs.promises.rm(f.path, { force: true })));
@@ -391,7 +390,7 @@ export async function selfUploadSummary(
   }
   await ensureCanAccessCourse(sesion.cursoId, user);
 
-  if (sesion.fechaLimiteEntrega && new Date() > sesion.fechaLimiteEntrega) {
+  if (sesion.curso.fechaLimiteEntrega && new Date() > sesion.curso.fechaLimiteEntrega) {
     await Promise.all(files.map((f) => fs.promises.rm(f.path, { force: true })));
     throw new ForbiddenError("El plazo de entrega ha vencido");
   }

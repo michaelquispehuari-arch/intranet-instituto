@@ -11,8 +11,7 @@ type Sesion = {
   titulo: string;
   enlaceGrabacion: string | null;
   orden: number;
-  fechaLimiteEntrega: string | null;
-  curso: { id: string; nombre: string; tipo: string };
+  curso: { id: string; nombre: string; tipo: string; fechaLimiteEntrega: string | null };
   materiales: Array<{ id: string; nombre: string; tipo: string; tipoArchivo: string }>;
   asistencias: Array<{
     id: string;
@@ -303,9 +302,9 @@ export default function SessionDetailPage() {
         <div className="card">
           <div className="card-header">
             <h3>{esDiplomado ? "Entregas del día (video/informe)" : "Resúmenes de alumnos"}</h3>
-            {esDiplomado && sesion.fechaLimiteEntrega && (
+            {esDiplomado && sesion.curso.fechaLimiteEntrega && (
               <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                Cierra el {new Date(sesion.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                Cierra el {new Date(sesion.curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
               </span>
             )}
           </div>

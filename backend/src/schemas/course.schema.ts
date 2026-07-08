@@ -25,6 +25,7 @@ export const createCourseSchema = z.object({
 
 export const updateCourseSchema = createCourseSchema.partial().extend({
   activo: z.boolean().optional(),
+  fechaLimiteEntrega: z.coerce.date().nullable().optional(),
 });
 
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;

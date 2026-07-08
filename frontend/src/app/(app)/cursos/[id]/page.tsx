@@ -11,7 +11,6 @@ type Sesion = {
   titulo: string;
   enlaceGrabacion: string | null;
   orden: number;
-  fechaLimiteEntrega: string | null;
 };
 
 type Curso = {
@@ -21,6 +20,7 @@ type Curso = {
   tipo: string;
   ciclo: number;
   anio: number;
+  fechaLimiteEntrega: string | null;
   profesor: { id: string; nombre: string; apellido: string };
   inscripciones?: Array<{ estudiante: { id: string; nombre: string; apellido: string; email: string; codigo?: string | null } }>;
 };
@@ -99,8 +99,8 @@ export default function CourseWorkspacePage() {
   const [summariesLoaded, setSummariesLoaded] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<Record<string, File | null>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [deadlineDrafts, setDeadlineDrafts] = useState<Record<string, string>>({});
-  const [savingDeadlineId, setSavingDeadlineId] = useState<string | null>(null);
+  const [deadlineDraft, setDeadlineDraft] = useState("");
+  const [savingDeadline, setSavingDeadline] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -117,9 +117,7 @@ export default function CourseWorkspacePage() {
       setRecordingDrafts(
         Object.fromEntries(loadedSessions.map((sesion) => [sesion.id, sesion.enlaceGrabacion ?? ""])),
       );
-      setDeadlineDrafts(
-        Object.fromEntries(loadedSessions.map((sesion) => [sesion.id, sesion.fechaLimiteEntrega ? sesion.fechaLimiteEntrega.slice(0, 10) : ""])),
-      );
+      setDeadlineDraft(loadedCourse?.fechaLimiteEntrega ? loadedCourse.fechaLimiteEntrega.slice(0, 10) : "");
       setEnlaceZoom(zoomData?.enlaceZoom ?? null);
       if (loadedCourse?.inscripciones) {
         setAlumnos(loadedCourse.inscripciones.map((i) => ({ ...i.estudiante, codigo: i.estudiante.codigo ?? null })));
@@ -194,22 +192,20 @@ export default function CourseWorkspacePage() {
     }
   }
 
-  async function saveDeadline(sesionId: string) {
-    setSavingDeadlineId(sesionId);
-    const fecha = deadlineDrafts[sesionId] ?? "";
-    const fechaLimiteEntrega = fecha ? new Date(`${fecha}T23:59:59`).toISOString() : null;
-    const response = await fetch(`/api/backend/sessions/${sesionId}`, {
+  async function saveDeadline() {
+    if (!id) return;
+    setSavingDeadline(true);
+    const fechaLimiteEntrega = deadlineDraft ? new Date(`${deadlineDraft}T23:59:59`).toISOString() : null;
+    const response = await fetch(`/api/backend/courses/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fechaLimiteEntrega }),
     });
-    setSavingDeadlineId(null);
+    setSavingDeadline(false);
 
     if (!response.ok) return;
 
-    setSesiones((current) =>
-      current.map((sesion) => (sesion.id === sesionId ? { ...sesion, fechaLimiteEntrega } : sesion)),
-    );
+    setCurso((current) => (current ? { ...current, fechaLimiteEntrega } : current));
   }
 
   async function saveSessionRecording(sesionId: string) {
@@ -330,6 +326,28 @@ export default function CourseWorkspacePage() {
             {canCreateSessions && <span className="badge">Agrega clases abajo</span>}
           </div>
 
+          {canManageRecordings && esDiplomado && (
+            <div className="card" style={{ marginBottom: 16, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <label style={{ fontSize: 13, fontWeight: 600 }}>
+                Fecha Límite para Alumnos Forums:{" "}
+                <input
+                  type="date"
+                  aria-label="Fecha límite para alumnos forums"
+                  value={deadlineDraft}
+                  onChange={(event) => setDeadlineDraft(event.target.value)}
+                />
+              </label>
+              <button className="btn btn-secondary" type="button" disabled={savingDeadline} onClick={saveDeadline}>
+                {savingDeadline ? "Guardando..." : "Guardar fecha"}
+              </button>
+              {curso.fechaLimiteEntrega && (
+                <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
+                  Actual: {new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                </span>
+              )}
+            </div>
+          )}
+
           {sesiones.length === 0 && (
             <div className="card">
               <div className="empty-state">
@@ -400,40 +418,9 @@ export default function CourseWorkspacePage() {
                         </button>
                       </div>
                     )}
-                    {canManageRecordings && esDiplomado && (
-                      <div className="recording-form">
-                        <label style={{ fontSize: 13, color: "var(--texto-secundario)" }}>
-                          Fecha Límite para Alumnos Forums:{" "}
-                          <input
-                            type="date"
-                            aria-label={`Fecha limite para alumnos forums de ${sesion.titulo}`}
-                            value={deadlineDrafts[sesion.id] ?? ""}
-                            onChange={(event) =>
-                              setDeadlineDrafts((current) => ({
-                                ...current,
-                                [sesion.id]: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-                        <button
-                          className="btn btn-secondary"
-                          type="button"
-                          disabled={savingDeadlineId === sesion.id}
-                          onClick={() => saveDeadline(sesion.id)}
-                        >
-                          {savingDeadlineId === sesion.id ? "Guardando..." : "Guardar fecha"}
-                        </button>
-                      </div>
-                    )}
                     <div className="session-chips">
                       {esHoy && <span className="chip chip-ok">Hoy</span>}
                       {sesion.enlaceGrabacion && <span className="chip chip-grabacion">🎬 Grabación</span>}
-                      {esDiplomado && sesion.fechaLimiteEntrega && (
-                        <span className="chip chip-capturas">
-                          Cierra {new Date(sesion.fechaLimiteEntrega).toLocaleDateString("es-PE")}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </article>
@@ -720,15 +707,15 @@ export default function CourseWorkspacePage() {
                 const selectedFiles = uploadFiles[sesion.id] as unknown as FileList | null;
                 const count = selectedFiles ? selectedFiles.length : 0;
                 const subiendo = uploadingId === sesion.id;
-                const vencido = !!sesion.fechaLimiteEntrega && new Date() > new Date(sesion.fechaLimiteEntrega);
+                const vencido = !!curso?.fechaLimiteEntrega && new Date() > new Date(curso.fechaLimiteEntrega);
                 return (
                   <article key={sesion.id} className="session-card" style={{ flexWrap: "wrap", gap: 12 }}>
                     <div className="session-info" style={{ minWidth: 0 }}>
                       <div className="session-title">{dayLabel}</div>
-                      {sesion.fechaLimiteEntrega && (
+                      {curso?.fechaLimiteEntrega && (
                         <div style={{ fontSize: 12, color: vencido ? "var(--desaprobado-texto)" : "var(--texto-tenue)", marginTop: 2 }}>
                           {vencido ? "Plazo vencido: " : "Cierra: "}
-                          {new Date(sesion.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                          {new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
                         </div>
                       )}
                       {yaSubio && (
