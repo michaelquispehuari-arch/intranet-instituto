@@ -30,12 +30,28 @@ const ROL_LABEL: Record<Rol, string> = {
   ESTUDIANTE: "Estudiante",
 };
 
+const EMPTY_NEW_USER: UserDraft = {
+  email: "",
+  nombre: "",
+  apellido: "",
+  rol: "ADMIN",
+  activo: true,
+  codigo: "",
+  dni: "",
+  telefono: "",
+  password: "",
+};
+
 export default function UsuariosPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [query, setQuery] = useState("");
   const [drafts, setDrafts] = useState<Record<string, UserDraft>>({});
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [newUser, setNewUser] = useState<UserDraft>(EMPTY_NEW_USER);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -53,6 +69,38 @@ export default function UsuariosPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function createUser(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setCreating(true);
+    setCreateError(null);
+
+    const response = await fetch("/api/backend/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: newUser.email,
+        password: newUser.password,
+        nombre: newUser.nombre,
+        apellido: newUser.apellido,
+        rol: newUser.rol,
+        codigo: newUser.codigo || undefined,
+        dni: newUser.dni || undefined,
+        telefono: newUser.telefono || undefined,
+      }),
+    });
+    setCreating(false);
+
+    if (response.ok) {
+      setShowCreate(false);
+      setNewUser(EMPTY_NEW_USER);
+      load();
+      return;
+    }
+
+    const data = await response.json().catch(() => ({})) as { error?: string; message?: string };
+    setCreateError(data.error ?? data.message ?? "Error al crear usuario");
+  }
 
   function updateDraft(id: string, field: keyof UserDraft, value: string | boolean) {
     setDrafts((current) => ({
@@ -97,11 +145,60 @@ export default function UsuariosPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <span className="page-eyebrow">Administracion</span>
-        <h1 className="page-title">Usuarios</h1>
-        <p className="page-subtitle">Cuentas del sistema en formato de edicion lineal</p>
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <span className="page-eyebrow">Administracion</span>
+          <h1 className="page-title">Usuarios</h1>
+          <p className="page-subtitle">Cuentas del sistema en formato de edicion lineal</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
+          {showCreate ? "Cancelar" : "+ Nuevo usuario"}
+        </button>
       </div>
+
+      {showCreate && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-header">
+            <h3 style={{ margin: 0 }}>Nuevo usuario</h3>
+          </div>
+          <form className="card-body" onSubmit={createUser} style={{ display: "grid", gap: 14 }}>
+            <div className="form-grid">
+              <label className="field">
+                <span>Nombres</span>
+                <input required minLength={2} maxLength={80} value={newUser.nombre} onChange={(e) => setNewUser((p) => ({ ...p, nombre: e.target.value }))} />
+              </label>
+              <label className="field">
+                <span>Apellidos</span>
+                <input required minLength={2} maxLength={80} value={newUser.apellido} onChange={(e) => setNewUser((p) => ({ ...p, apellido: e.target.value }))} />
+              </label>
+              <label className="field">
+                <span>Email</span>
+                <input required type="email" value={newUser.email} onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))} />
+              </label>
+              <label className="field">
+                <span>Contraseña</span>
+                <input required type="password" minLength={8} maxLength={100} value={newUser.password} onChange={(e) => setNewUser((p) => ({ ...p, password: e.target.value }))} />
+              </label>
+              <label className="field">
+                <span>Rol</span>
+                <select value={newUser.rol} onChange={(e) => setNewUser((p) => ({ ...p, rol: e.target.value as Rol }))}>
+                  {(Object.keys(ROL_LABEL) as Rol[]).map((rol) => (
+                    <option key={rol} value={rol}>{ROL_LABEL[rol]}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Código (opcional)</span>
+                <input maxLength={30} value={newUser.codigo} onChange={(e) => setNewUser((p) => ({ ...p, codigo: e.target.value }))} />
+              </label>
+            </div>
+            {createError && <p style={{ margin: 0, fontSize: 13, color: "var(--desaprobado-texto)" }}>{createError}</p>}
+            <div className="card-actions">
+              <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? "Creando…" : "Crear usuario"}</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <form onSubmit={(e) => e.preventDefault()} style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <input
