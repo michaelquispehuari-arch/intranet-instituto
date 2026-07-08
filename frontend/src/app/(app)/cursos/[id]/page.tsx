@@ -266,7 +266,7 @@ export default function CourseWorkspacePage() {
     ...(esDiplomado ? [] : [{ key: "examenes" as const, label: "Exámenes", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
     { key: "notas", label: "Notas", roles: ["ADMIN", "PROFESOR"] },
     { key: "alumnos", label: "Alumnos", roles: ["ADMIN", "PROFESOR"] },
-    { key: "transcripcion", label: esDiplomado ? "Mis entregas" : "Transcripción", roles: ["ESTUDIANTE"] },
+    { key: "transcripcion", label: esDiplomado ? "Subir Forums" : "Transcripción", roles: ["ESTUDIANTE"] },
   ];
   const tabs = allTabs.filter((t) => !rol || t.roles.includes(rol as "ADMIN" | "PROFESOR" | "ESTUDIANTE"));
 
@@ -326,8 +326,8 @@ export default function CourseWorkspacePage() {
       {tab === "sesiones" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{esDiplomado ? "Días del diplomado" : "Clases grabadas"}</h2>
-            {canCreateSessions && !esDiplomado && <span className="badge">Agrega clases abajo</span>}
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Clases grabadas</h2>
+            {canCreateSessions && <span className="badge">Agrega clases abajo</span>}
           </div>
 
           {sesiones.length === 0 && (
@@ -377,7 +377,7 @@ export default function CourseWorkspacePage() {
                         Grabacion pendiente.
                       </p>
                     )}
-                    {canManageRecordings && !esDiplomado && (
+                    {canManageRecordings && (
                       <div className="recording-form">
                         <input
                           aria-label={`Link de grabacion para ${sesion.titulo}`}
@@ -403,10 +403,10 @@ export default function CourseWorkspacePage() {
                     {canManageRecordings && esDiplomado && (
                       <div className="recording-form">
                         <label style={{ fontSize: 13, color: "var(--texto-secundario)" }}>
-                          Fecha límite de entrega:{" "}
+                          Fecha Límite para Alumnos Forums:{" "}
                           <input
                             type="date"
-                            aria-label={`Fecha límite de entrega para ${sesion.titulo}`}
+                            aria-label={`Fecha limite para alumnos forums de ${sesion.titulo}`}
                             value={deadlineDrafts[sesion.id] ?? ""}
                             onChange={(event) =>
                               setDeadlineDrafts((current) => ({
@@ -440,7 +440,7 @@ export default function CourseWorkspacePage() {
               );
             })}
           </div>
-          {canCreateSessions && !esDiplomado && (
+          {canCreateSessions && (
             <form className="card form wide-form" onSubmit={createSession} style={{ marginTop: 16 }}>
               <h3 style={{ margin: 0, fontSize: 16 }}>Publicar grabación de clase</h3>
               <div className="form-grid">
@@ -699,10 +699,10 @@ export default function CourseWorkspacePage() {
       {tab === "transcripcion" && rol === "ESTUDIANTE" && (
         <div>
           <div style={{ marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{esDiplomado ? "Subir mi video o informe del día" : "Subir mi transcripción"}</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{esDiplomado ? "Subir Forums" : "Subir mi transcripción"}</h2>
             <p style={{ marginTop: 6, fontSize: 13, color: "var(--texto-tenue)" }}>
               {esDiplomado
-                ? "Por cada día de clase sube tu video (2-3 min) o informe de lo aprendido. El admin lo revisará y pondrá tu nota; el promedio de tus entregas reemplaza la nota de examen."
+                ? "Por cada día de clase sube tu video (2-3 min) o informe (PDF) de lo aprendido. El admin lo revisará y pondrá tu nota; el promedio de tus forums reemplaza la nota de examen."
                 : "Elige el día que faltaste, selecciona uno o varios archivos (PDF, Word, imágenes) y presiona Subir. El admin revisará y colocará tu nota."}
             </p>
           </div>
