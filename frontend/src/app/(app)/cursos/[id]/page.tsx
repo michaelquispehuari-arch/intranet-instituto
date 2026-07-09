@@ -65,7 +65,7 @@ type MySummary = {
   notaTranscripcion: number | null;
 };
 
-type ForumStatus = { id: string; dia: number; archivosCount: number; entregadoEn: string; nota: number | null };
+type ForumStatus = { id: string; dia: number; archivosCount: number; entregadoEn: string; revisado: boolean };
 type ForumSubmitter = { estudiante: { id: string; nombre: string; apellido: string; email: string }; dias: number[] };
 type ForumSubmission = { id: string; dia: number; archivosCount: number; entregadoEn: string; nota: number | null; revisadoEn: string | null };
 
@@ -694,7 +694,7 @@ export default function CourseWorkspacePage() {
                               <div style={{ fontSize: 12, color: "var(--aprobado-texto)", marginTop: 4 }}>
                                 {status.archivosCount} archivo{status.archivosCount !== 1 ? "s" : ""} subido{status.archivosCount !== 1 ? "s" : ""}
                                 {status.entregadoEn ? ` · ${new Date(status.entregadoEn).toLocaleDateString("es-PE")}` : ""}
-                                {status.nota !== null && <span style={{ marginLeft: 8 }}>· Nota: <strong>{status.nota}</strong></span>}
+                                {status.revisado && <span style={{ marginLeft: 8, color: "var(--aprobado-texto)" }}>· Revisado ✓</span>}
                               </div>
                             )}
                           </div>
@@ -812,9 +812,14 @@ export default function CourseWorkspacePage() {
                     {m.descripcion && <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{m.descripcion}</div>}
                     <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{new Date(m.creadoEn).toLocaleDateString("es-PE")}</div>
                   </div>
-                  <a href={`/api/backend/content/${m.id}/download`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ flexShrink: 0, fontSize: 13 }}>
-                    Ver / Descargar
-                  </a>
+                  <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                    <a href={`/api/backend/content/${m.id}/download`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: 13 }}>
+                      Ver
+                    </a>
+                    <a href={`/api/backend/content/${m.id}/download?attachment=1`} className="btn btn-secondary" style={{ fontSize: 13 }}>
+                      Descargar
+                    </a>
+                  </div>
                 </div>
               ))}
             </div>

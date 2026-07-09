@@ -50,7 +50,8 @@ export async function upload(req: Request, res: Response, next: NextFunction) {
 export async function download(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = contentIdParamSchema.parse(req.params);
-    const downloadData = await contentService.createDownloadUrl(id, getRequestUser(req));
+    const forceDownload = req.query.attachment === "1";
+    const downloadData = await contentService.createDownloadUrl(id, getRequestUser(req), forceDownload);
     res.json(downloadData);
   } catch (error) {
     next(error);

@@ -90,3 +90,13 @@
   animation: drift 24s linear infinite;
   pointer-events: none;
 }
+
+.input-wrap .trail-icon-btn {
+  position: absolute; right: 8px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none; padding: 6px;
+  color: var(--ink-mute); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.input-wrap .trail-icon-btn svg { width: 18px; height: 18px; }
+.input-wrap .input.input--with-trail { padding-right: 40px; }

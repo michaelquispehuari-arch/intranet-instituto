@@ -76,7 +76,7 @@ export async function uploadForum(
     dia: entrega.dia,
     archivosCount: archivos.length,
     entregadoEn: entrega.entregadoEn,
-    nota: entrega.nota,
+    revisado: entrega.nota !== null,
   };
 }
 
@@ -116,7 +116,7 @@ export async function getMyForumStatus(cursoId: string, user: AuthUser) {
     dia: e.dia,
     archivosCount: Array.isArray(e.archivos) ? e.archivos.length : 0,
     entregadoEn: e.entregadoEn,
-    nota: e.nota,
+    revisado: e.nota !== null,
   }));
 }
 

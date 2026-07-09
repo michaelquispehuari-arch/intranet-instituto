@@ -135,7 +135,7 @@ export default async function MaterialPage({ searchParams }: MaterialPageProps) 
 
               <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
                 <a
-                  href={`/api/backend/content/${m.id}/download`}
+                  href={`/api/backend/content/${m.id}/download?attachment=1`}
                   className="btn btn-secondary"
                   style={{ fontSize: 13 }}
                 >

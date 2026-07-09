@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { PrivacyModal } from "./PrivacyModal";
 
 export function LoginForm() {
@@ -13,6 +13,7 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,12 +65,21 @@ export function LoginForm() {
             <input
               id="password"
               name="password"
-              type="password"
-              className="input"
+              type={showPassword ? "text" : "password"}
+              className="input input--with-trail"
               placeholder="Tu contraseña"
               autoComplete="current-password"
               required
             />
+            <button
+              type="button"
+              className="trail-icon-btn"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+            </button>
           </div>
         </div>
 
