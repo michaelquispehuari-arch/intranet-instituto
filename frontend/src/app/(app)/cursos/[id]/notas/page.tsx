@@ -246,10 +246,32 @@ export default function NotasSheetPage() {
       </div>
 
       {/* Leyenda */}
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 16, fontSize: 12, color: "var(--texto-secundario)" }}>
-        {[["F", "Falta −6.67"], ["A", "Cámara apagada −5"], ["M", "Mal enfocada −4"], ["C/T", "Código/Tardanza −2"], ["J", "sufijo = Justificada"]].map(([s, d]) => (
-          <span key={s}><strong>{s}</strong> {d}</span>
-        ))}
+      <div className="card" style={{ marginBottom: 16, padding: "12px 16px", fontSize: 13 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <tbody>
+            <tr>
+              <td style={{ padding: "3px 8px 3px 0", fontWeight: 700, whiteSpace: "nowrap" }}>F</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>Falta y/o ausencia resta 6.7</td>
+              <td style={{ padding: "3px 8px 3px 0", fontWeight: 700, whiteSpace: "nowrap" }}>C</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>Código mal digitado -2 pts</td>
+              <td rowSpan={3} style={{ padding: "3px 0 3px 16px", borderLeft: "0.5px solid var(--borde)", verticalAlign: "top", color: "var(--texto-secundario)" }}>
+                <strong>Nota:</strong> Si hay una J delante, justificará realmente cuando tenga NT. La justificación es de forma proporcional a la NT.
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: "3px 8px 3px 0", fontWeight: 700 }}>A</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>Cámara apagada -5 pts</td>
+              <td style={{ padding: "3px 8px 3px 0", fontWeight: 700 }}>T</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>Tardanza -2 pts</td>
+            </tr>
+            <tr>
+              <td style={{ padding: "3px 8px 3px 0", fontWeight: 700 }}>M</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>Cámara mal enfocada -4 pts</td>
+              <td style={{ padding: "3px 8px 3px 0", fontWeight: 700 }}>NT</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>Nota de Transcripción (Max. 18)</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <div style={{ overflowX: "auto" }}>
