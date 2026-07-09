@@ -96,7 +96,7 @@ async function main() {
       cursos: cursos.count,
       usuarios: usuarios.count,
     };
-  });
+  }, { timeout: 60000 });
 
   console.log("\nReset completado. Se conservaron usuarios ADMIN y configuracion global.");
   console.table(result);
