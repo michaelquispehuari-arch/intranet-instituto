@@ -88,6 +88,7 @@ export default function CourseWorkspacePage() {
   const [tab, setTab] = useState<Tab>("sesiones");
   const [loading, setLoading] = useState(true);
   const [recordingDrafts, setRecordingDrafts] = useState<Record<string, string>>({});
+  const [titleDrafts, setTitleDrafts] = useState<Record<string, string>>({});
   const [savingRecordingId, setSavingRecordingId] = useState<string | null>(null);
   const [newSession, setNewSession] = useState({ titulo: "", enlaceGrabacion: "" });
   const [creatingSession, setCreatingSession] = useState(false);
@@ -131,6 +132,9 @@ export default function CourseWorkspacePage() {
       setSesiones(loadedSessions);
       setRecordingDrafts(
         Object.fromEntries(loadedSessions.map((sesion) => [sesion.id, sesion.enlaceGrabacion ?? ""])),
+      );
+      setTitleDrafts(
+        Object.fromEntries(loadedSessions.map((sesion) => [sesion.id, sesion.titulo])),
       );
       setDeadlineDraft(loadedCourse?.fechaLimiteEntrega ? loadedCourse.fechaLimiteEntrega.slice(0, 10) : "");
       setEnlaceZoom(zoomData?.enlaceZoom ?? null);
@@ -322,10 +326,11 @@ export default function CourseWorkspacePage() {
   async function saveSessionRecording(sesionId: string) {
     setSavingRecordingId(sesionId);
     const enlaceGrabacion = recordingDrafts[sesionId] ?? "";
+    const titulo = (titleDrafts[sesionId] ?? "").trim();
     const response = await fetch(`/api/backend/sessions/${sesionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enlaceGrabacion }),
+      body: JSON.stringify({ enlaceGrabacion, ...(titulo ? { titulo } : {}) }),
     });
     setSavingRecordingId(null);
 
@@ -333,7 +338,9 @@ export default function CourseWorkspacePage() {
 
     setSesiones((current) =>
       current.map((sesion) =>
-        sesion.id === sesionId ? { ...sesion, enlaceGrabacion: enlaceGrabacion.trim() || null } : sesion,
+        sesion.id === sesionId
+          ? { ...sesion, enlaceGrabacion: enlaceGrabacion.trim() || null, titulo: titulo || sesion.titulo }
+          : sesion,
       ),
     );
   }
@@ -467,13 +474,7 @@ export default function CourseWorkspacePage() {
                     <div className="session-date-month">{MESES[fecha.getMonth()]}</div>
                   </div>
                   <div className="session-info">
-                    <div className="session-title">
-                      {canManageRecordings ? (
-                        <Link href={`/cursos/${id}/sesiones/${sesion.id}`} style={{ color: "inherit", textDecoration: "none" }}>
-                          {sesion.titulo}
-                        </Link>
-                      ) : sesion.titulo}
-                    </div>
+                    <div className="session-title">{sesion.titulo}</div>
                     {sesion.enlaceGrabacion ? (
                       <a
                         href={sesion.enlaceGrabacion}
@@ -490,26 +491,40 @@ export default function CourseWorkspacePage() {
                       </p>
                     )}
                     {canManageRecordings && (
-                      <div className="recording-form">
+                      <div className="recording-form" style={{ display: "grid", gap: 6 }}>
                         <input
-                          aria-label={`Link de grabacion para ${sesion.titulo}`}
-                          placeholder="Pegar link de YouTube"
-                          value={recordingDrafts[sesion.id] ?? ""}
+                          aria-label={`Título de la clase ${sesion.titulo}`}
+                          placeholder="Título de la clase"
+                          value={titleDrafts[sesion.id] ?? ""}
                           onChange={(event) =>
-                            setRecordingDrafts((current) => ({
+                            setTitleDrafts((current) => ({
                               ...current,
                               [sesion.id]: event.target.value,
                             }))
                           }
                         />
-                        <button
-                          className="btn btn-secondary"
-                          type="button"
-                          disabled={savingRecordingId === sesion.id}
-                          onClick={() => saveSessionRecording(sesion.id)}
-                        >
-                          {savingRecordingId === sesion.id ? "Guardando..." : "Guardar link"}
-                        </button>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <input
+                            aria-label={`Link de grabacion para ${sesion.titulo}`}
+                            placeholder="Pegar link de YouTube"
+                            value={recordingDrafts[sesion.id] ?? ""}
+                            onChange={(event) =>
+                              setRecordingDrafts((current) => ({
+                                ...current,
+                                [sesion.id]: event.target.value,
+                              }))
+                            }
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            className="btn btn-secondary"
+                            type="button"
+                            disabled={savingRecordingId === sesion.id}
+                            onClick={() => saveSessionRecording(sesion.id)}
+                          >
+                            {savingRecordingId === sesion.id ? "Guardando..." : "Guardar cambios"}
+                          </button>
+                        </div>
                       </div>
                     )}
                     <div className="session-chips">
