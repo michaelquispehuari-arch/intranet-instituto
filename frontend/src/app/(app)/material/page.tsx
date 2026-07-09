@@ -129,7 +129,7 @@ export default async function MaterialPage({ searchParams }: MaterialPageProps) 
                   {m.descripcion ?? "Sin descripción"}
                 </p>
                 <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                  {m.curso.nombre} · Prof. {m.profesor.nombre} {m.profesor.apellido}
+                  {m.curso.nombre}
                 </div>
               </div>
 
