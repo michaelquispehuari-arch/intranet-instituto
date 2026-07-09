@@ -65,11 +65,19 @@ export async function uploadForum(
     }
   }
 
-  return prisma.entregaForum.upsert({
+  const entrega = await prisma.entregaForum.upsert({
     where: { cursoId_estudianteId_dia: { cursoId, estudianteId: user.id, dia } },
     create: { cursoId, estudianteId: user.id, dia, archivos, entregadoEn: new Date() },
     update: { archivos, entregadoEn: new Date(), nota: null, revisadoEn: null },
   });
+
+  return {
+    id: entrega.id,
+    dia: entrega.dia,
+    archivosCount: archivos.length,
+    entregadoEn: entrega.entregadoEn,
+    nota: entrega.nota,
+  };
 }
 
 export async function deleteForum(cursoId: string, dia: number, user: AuthUser) {
