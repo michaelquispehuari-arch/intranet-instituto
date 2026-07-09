@@ -111,6 +111,7 @@ export default function CourseWorkspacePage() {
   const [myForumsLoaded, setMyForumsLoaded] = useState(false);
   const [forumUploadFiles, setForumUploadFiles] = useState<Record<number, File[] | null>>({});
   const [forumUploadProgress, setForumUploadProgress] = useState<Record<number, number>>({});
+  const [forumUploadPhase, setForumUploadPhase] = useState<Record<number, "preparando" | "subiendo">>({});
   const [uploadingForumDia, setUploadingForumDia] = useState<number | null>(null);
   const [deletingForumDia, setDeletingForumDia] = useState<number | null>(null);
   const [forumSubmitters, setForumSubmitters] = useState<ForumSubmitter[] | null>(null);
@@ -257,12 +258,14 @@ export default function CourseWorkspacePage() {
     if (!files || files.length === 0) return;
     setUploadingForumDia(dia);
     setForumUploadProgress((prev) => ({ ...prev, [dia]: 0 }));
+    setForumUploadPhase((prev) => ({ ...prev, [dia]: "preparando" }));
     try {
       const fd = new FormData();
       fd.append("dia", String(dia));
       for (const file of files) {
         fd.append("files", isVideoFile(file) ? await compressVideo(file) : file);
       }
+      setForumUploadPhase((prev) => ({ ...prev, [dia]: "subiendo" }));
       const result = await postFormWithProgress(`/api/backend/courses/${id}/forums`, fd, (pct) => {
         setForumUploadProgress((prev) => ({ ...prev, [dia]: pct }));
       });
@@ -285,6 +288,11 @@ export default function CourseWorkspacePage() {
     } finally {
       setUploadingForumDia(null);
       setForumUploadProgress((prev) => {
+        const next = { ...prev };
+        delete next[dia];
+        return next;
+      });
+      setForumUploadPhase((prev) => {
         const next = { ...prev };
         delete next[dia];
         return next;
@@ -738,17 +746,23 @@ export default function CourseWorkspacePage() {
                                 {subiendo && (
                                   <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 130 }}>
                                     <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                                      Subiendo… {forumUploadProgress[dia] ?? 0}%
+                                      {forumUploadPhase[dia] === "subiendo"
+                                        ? `Subiendo… ${forumUploadProgress[dia] ?? 0}%`
+                                        : "Subiendo…"}
                                     </span>
                                     <div style={{ height: 6, borderRadius: 3, background: "#E5E5E0", overflow: "hidden" }}>
-                                      <div
-                                        style={{
-                                          height: "100%",
-                                          width: `${forumUploadProgress[dia] ?? 0}%`,
-                                          background: "var(--verde-sidebar)",
-                                          transition: "width 0.2s",
-                                        }}
-                                      />
+                                      {forumUploadPhase[dia] === "subiendo" ? (
+                                        <div
+                                          style={{
+                                            height: "100%",
+                                            width: `${forumUploadProgress[dia] ?? 0}%`,
+                                            background: "var(--verde-sidebar)",
+                                            transition: "width 0.2s",
+                                          }}
+                                        />
+                                      ) : (
+                                        <div className="progress-indeterminate" style={{ height: "100%", background: "var(--verde-sidebar)" }} />
+                                      )}
                                     </div>
                                   </div>
                                 )}
