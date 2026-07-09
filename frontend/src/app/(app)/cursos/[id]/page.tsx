@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { MAX_VIDEO_DURATION_SECONDS, compressVideo, getVideoDuration, isVideoFile } from "@/lib/video-compress";
 
 type Sesion = {
   id: string;
@@ -108,7 +109,8 @@ export default function CourseWorkspacePage() {
   const [savingDeadline, setSavingDeadline] = useState(false);
   const [myForums, setMyForums] = useState<Record<number, ForumStatus>>({});
   const [myForumsLoaded, setMyForumsLoaded] = useState(false);
-  const [forumUploadFiles, setForumUploadFiles] = useState<Record<number, FileList | null>>({});
+  const [forumUploadFiles, setForumUploadFiles] = useState<Record<number, File[] | null>>({});
+  const [forumUploadStatus, setForumUploadStatus] = useState<Record<number, string>>({});
   const [uploadingForumDia, setUploadingForumDia] = useState<number | null>(null);
   const [deletingForumDia, setDeletingForumDia] = useState<number | null>(null);
   const [forumSubmitters, setForumSubmitters] = useState<ForumSubmitter[] | null>(null);
@@ -238,21 +240,40 @@ export default function CourseWorkspacePage() {
   }
 
   async function uploadForumDia(dia: number) {
-    const fileList = forumUploadFiles[dia];
-    if (!fileList || fileList.length === 0) return;
+    const files = forumUploadFiles[dia];
+    if (!files || files.length === 0) return;
     setUploadingForumDia(dia);
-    const fd = new FormData();
-    fd.append("dia", String(dia));
-    for (let i = 0; i < fileList.length; i++) fd.append("files", fileList[i]);
-    const r = await fetch(`/api/backend/courses/${id}/forums`, { method: "POST", body: fd });
-    setUploadingForumDia(null);
-    if (r.ok) {
-      const data = await r.json() as ForumStatus;
-      setMyForums((prev) => ({ ...prev, [dia]: data }));
-      setForumUploadFiles((prev) => ({ ...prev, [dia]: null }));
-    } else {
-      const d = await r.json().catch(() => ({})) as { message?: string };
-      alert(d.message ?? "Error al subir los archivos");
+    try {
+      const fd = new FormData();
+      fd.append("dia", String(dia));
+      for (const file of files) {
+        if (isVideoFile(file)) {
+          setForumUploadStatus((prev) => ({ ...prev, [dia]: "Comprimiendo video…" }));
+          const compressed = await compressVideo(file, (ratio) => {
+            setForumUploadStatus((prev) => ({ ...prev, [dia]: `Comprimiendo video… ${Math.round(ratio * 100)}%` }));
+          });
+          fd.append("files", compressed);
+        } else {
+          fd.append("files", file);
+        }
+      }
+      setForumUploadStatus((prev) => ({ ...prev, [dia]: "Subiendo…" }));
+      const r = await fetch(`/api/backend/courses/${id}/forums`, { method: "POST", body: fd });
+      if (r.ok) {
+        const data = await r.json() as ForumStatus;
+        setMyForums((prev) => ({ ...prev, [dia]: data }));
+        setForumUploadFiles((prev) => ({ ...prev, [dia]: null }));
+      } else {
+        const d = await r.json().catch(() => ({})) as { message?: string };
+        alert(d.message ?? "Error al subir los archivos");
+      }
+    } finally {
+      setUploadingForumDia(null);
+      setForumUploadStatus((prev) => {
+        const next = { ...prev };
+        delete next[dia];
+        return next;
+      });
     }
   }
 
@@ -624,7 +645,7 @@ export default function CourseWorkspacePage() {
               </div>
               <div className="card-body">
                 <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--texto-tenue)" }}>
-                  Por cada día sube tu video (2-3 min) o informe (PDF) de lo aprendido. El admin lo revisará y pondrá tu nota; el promedio de tus forums reemplaza la nota de examen.
+                  Por cada día sube tu video (máximo 3 min y medio) o informe (PDF) de lo aprendido. El admin lo revisará y pondrá tu nota; el promedio de tus forums reemplaza la nota de examen. El video se comprime automáticamente antes de subirse.
                 </p>
                 {!myForumsLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
                 {myForumsLoaded && (
@@ -665,8 +686,29 @@ export default function CourseWorkspacePage() {
                                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip,.mp4,.mov"
                                     multiple
                                     style={{ display: "none" }}
-                                    onChange={(e) => {
-                                      setForumUploadFiles((prev) => ({ ...prev, [dia]: e.target.files }));
+                                    onChange={async (e) => {
+                                      const selected = Array.from(e.target.files ?? []);
+                                      e.target.value = "";
+                                      const valid: File[] = [];
+                                      const rechazados: string[] = [];
+                                      for (const file of selected) {
+                                        if (isVideoFile(file)) {
+                                          try {
+                                            const duracion = await getVideoDuration(file);
+                                            if (duracion > MAX_VIDEO_DURATION_SECONDS) {
+                                              rechazados.push(file.name);
+                                              continue;
+                                            }
+                                          } catch {
+                                            // si no se puede leer la duracion, no bloqueamos la entrega
+                                          }
+                                        }
+                                        valid.push(file);
+                                      }
+                                      if (rechazados.length > 0) {
+                                        alert(`El video debe durar máximo 3 minutos y medio. No se agregó: ${rechazados.join(", ")}`);
+                                      }
+                                      setForumUploadFiles((prev) => ({ ...prev, [dia]: valid.length > 0 ? valid : null }));
                                     }}
                                   />
                                   <span className="btn btn-secondary" style={{ cursor: "pointer", fontSize: 13 }}>
@@ -675,7 +717,7 @@ export default function CourseWorkspacePage() {
                                 </label>
                                 {count > 0 && (
                                   <button className="btn btn-primary" disabled={subiendo} onClick={() => uploadForumDia(dia)} style={{ fontSize: 13 }}>
-                                    {subiendo ? "Subiendo…" : "Subir"}
+                                    {subiendo ? (forumUploadStatus[dia] ?? "Subiendo…") : "Subir"}
                                   </button>
                                 )}
                                 {yaSubio && count === 0 && (
