@@ -47,11 +47,11 @@ async function fetchExamNotes(estudianteId: string, cursoId: string) {
   return { notaExamenNorm, notaExamenRecup };
 }
 
-function averageDiplomadoNota(ntMap: Record<number, number | null>, numDias: 1 | 2 | 3) {
-  const valores = Array.from({ length: numDias }, (_, i) => ntMap[i + 1]).filter(
-    (v): v is number => v !== null && v !== undefined,
-  );
-  if (valores.length === 0) return null;
+// Los forums de Diplomado siempre son 3 dias fijos (independiente de "dias de
+// clase a la semana"): un dia sin entrega o sin calificar cuenta como 0 en el
+// promedio, no se descarta del calculo.
+function averageForumNota(notaMap: Record<number, number | null>) {
+  const valores = [1, 2, 3].map((dia) => notaMap[dia] ?? 0);
   return valores.reduce((sum, v) => sum + v, 0) / valores.length;
 }
 
@@ -130,7 +130,7 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
 
       const { notaExamenNorm, notaExamenRecup } =
         curso.tipo === TipoCurso.DIPLOMADO
-          ? { notaExamenNorm: averageDiplomadoNota(ntMap, rowNumDias), notaExamenRecup: null }
+          ? { notaExamenNorm: averageForumNota(ntMap), notaExamenRecup: null }
           : await fetchExamNotes(est.id, courseId);
 
       const celdasCamara = (registro?.celdas as Record<string, unknown> | null) ?? {};
@@ -299,7 +299,7 @@ export async function upsertGradeRow(
     : await fetchNTForCourse(input.estudianteId, courseId);
   const { notaExamenNorm, notaExamenRecup } =
     curso.tipo === TipoCurso.DIPLOMADO
-      ? { notaExamenNorm: averageDiplomadoNota(ntMap, input.numDias), notaExamenRecup: null }
+      ? { notaExamenNorm: averageForumNota(ntMap), notaExamenRecup: null }
       : await fetchExamNotes(input.estudianteId, courseId);
 
   const celdas: Record<string, unknown> = {

@@ -160,6 +160,8 @@ export async function uploadContentBatch(input: UploadContentInput, files: Expre
   return results;
 }
 
+const imageExtensions = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+
 export async function createDownloadUrl(contentId: string, user: AuthUser) {
   const material = await findAccessibleMaterial(contentId, user);
   const r2Config = getR2Config();
@@ -169,11 +171,18 @@ export async function createDownloadUrl(contentId: string, user: AuthUser) {
     getR2Client(),
   ]);
 
+  // PDF y video tienen visor nativo del navegador con boton de descarga propio;
+  // una imagen abierta directo no muestra ningun control, asi que se fuerza la
+  // descarga solo para imagenes.
+  const isImage = imageExtensions.has(material.tipoArchivo.toLowerCase());
+  const filename = `${material.nombre.replace(/["\r\n]/g, "").slice(0, 150)}.${material.tipoArchivo}`;
+
   const url = await getSignedUrl(
     r2Client,
     new GetObjectCommand({
       Bucket: r2Config.bucketName,
       Key: material.urlR2,
+      ...(isImage ? { ResponseContentDisposition: `attachment; filename="${filename}"` } : {}),
     }),
     { expiresIn: 15 * 60 },
   );
