@@ -72,6 +72,29 @@ export async function uploadForum(
   });
 }
 
+export async function deleteForum(cursoId: string, dia: number, user: AuthUser) {
+  if (user.rol !== Rol.ESTUDIANTE) throw new ForbiddenError();
+
+  const entrega = await prisma.entregaForum.findUnique({
+    where: { cursoId_estudianteId_dia: { cursoId, estudianteId: user.id, dia } },
+    select: { id: true, archivos: true },
+  });
+  if (!entrega) throw new NotFoundError("Entrega no encontrada");
+
+  const archivos = Array.isArray(entrega.archivos) ? (entrega.archivos as unknown as ArchivoForum[]) : [];
+  if (archivos.length > 0) {
+    const r2Config = getR2Config();
+    const { DeleteObjectsCommand } = await import("@aws-sdk/client-s3");
+    const r2Client = await getR2Client();
+    await r2Client.send(new DeleteObjectsCommand({
+      Bucket: r2Config.bucketName,
+      Delete: { Objects: archivos.map((a) => ({ Key: a.key })) },
+    }));
+  }
+
+  await prisma.entregaForum.delete({ where: { id: entrega.id } });
+}
+
 export async function getMyForumStatus(cursoId: string, user: AuthUser) {
   if (user.rol !== Rol.ESTUDIANTE) throw new ForbiddenError();
 

@@ -6,6 +6,7 @@ import {
   forumIdParamSchema,
   uploadForumSchema,
   reviewForumSchema,
+  diaParamSchema,
 } from "../schemas/forum.schema.js";
 
 export async function uploadForum(req: Request, res: Response, next: NextFunction) {
@@ -19,6 +20,16 @@ export async function uploadForum(req: Request, res: Response, next: NextFunctio
     }
     const result = await forumService.uploadForum(cursoId, dia, files, req.user!);
     res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteForum(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id: cursoId, dia } = diaParamSchema.parse(req.params);
+    await forumService.deleteForum(cursoId, dia, req.user!);
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

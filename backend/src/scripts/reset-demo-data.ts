@@ -66,6 +66,7 @@ async function main() {
     const notas = await tx.notaManual.deleteMany();
     const asistencias = await tx.asistencia.deleteMany();
     const resumenes = await tx.entregaResumen.deleteMany();
+    const entregasForum = await tx.entregaForum.deleteMany();
     const materiales = await tx.material.deleteMany();
     const registros = await tx.registroSemanal.deleteMany();
     const habilitaciones = await tx.habilitacionSustitutorio.deleteMany();
@@ -85,6 +86,7 @@ async function main() {
       notas: notas.count,
       asistencias: asistencias.count,
       resumenes: resumenes.count,
+      entregasForum: entregasForum.count,
       materiales: materiales.count,
       registros: registros.count,
       habilitaciones: habilitaciones.count,

@@ -17,6 +17,7 @@ courseForumRoutes.get("/", requireRole(Rol.ADMIN), forumController.listSubmitter
 courseForumRoutes.post("/", requireRole(Rol.ESTUDIANTE), uploadMaterialFile.array("files", 10), forumController.uploadForum);
 courseForumRoutes.get("/mine", requireRole(Rol.ESTUDIANTE), forumController.getMyForumStatus);
 courseForumRoutes.get("/:studentId", requireRole(Rol.ADMIN), forumController.getStudentSubmissions);
+courseForumRoutes.delete("/:dia", requireRole(Rol.ESTUDIANTE), forumController.deleteForum);
 
 // /api/forums/:id
 forumRoutes.patch("/:id/review", requireRole(Rol.ADMIN), forumController.reviewForum);

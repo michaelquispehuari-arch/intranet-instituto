@@ -109,6 +109,7 @@ export default function CourseWorkspacePage() {
   const [myForumsLoaded, setMyForumsLoaded] = useState(false);
   const [forumUploadFiles, setForumUploadFiles] = useState<Record<number, FileList | null>>({});
   const [uploadingForumDia, setUploadingForumDia] = useState<number | null>(null);
+  const [deletingForumDia, setDeletingForumDia] = useState<number | null>(null);
   const [forumSubmitters, setForumSubmitters] = useState<ForumSubmitter[] | null>(null);
   const [forumSubmittersLoaded, setForumSubmittersLoaded] = useState(false);
   const [selectedForumStudent, setSelectedForumStudent] = useState<ForumSubmitter["estudiante"] | null>(null);
@@ -248,6 +249,23 @@ export default function CourseWorkspacePage() {
     } else {
       const d = await r.json().catch(() => ({})) as { message?: string };
       alert(d.message ?? "Error al subir los archivos");
+    }
+  }
+
+  async function deleteForumDia(dia: number) {
+    if (!confirm(`¿Borrar lo que subiste para el Día ${dia}? Esto no se puede deshacer.`)) return;
+    setDeletingForumDia(dia);
+    const r = await fetch(`/api/backend/courses/${id}/forums/${dia}`, { method: "DELETE" });
+    setDeletingForumDia(null);
+    if (r.ok) {
+      setMyForums((prev) => {
+        const next = { ...prev };
+        delete next[dia];
+        return next;
+      });
+    } else {
+      const d = await r.json().catch(() => ({})) as { message?: string };
+      alert(d.message ?? "Error al borrar la entrega");
     }
   }
 
@@ -645,7 +663,20 @@ export default function CourseWorkspacePage() {
                                     {subiendo ? "Subiendo…" : "Subir"}
                                   </button>
                                 )}
-                                {yaSubio && count === 0 && <span className="chip chip-ok">Entregado ✓</span>}
+                                {yaSubio && count === 0 && (
+                                  <>
+                                    <span className="chip chip-ok">Entregado ✓</span>
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary"
+                                      disabled={deletingForumDia === dia}
+                                      onClick={() => deleteForumDia(dia)}
+                                      style={{ fontSize: 13, color: "var(--desaprobado-texto)" }}
+                                    >
+                                      {deletingForumDia === dia ? "Borrando…" : "Borrar"}
+                                    </button>
+                                  </>
+                                )}
                               </>
                             )}
                           </div>
