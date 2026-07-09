@@ -73,6 +73,17 @@ async function fetchNTForCourse(estudianteId: string, cursoId: string) {
   return ntMap; // { 1: 15, 2: null, 3: 12, ... }
 }
 
+async function fetchForumNotasForCourse(estudianteId: string, cursoId: string) {
+  const entregas = await prisma.entregaForum.findMany({
+    where: { cursoId, estudianteId },
+    select: { dia: true, nota: true },
+  });
+
+  const notaMap: Record<number, number | null> = {};
+  for (const e of entregas) notaMap[e.dia] = e.nota;
+  return notaMap; // { 1: 15, 2: null, 3: 12, ... }
+}
+
 function computeNotas(modo: ModoEstudio, celdas: Record<string, unknown>, numDias: 1 | 2 | 3, notaExamenNorm: number | null, notaExamenRecup: number | null) {
   const row = buildRow(modo, celdas);
   const notaAsistencia = notaAsistencia13(row, numDias);
@@ -111,7 +122,9 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
         where: { estudianteId_cursoId: { estudianteId: est.id, cursoId: courseId } },
       });
 
-      const ntMap = await fetchNTForCourse(est.id, courseId);
+      const ntMap = curso.tipo === TipoCurso.DIPLOMADO
+        ? await fetchForumNotasForCourse(est.id, courseId)
+        : await fetchNTForCourse(est.id, courseId);
       const modo = (registro?.modo ?? est.modo ?? ModoEstudio.SINCRONICO) as ModoEstudio;
       const rowNumDias = (registro?.numDias ?? numDias) as 1 | 2 | 3;
 
@@ -281,7 +294,9 @@ export async function upsertGradeRow(
     select: { tipo: true },
   });
 
-  const ntMap = await fetchNTForCourse(input.estudianteId, courseId);
+  const ntMap = curso.tipo === TipoCurso.DIPLOMADO
+    ? await fetchForumNotasForCourse(input.estudianteId, courseId)
+    : await fetchNTForCourse(input.estudianteId, courseId);
   const { notaExamenNorm, notaExamenRecup } =
     curso.tipo === TipoCurso.DIPLOMADO
       ? { notaExamenNorm: averageDiplomadoNota(ntMap, input.numDias), notaExamenRecup: null }

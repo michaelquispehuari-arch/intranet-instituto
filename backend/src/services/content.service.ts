@@ -117,12 +117,16 @@ export async function uploadContent(input: UploadContentInput, file: Express.Mul
 export async function uploadContentBatch(input: UploadContentInput, files: Express.Multer.File[], user: AuthUser) {
   await ensureCanUploadToCourse(input.cursoId, user);
   const results: ReturnType<typeof serializeMaterial>[] = [];
-  for (const file of files) {
+  for (let index = 0; index < files.length; index++) {
+    const file = files[index];
     const extension = getFileExtension(file.originalname);
     if (!allowedExtensions.has(extension)) {
       await removeLocalFile(file.path);
       continue;
     }
+    const nombre = input.nombre
+      ? (files.length > 1 ? `${input.nombre} (${index + 1})` : input.nombre)
+      : file.originalname;
     const objectKey = `materials/${input.cursoId}/${Date.now()}-${sanitizeFileName(file.originalname)}`;
     try {
       const r2Config = getR2Config();
@@ -136,7 +140,7 @@ export async function uploadContentBatch(input: UploadContentInput, files: Expre
       }));
       const material = await prisma.material.create({
         data: {
-          nombre: file.originalname,
+          nombre,
           descripcion: input.descripcion,
           cursoId: input.cursoId,
           sesionId: input.sesionId ?? null,

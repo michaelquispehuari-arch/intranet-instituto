@@ -121,13 +121,12 @@ export default function SessionDetailPage() {
   }
 
   const fecha = new Date(sesion.fecha);
-  const esDiplomado = sesion.curso?.tipo === "DIPLOMADO";
 
   const tabs = [
     { key: "grabacion" as const, label: "Grabación" },
     { key: "capturas" as const, label: "Capturas" },
     ...(rol !== "ESTUDIANTE" ? [{ key: "asistencia" as const, label: "Asistencia" }] : []),
-    { key: "resumenes" as const, label: esDiplomado ? "Entregas del día" : "Resúmenes" },
+    { key: "resumenes" as const, label: "Resúmenes" },
   ];
 
   return (
@@ -301,19 +300,14 @@ export default function SessionDetailPage() {
       {tab === "resumenes" && (
         <div className="card">
           <div className="card-header">
-            <h3>{esDiplomado ? "Entregas del día (video/informe)" : "Resúmenes de alumnos"}</h3>
-            {esDiplomado && sesion.curso.fechaLimiteEntrega && (
-              <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                Cierra el {new Date(sesion.curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
-              </span>
-            )}
+            <h3>Resúmenes de alumnos</h3>
           </div>
           <div className="card-body">
             {sesion.resumenes.length === 0 ? (
               <div className="empty-state" style={{ padding: "20px 0" }}>
                 <div className="empty-state-icon">📄</div>
-                <p className="empty-state-title">{esDiplomado ? "Sin entregas aún" : "Sin resúmenes asignados"}</p>
-                {rol === "ADMIN" && <p>{esDiplomado ? "Aparecerán aquí cuando los alumnos suban su video o informe." : 'Usa "Requerir resumen" desde la gestión de sesiones.'}</p>}
+                <p className="empty-state-title">Sin resúmenes asignados</p>
+                {rol === "ADMIN" && <p>Usa &quot;Requerir resumen&quot; desde la gestión de sesiones.</p>}
                 {rol === "ESTUDIANTE" && <p>No tienes resúmenes pendientes para esta sesión.</p>}
               </div>
             ) : (
@@ -371,9 +365,9 @@ export default function SessionDetailPage() {
                         <input
                           type="number"
                           min={0}
-                          max={esDiplomado ? 20 : 18}
+                          max={18}
                           step={0.5}
-                          placeholder={esDiplomado ? "Nota (0-20)" : "NT (0-18)"}
+                          placeholder="NT (0-18)"
                           value={ntDrafts[r.id] ?? ""}
                           onChange={(e) => setNtDrafts((p) => ({ ...p, [r.id]: e.target.value }))}
                           style={{ width: 80, border: "0.5px solid var(--borde)", borderRadius: 6, padding: "4px 8px", fontSize: 12 }}

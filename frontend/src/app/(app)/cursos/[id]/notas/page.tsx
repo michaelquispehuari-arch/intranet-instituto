@@ -268,7 +268,16 @@ export default function NotasSheetPage() {
                 </>
               ))}
               <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Asist.</th>
-              <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>{data.tipo === "DIPLOMADO" ? "Prom." : "Exam."}</th>
+              {data.tipo === "DIPLOMADO" ? (
+                <>
+                  <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, borderLeft: "1px solid rgba(255,255,255,0.2)", whiteSpace: "nowrap" }}>Forum D1</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, whiteSpace: "nowrap" }}>Forum D2</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, whiteSpace: "nowrap" }}>Forum D3</th>
+                  <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, whiteSpace: "nowrap" }}>Nota de Forum</th>
+                </>
+              ) : (
+                <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Exam.</th>
+              )}
               <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Final</th>
               <th style={{ padding: "8px 6px", textAlign: "center" }}></th>
             </tr>
@@ -318,7 +327,7 @@ export default function NotasSheetPage() {
                         </td>
                       ))}
                       <td key={`nt${di}`} style={{ padding: "4px 6px", textAlign: "center", color: "var(--texto-tenue)", fontSize: 12 }}>
-                        {ntVals[di] !== null ? ntVals[di] : "—"}
+                        {data.tipo === "DIPLOMADO" ? "—" : (ntVals[di] !== null ? ntVals[di] : "—")}
                       </td>
                     </>
                   ))}
@@ -326,9 +335,20 @@ export default function NotasSheetPage() {
                   <td style={{ padding: "4px 6px", textAlign: "center", fontWeight: 600 }}>
                     {fila.notaAsistencia?.toFixed(1) ?? "—"}
                   </td>
-                  <td style={{ padding: "4px 6px", textAlign: "center" }}>
-                    {(fila.notaExamenRecup ?? fila.notaExamenNorm)?.toFixed(1) ?? "—"}
-                  </td>
+                  {data.tipo === "DIPLOMADO" ? (
+                    <>
+                      <td style={{ padding: "4px 6px", textAlign: "center", color: "var(--texto-tenue)" }}>{fila.ntDia1 ?? "—"}</td>
+                      <td style={{ padding: "4px 6px", textAlign: "center", color: "var(--texto-tenue)" }}>{fila.ntDia2 ?? "—"}</td>
+                      <td style={{ padding: "4px 6px", textAlign: "center", color: "var(--texto-tenue)" }}>{fila.ntDia3 ?? "—"}</td>
+                      <td style={{ padding: "4px 6px", textAlign: "center", fontWeight: 600 }}>
+                        {(fila.notaExamenRecup ?? fila.notaExamenNorm)?.toFixed(1) ?? "—"}
+                      </td>
+                    </>
+                  ) : (
+                    <td style={{ padding: "4px 6px", textAlign: "center" }}>
+                      {(fila.notaExamenRecup ?? fila.notaExamenNorm)?.toFixed(1) ?? "—"}
+                    </td>
+                  )}
                   <td style={{ padding: "4px 6px", textAlign: "center" }}>
                     <span style={{
                       display: "inline-block",
@@ -361,7 +381,7 @@ export default function NotasSheetPage() {
 
       <div style={{ marginTop: 12, fontSize: 12, color: "var(--texto-tenue)" }}>
         {data.tipo === "DIPLOMADO"
-          ? "NT = nota de la entrega del día (video/informe) · Prom. = promedio de las entregas subidas · Final = ⌊(Asist + Prom) / 2⌋"
+          ? "Forum D1/D2/D3 = nota puesta al revisar cada día en Corregir forums · Nota de Forum = promedio de los forums entregados · Final = ⌊(Asist + Nota de Forum) / 2⌋"
           : "NT = nota de transcripción (puesta por revisor) · Exam. = nota del examen del módulo · Final = ⌊(Asist + Exam) / 2⌋"}
       </div>
     </div>

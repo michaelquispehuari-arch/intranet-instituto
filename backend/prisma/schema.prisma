@@ -94,6 +94,7 @@ model Usuario {
   asistencias         Asistencia[]
   materialesSubidos   Material[]                 @relation("ProfesorMaterial")
   resumenes           EntregaResumen[]
+  entregasForum       EntregaForum[]
   habilitaciones      HabilitacionSustitutorio[]
   registrosSemanal    RegistroSemanal[]
 }
@@ -117,6 +118,7 @@ model Curso {
   notasManuales    NotaManual[]
   config           ConfigCurso?
   sesiones         Sesion[]
+  entregasForum    EntregaForum[]
   habilitaciones   HabilitacionSustitutorio[]
   registrosSemanal RegistroSemanal[]
 }
@@ -164,6 +166,22 @@ model EntregaResumen {
   estudiante Usuario @relation(fields: [estudianteId], references: [id])
 
   @@unique([sesionId, estudianteId])
+}
+
+model EntregaForum {
+  id           String    @id @default(cuid())
+  cursoId      String
+  estudianteId String
+  dia          Int
+  archivos     Json
+  entregadoEn  DateTime  @default(now())
+  nota         Float?
+  revisadoEn   DateTime?
+
+  curso      Curso   @relation(fields: [cursoId], references: [id])
+  estudiante Usuario @relation(fields: [estudianteId], references: [id])
+
+  @@unique([cursoId, estudianteId, dia])
 }
 
 model HabilitacionSustitutorio {

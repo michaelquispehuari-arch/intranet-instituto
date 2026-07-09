@@ -64,7 +64,11 @@ type MySummary = {
   notaTranscripcion: number | null;
 };
 
-type Tab = "sesiones" | "material" | "examenes" | "notas" | "alumnos" | "transcripcion";
+type ForumStatus = { id: string; dia: number; archivosCount: number; entregadoEn: string; nota: number | null };
+type ForumSubmitter = { estudiante: { id: string; nombre: string; apellido: string; email: string }; dias: number[] };
+type ForumSubmission = { id: string; dia: number; archivosCount: number; entregadoEn: string; nota: number | null; revisadoEn: string | null };
+
+type Tab = "sesiones" | "material" | "examenes" | "notas" | "alumnos" | "transcripcion" | "forums";
 
 const TIPO_LABEL: Record<string, string> = {
   REGULAR: "Curso Regular",
@@ -101,6 +105,16 @@ export default function CourseWorkspacePage() {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [deadlineDraft, setDeadlineDraft] = useState("");
   const [savingDeadline, setSavingDeadline] = useState(false);
+  const [myForums, setMyForums] = useState<Record<number, ForumStatus>>({});
+  const [myForumsLoaded, setMyForumsLoaded] = useState(false);
+  const [forumUploadFiles, setForumUploadFiles] = useState<Record<number, FileList | null>>({});
+  const [uploadingForumDia, setUploadingForumDia] = useState<number | null>(null);
+  const [forumSubmitters, setForumSubmitters] = useState<ForumSubmitter[] | null>(null);
+  const [forumSubmittersLoaded, setForumSubmittersLoaded] = useState(false);
+  const [selectedForumStudent, setSelectedForumStudent] = useState<ForumSubmitter["estudiante"] | null>(null);
+  const [studentForumSubmissions, setStudentForumSubmissions] = useState<ForumSubmission[] | null>(null);
+  const [forumGradeDrafts, setForumGradeDrafts] = useState<Record<string, string>>({});
+  const [savingForumGrade, setSavingForumGrade] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -208,6 +222,85 @@ export default function CourseWorkspacePage() {
     setCurso((current) => (current ? { ...current, fechaLimiteEntrega } : current));
   }
 
+  async function loadMyForums() {
+    if (myForumsLoaded) return;
+    const r = await fetch(`/api/backend/courses/${id}/forums/mine`);
+    if (r.ok) {
+      const data = await r.json() as ForumStatus[];
+      setMyForums(Object.fromEntries((Array.isArray(data) ? data : []).map((f) => [f.dia, f])));
+    }
+    setMyForumsLoaded(true);
+  }
+
+  async function uploadForumDia(dia: number) {
+    const fileList = forumUploadFiles[dia];
+    if (!fileList || fileList.length === 0) return;
+    setUploadingForumDia(dia);
+    const fd = new FormData();
+    fd.append("dia", String(dia));
+    for (let i = 0; i < fileList.length; i++) fd.append("files", fileList[i]);
+    const r = await fetch(`/api/backend/courses/${id}/forums`, { method: "POST", body: fd });
+    setUploadingForumDia(null);
+    if (r.ok) {
+      const data = await r.json() as ForumStatus;
+      setMyForums((prev) => ({ ...prev, [dia]: data }));
+      setForumUploadFiles((prev) => ({ ...prev, [dia]: null }));
+    } else {
+      const d = await r.json().catch(() => ({})) as { message?: string };
+      alert(d.message ?? "Error al subir los archivos");
+    }
+  }
+
+  async function loadForumSubmitters() {
+    if (forumSubmittersLoaded) return;
+    const r = await fetch(`/api/backend/courses/${id}/forums`);
+    if (r.ok) {
+      const data = await r.json() as ForumSubmitter[];
+      setForumSubmitters(Array.isArray(data) ? data : []);
+    } else {
+      setForumSubmitters([]);
+    }
+    setForumSubmittersLoaded(true);
+  }
+
+  async function openForumStudent(estudiante: ForumSubmitter["estudiante"]) {
+    setSelectedForumStudent(estudiante);
+    setStudentForumSubmissions(null);
+    const r = await fetch(`/api/backend/courses/${id}/forums/${estudiante.id}`);
+    if (r.ok) {
+      const data = await r.json() as ForumSubmission[];
+      setStudentForumSubmissions(Array.isArray(data) ? data : []);
+    } else {
+      setStudentForumSubmissions([]);
+    }
+  }
+
+  async function viewForumFiles(entregaId: string) {
+    const res = await fetch(`/api/backend/forums/${entregaId}/files`);
+    if (res.ok) {
+      const d = await res.json() as { urls: Array<{ filename: string; url: string }> };
+      d.urls.forEach((u) => window.open(u.url, "_blank", "noopener"));
+    }
+  }
+
+  async function saveForumGrade(entregaId: string) {
+    const raw = forumGradeDrafts[entregaId];
+    const nota = raw !== undefined && raw !== "" ? Number(raw) : null;
+    setSavingForumGrade(entregaId);
+    const r = await fetch(`/api/backend/forums/${entregaId}/review`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nota }),
+    });
+    setSavingForumGrade(null);
+    if (r.ok) {
+      const updated = await r.json() as ForumSubmission;
+      setStudentForumSubmissions((prev) =>
+        prev ? prev.map((s) => (s.id === entregaId ? { ...s, nota: updated.nota, revisadoEn: updated.revisadoEn } : s)) : prev,
+      );
+    }
+  }
+
   async function saveSessionRecording(sesionId: string) {
     setSavingRecordingId(sesionId);
     const enlaceGrabacion = recordingDrafts[sesionId] ?? "";
@@ -255,10 +348,6 @@ export default function CourseWorkspacePage() {
   }
 
   const esDiplomado = curso?.tipo === "DIPLOMADO";
-  // Las primeras 3 sesiones de un diplomado son placeholders internos (Dia 1/2/3)
-  // usados solo para enlazar los forums a la grilla de notas; no se muestran como
-  // "clases grabadas" salvo que el admin publique alguna extra (orden > 3).
-  const sesionesVisibles = esDiplomado ? sesiones.filter((s) => s.orden > 3) : sesiones;
 
   const allTabs: { key: Tab; label: string; roles: Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }[] = [
     { key: "sesiones", label: "Sesiones", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
@@ -266,15 +355,20 @@ export default function CourseWorkspacePage() {
     ...(esDiplomado ? [] : [{ key: "examenes" as const, label: "Exámenes", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
     { key: "notas", label: "Notas", roles: ["ADMIN", "PROFESOR"] },
     { key: "alumnos", label: "Alumnos", roles: ["ADMIN", "PROFESOR"] },
-    { key: "transcripcion", label: esDiplomado ? "Subir Forums" : "Transcripción", roles: ["ESTUDIANTE"] },
+    ...(esDiplomado ? [] : [{ key: "transcripcion" as const, label: "Transcripción", roles: ["ESTUDIANTE"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
+    ...(esDiplomado ? [{ key: "forums" as const, label: "Corregir forums", roles: ["ADMIN"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }] : []),
   ];
   const tabs = allTabs.filter((t) => !rol || t.roles.includes(rol as "ADMIN" | "PROFESOR" | "ESTUDIANTE"));
 
   function handleTabChange(key: Tab) {
     setTab(key);
     if (key === "examenes") loadExams();
-    if (key === "material") loadMateriales();
+    if (key === "material") {
+      loadMateriales();
+      if (esDiplomado && rol === "ESTUDIANTE") loadMyForums();
+    }
     if (key === "transcripcion") loadMySummaries();
+    if (key === "forums") loadForumSubmitters();
     if (key === "notas" && rol === "PROFESOR") loadProfNotas();
   }
 
@@ -330,39 +424,7 @@ export default function CourseWorkspacePage() {
             {canCreateSessions && <span className="badge">Agrega clases abajo</span>}
           </div>
 
-          {esDiplomado && (
-            canManageRecordings ? (
-              <div className="card" style={{ marginBottom: 16, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>
-                  Fecha Límite para Alumnos Forums:{" "}
-                  <input
-                    type="date"
-                    aria-label="Fecha límite para alumnos forums"
-                    value={deadlineDraft}
-                    onChange={(event) => setDeadlineDraft(event.target.value)}
-                  />
-                </label>
-                <button className="btn btn-secondary" type="button" disabled={savingDeadline} onClick={saveDeadline}>
-                  {savingDeadline ? "Guardando..." : "Guardar fecha"}
-                </button>
-                {curso.fechaLimiteEntrega && (
-                  <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                    Actual: {new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
-                  </span>
-                )}
-              </div>
-            ) : (
-              <div className="card" style={{ marginBottom: 16 }}>
-                <div className="card-body" style={{ color: "var(--texto-tenue)", fontSize: 13 }}>
-                  {curso.fechaLimiteEntrega
-                    ? `Fecha límite para subir forums: ${new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}`
-                    : "Aún no hay fecha límite definida para subir los forums."}
-                </div>
-              </div>
-            )
-          )}
-
-          {sesionesVisibles.length === 0 && (
+          {sesiones.length === 0 && (
             <div className="card">
               <div className="empty-state">
                 <div className="empty-state-icon">🎬</div>
@@ -373,7 +435,7 @@ export default function CourseWorkspacePage() {
           )}
 
           <div className="session-list">
-            {sesionesVisibles.map((sesion) => {
+            {sesiones.map((sesion) => {
               const fecha = new Date(sesion.fecha);
               const esHoy = fecha.toDateString() === today;
 
@@ -489,6 +551,113 @@ export default function CourseWorkspacePage() {
               </Link>
             )}
           </div>
+
+          {esDiplomado && (
+            canManageRecordings ? (
+              <div className="card" style={{ marginBottom: 16, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>
+                  Fecha Límite para Alumnos Forums:{" "}
+                  <input
+                    type="date"
+                    aria-label="Fecha límite para alumnos forums"
+                    value={deadlineDraft}
+                    onChange={(event) => setDeadlineDraft(event.target.value)}
+                  />
+                </label>
+                <button className="btn btn-secondary" type="button" disabled={savingDeadline} onClick={saveDeadline}>
+                  {savingDeadline ? "Guardando..." : "Guardar fecha"}
+                </button>
+                {curso.fechaLimiteEntrega && (
+                  <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
+                    Actual: {new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="card" style={{ marginBottom: 16 }}>
+                <div className="card-body" style={{ color: "var(--texto-tenue)", fontSize: 13 }}>
+                  {curso.fechaLimiteEntrega
+                    ? `Fecha límite para subir forums: ${new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}`
+                    : "Aún no hay fecha límite definida para subir los forums."}
+                </div>
+              </div>
+            )
+          )}
+
+          {esDiplomado && rol === "ESTUDIANTE" && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="card-header">
+                <h3>Subir Forums</h3>
+              </div>
+              <div className="card-body">
+                <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--texto-tenue)" }}>
+                  Por cada día sube tu video (2-3 min) o informe (PDF) de lo aprendido. El admin lo revisará y pondrá tu nota; el promedio de tus forums reemplaza la nota de examen.
+                </p>
+                {!myForumsLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+                {myForumsLoaded && (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {[1, 2, 3].map((dia) => {
+                      const status = myForums[dia];
+                      const yaSubio = (status?.archivosCount ?? 0) > 0;
+                      const selectedFiles = forumUploadFiles[dia];
+                      const count = selectedFiles ? selectedFiles.length : 0;
+                      const subiendo = uploadingForumDia === dia;
+                      const vencido = !!curso.fechaLimiteEntrega && new Date() > new Date(curso.fechaLimiteEntrega);
+                      return (
+                        <article key={dia} className="session-card" style={{ flexWrap: "wrap", gap: 12 }}>
+                          <div className="session-info" style={{ minWidth: 0 }}>
+                            <div className="session-title">Día {dia}</div>
+                            {curso.fechaLimiteEntrega && (
+                              <div style={{ fontSize: 12, color: vencido ? "var(--desaprobado-texto)" : "var(--texto-tenue)", marginTop: 2 }}>
+                                {vencido ? "Plazo vencido: " : "Cierra: "}
+                                {new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                              </div>
+                            )}
+                            {yaSubio && (
+                              <div style={{ fontSize: 12, color: "var(--aprobado-texto)", marginTop: 4 }}>
+                                {status.archivosCount} archivo{status.archivosCount !== 1 ? "s" : ""} subido{status.archivosCount !== 1 ? "s" : ""}
+                                {status.entregadoEn ? ` · ${new Date(status.entregadoEn).toLocaleDateString("es-PE")}` : ""}
+                                {status.nota !== null && <span style={{ marginLeft: 8 }}>· Nota: <strong>{status.nota}</strong></span>}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+                            {vencido && !yaSubio ? (
+                              <span className="chip chip-resumen">Plazo vencido</span>
+                            ) : (
+                              <>
+                                <label style={{ fontSize: 13 }}>
+                                  <input
+                                    type="file"
+                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip,.mp4,.mov"
+                                    multiple
+                                    style={{ display: "none" }}
+                                    onChange={(e) => {
+                                      setForumUploadFiles((prev) => ({ ...prev, [dia]: e.target.files }));
+                                    }}
+                                  />
+                                  <span className="btn btn-secondary" style={{ cursor: "pointer", fontSize: 13 }}>
+                                    {count > 0 ? `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}` : yaSubio ? "Reemplazar" : "Elegir archivos"}
+                                  </span>
+                                </label>
+                                {count > 0 && (
+                                  <button className="btn btn-primary" disabled={subiendo} onClick={() => uploadForumDia(dia)} style={{ fontSize: 13 }}>
+                                    {subiendo ? "Subiendo…" : "Subir"}
+                                  </button>
+                                )}
+                                {yaSubio && count === 0 && <span className="chip chip-ok">Entregado ✓</span>}
+                              </>
+                            )}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {materialesLoading && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
           {!materialesLoading && materiales !== null && materiales.length === 0 && (
             <div className="card">
@@ -700,11 +869,9 @@ export default function CourseWorkspacePage() {
       {tab === "transcripcion" && rol === "ESTUDIANTE" && (
         <div>
           <div style={{ marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{esDiplomado ? "Subir Forums" : "Subir mi transcripción"}</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Subir mi transcripción</h2>
             <p style={{ marginTop: 6, fontSize: 13, color: "var(--texto-tenue)" }}>
-              {esDiplomado
-                ? "Por cada día de clase sube tu video (2-3 min) o informe (PDF) de lo aprendido. El admin lo revisará y pondrá tu nota; el promedio de tus forums reemplaza la nota de examen."
-                : "Elige el día que faltaste, selecciona uno o varios archivos (PDF, Word, imágenes) y presiona Subir. El admin revisará y colocará tu nota."}
+              Elige el día que faltaste, selecciona uno o varios archivos (PDF, Word, imágenes) y presiona Subir. El admin revisará y colocará tu nota.
             </p>
           </div>
           {!summariesLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
@@ -714,7 +881,7 @@ export default function CourseWorkspacePage() {
           {summariesLoaded && sesiones.length > 0 && (
             <div className="session-list">
               {sesiones.slice(0, 3).map((sesion, idx) => {
-                const dayLabel = esDiplomado ? sesion.titulo : `Día ${idx + 1} — ${sesion.titulo}`;
+                const dayLabel = `Día ${idx + 1} — ${sesion.titulo}`;
                 const summary = mySummaries[sesion.id];
                 const fileCount = summary?.urlR2 ? (() => { try { const a = JSON.parse(summary.urlR2); return Array.isArray(a) ? a.length : 1; } catch { return 1; } })() : 0;
                 const yaSubio = fileCount > 0;
@@ -770,6 +937,97 @@ export default function CourseWorkspacePage() {
                   </article>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "forums" && rol === "ADMIN" && (
+        <div>
+          {!selectedForumStudent ? (
+            <div>
+              <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>Corregir forums</h2>
+              {!forumSubmittersLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+              {forumSubmittersLoaded && forumSubmitters && forumSubmitters.length === 0 && (
+                <div className="card">
+                  <div className="empty-state">
+                    <div className="empty-state-icon">📄</div>
+                    <p className="empty-state-title">Sin entregas aún</p>
+                    <p>Aparecerán aquí los alumnos que suban al menos un forum.</p>
+                  </div>
+                </div>
+              )}
+              {forumSubmittersLoaded && forumSubmitters && forumSubmitters.length > 0 && (
+                <div className="session-list">
+                  {forumSubmitters.map((s) => (
+                    <article key={s.estudiante.id} className="session-card">
+                      <div className="session-info">
+                        <div className="session-title">{s.estudiante.nombre} {s.estudiante.apellido}</div>
+                        <div className="session-chips" style={{ marginTop: 6 }}>
+                          {s.dias.map((d) => <span key={d} className="chip chip-capturas">Día {d}</span>)}
+                        </div>
+                      </div>
+                      <button className="btn btn-primary" onClick={() => openForumStudent(s.estudiante)}>
+                        Revisar
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                onClick={() => { setSelectedForumStudent(null); setStudentForumSubmissions(null); }}
+                style={{ fontSize: 13, color: "var(--texto-tenue)", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 12 }}
+              >
+                ← Volver a la lista
+              </button>
+              <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>
+                {selectedForumStudent.nombre} {selectedForumStudent.apellido}
+              </h2>
+              {studentForumSubmissions === null && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+              {studentForumSubmissions !== null && (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {studentForumSubmissions.map((s) => (
+                    <div
+                      key={s.id}
+                      style={{ padding: "12px 16px", border: "0.5px solid var(--borde)", borderRadius: 8, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
+                    >
+                      <div style={{ flex: 1, minWidth: 160 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 2 }}>Día {s.dia}</div>
+                        <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
+                          {s.archivosCount} archivo{s.archivosCount !== 1 ? "s" : ""} · {new Date(s.entregadoEn).toLocaleDateString("es-PE")}
+                        </div>
+                      </div>
+                      <button type="button" className="btn btn-secondary" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => viewForumFiles(s.id)}>
+                        Ver archivos ({s.archivosCount})
+                      </button>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          step={0.5}
+                          placeholder="Nota (0-20)"
+                          value={forumGradeDrafts[s.id] ?? (s.nota ?? "")}
+                          onChange={(e) => setForumGradeDrafts((p) => ({ ...p, [s.id]: e.target.value }))}
+                          style={{ width: 90, border: "0.5px solid var(--borde)", borderRadius: 6, padding: "4px 8px", fontSize: 12 }}
+                        />
+                        <button
+                          className="btn btn-primary"
+                          style={{ fontSize: 12, padding: "4px 10px" }}
+                          disabled={savingForumGrade === s.id}
+                          onClick={() => saveForumGrade(s.id)}
+                        >
+                          {savingForumGrade === s.id ? "…" : "Guardar nota"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
