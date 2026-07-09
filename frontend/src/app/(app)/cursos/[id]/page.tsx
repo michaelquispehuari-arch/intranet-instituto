@@ -110,7 +110,7 @@ export default function CourseWorkspacePage() {
   const [myForums, setMyForums] = useState<Record<number, ForumStatus>>({});
   const [myForumsLoaded, setMyForumsLoaded] = useState(false);
   const [forumUploadFiles, setForumUploadFiles] = useState<Record<number, File[] | null>>({});
-  const [forumUploadStatus, setForumUploadStatus] = useState<Record<number, string>>({});
+  const [forumUploadProgress, setForumUploadProgress] = useState<Record<number, number>>({});
   const [uploadingForumDia, setUploadingForumDia] = useState<number | null>(null);
   const [deletingForumDia, setDeletingForumDia] = useState<number | null>(null);
   const [forumSubmitters, setForumSubmitters] = useState<ForumSubmitter[] | null>(null);
@@ -239,37 +239,52 @@ export default function CourseWorkspacePage() {
     setMyForumsLoaded(true);
   }
 
+  function postFormWithProgress(url: string, formData: FormData, onProgress: (pct: number) => void) {
+    return new Promise<{ ok: boolean; body: string }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, body: xhr.responseText });
+      xhr.onerror = () => reject(new Error("Error de red"));
+      xhr.send(formData);
+    });
+  }
+
   async function uploadForumDia(dia: number) {
     const files = forumUploadFiles[dia];
     if (!files || files.length === 0) return;
     setUploadingForumDia(dia);
+    setForumUploadProgress((prev) => ({ ...prev, [dia]: 0 }));
     try {
       const fd = new FormData();
       fd.append("dia", String(dia));
       for (const file of files) {
-        if (isVideoFile(file)) {
-          setForumUploadStatus((prev) => ({ ...prev, [dia]: "Comprimiendo video…" }));
-          const compressed = await compressVideo(file, (ratio) => {
-            setForumUploadStatus((prev) => ({ ...prev, [dia]: `Comprimiendo video… ${Math.round(ratio * 100)}%` }));
-          });
-          fd.append("files", compressed);
-        } else {
-          fd.append("files", file);
-        }
+        fd.append("files", isVideoFile(file) ? await compressVideo(file) : file);
       }
-      setForumUploadStatus((prev) => ({ ...prev, [dia]: "Subiendo…" }));
-      const r = await fetch(`/api/backend/courses/${id}/forums`, { method: "POST", body: fd });
-      if (r.ok) {
-        const data = await r.json() as ForumStatus;
+      const result = await postFormWithProgress(`/api/backend/courses/${id}/forums`, fd, (pct) => {
+        setForumUploadProgress((prev) => ({ ...prev, [dia]: pct }));
+      });
+      if (result.ok) {
+        const data = JSON.parse(result.body) as ForumStatus;
         setMyForums((prev) => ({ ...prev, [dia]: data }));
         setForumUploadFiles((prev) => ({ ...prev, [dia]: null }));
       } else {
-        const d = await r.json().catch(() => ({})) as { message?: string };
-        alert(d.message ?? "Error al subir los archivos");
+        let message = "Error al subir los archivos";
+        try {
+          const d = JSON.parse(result.body) as { message?: string };
+          if (d.message) message = d.message;
+        } catch {
+          // respuesta sin cuerpo JSON
+        }
+        alert(message);
       }
+    } catch {
+      alert("Error al subir los archivos");
     } finally {
       setUploadingForumDia(null);
-      setForumUploadStatus((prev) => {
+      setForumUploadProgress((prev) => {
         const next = { ...prev };
         delete next[dia];
         return next;
@@ -715,10 +730,27 @@ export default function CourseWorkspacePage() {
                                     {count > 0 ? `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}` : yaSubio ? "Reemplazar" : "Elegir archivos"}
                                   </span>
                                 </label>
-                                {count > 0 && (
-                                  <button className="btn btn-primary" disabled={subiendo} onClick={() => uploadForumDia(dia)} style={{ fontSize: 13 }}>
-                                    {subiendo ? (forumUploadStatus[dia] ?? "Subiendo…") : "Subir"}
+                                {count > 0 && !subiendo && (
+                                  <button className="btn btn-primary" onClick={() => uploadForumDia(dia)} style={{ fontSize: 13 }}>
+                                    Subir
                                   </button>
+                                )}
+                                {subiendo && (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 130 }}>
+                                    <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
+                                      Subiendo… {forumUploadProgress[dia] ?? 0}%
+                                    </span>
+                                    <div style={{ height: 6, borderRadius: 3, background: "#E5E5E0", overflow: "hidden" }}>
+                                      <div
+                                        style={{
+                                          height: "100%",
+                                          width: `${forumUploadProgress[dia] ?? 0}%`,
+                                          background: "var(--verde-sidebar)",
+                                          transition: "width 0.2s",
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
                                 )}
                                 {yaSubio && count === 0 && (
                                   <>
