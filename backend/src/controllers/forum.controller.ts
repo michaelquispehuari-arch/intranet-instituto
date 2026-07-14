@@ -4,21 +4,20 @@ import {
   courseIdParamSchema,
   studentIdParamSchema,
   forumIdParamSchema,
-  uploadForumSchema,
   reviewForumSchema,
   diaParamSchema,
+  FORUM_DIA,
 } from "../schemas/forum.schema.js";
 
 export async function uploadForum(req: Request, res: Response, next: NextFunction) {
   try {
     const { id: cursoId } = courseIdParamSchema.parse(req.params);
-    const { dia } = uploadForumSchema.parse(req.body);
     const files = Array.isArray(req.files) ? req.files : [];
     if (files.length === 0) {
       res.status(400).json({ message: "Se requiere al menos un archivo" });
       return;
     }
-    const result = await forumService.uploadForum(cursoId, dia, files, req.user!);
+    const result = await forumService.uploadForum(cursoId, FORUM_DIA, files, req.user!);
     res.status(201).json(result);
   } catch (error) {
     next(error);

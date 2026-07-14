@@ -640,3 +640,8 @@ button, input, select, textarea { font: inherit; }
   50% { width: 60%; }
   100% { margin-left: 100%; width: 20%; }
 }
+
+@keyframes rec-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.75); }
+}

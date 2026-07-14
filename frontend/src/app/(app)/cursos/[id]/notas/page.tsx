@@ -17,6 +17,7 @@ type Fila = {
   ntDia1: number | null;
   ntDia2: number | null;
   ntDia3: number | null;
+  forumEntregado: boolean;
   notaAsistencia: number | null;
   notaExamenNorm: number | null;
   notaExamenRecup: number | null;
@@ -57,6 +58,7 @@ export default function NotasSheetPage() {
   const [numDias, setNumDias] = useState<1 | 2 | 3>(3);
   const [edits, setEdits] = useState<Record<string, Record<string, string>>>({});
   const [modos, setModos] = useState<Record<string, ModoEstudio>>({});
+  const [forumGradeEdits, setForumGradeEdits] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [publishing, setPublishing] = useState(false);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
@@ -76,12 +78,15 @@ export default function NotasSheetPage() {
         setNumDias(d.numDias ?? 3);
         const initEdits: Record<string, Record<string, string>> = {};
         const initModos: Record<string, ModoEstudio> = {};
+        const initForumGrades: Record<string, string> = {};
         d.filas.forEach((f) => {
           initEdits[f.estudianteId] = { ...f.celdasCamara };
           initModos[f.estudianteId] = f.modo;
+          if (!f.forumEntregado) initForumGrades[f.estudianteId] = f.notaExamenNorm !== null ? String(f.notaExamenNorm) : "";
         });
         setEdits(initEdits);
         setModos(initModos);
+        setForumGradeEdits(initForumGrades);
       }
     } else if (rol === "PROFESOR") {
       const r = await fetch(`/api/backend/courses/${cursoId}/grades`);
@@ -94,7 +99,10 @@ export default function NotasSheetPage() {
 
   async function saveRow(estudianteId: string) {
     setSaving((s) => ({ ...s, [estudianteId]: true }));
-    await fetch(`/api/backend/courses/${cursoId}/grades-sheet`, {
+    const fila = data?.filas.find((f) => f.estudianteId === estudianteId);
+    const incluirNotaForum = data?.tipo === "DIPLOMADO" && fila && !fila.forumEntregado;
+    const raw = forumGradeEdits[estudianteId];
+    const r = await fetch(`/api/backend/courses/${cursoId}/grades-sheet`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -102,8 +110,13 @@ export default function NotasSheetPage() {
         modo: modos[estudianteId] ?? "SINCRONICO",
         numDias,
         celdasCamara: edits[estudianteId] ?? {},
+        ...(incluirNotaForum ? { notaForumManual: raw !== undefined && raw !== "" ? Number(raw) : null } : {}),
       }),
     });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({})) as { message?: string };
+      alert(d.message ?? "Error al guardar la fila");
+    }
     await load();
     setSaving((s) => ({ ...s, [estudianteId]: false }));
   }
@@ -291,12 +304,7 @@ export default function NotasSheetPage() {
               ))}
               <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Asist.</th>
               {data.tipo === "DIPLOMADO" ? (
-                <>
-                  <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, borderLeft: "1px solid rgba(255,255,255,0.2)", whiteSpace: "nowrap" }}>Forum D1</th>
-                  <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, whiteSpace: "nowrap" }}>Forum D2</th>
-                  <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, whiteSpace: "nowrap" }}>Forum D3</th>
-                  <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, whiteSpace: "nowrap" }}>Nota de Forum</th>
-                </>
+                <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, borderLeft: "1px solid rgba(255,255,255,0.2)", whiteSpace: "nowrap" }}>Nota de Forum</th>
               ) : (
                 <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Exam.</th>
               )}
@@ -358,14 +366,22 @@ export default function NotasSheetPage() {
                     {fila.notaAsistencia?.toFixed(1) ?? "—"}
                   </td>
                   {data.tipo === "DIPLOMADO" ? (
-                    <>
-                      <td style={{ padding: "4px 6px", textAlign: "center", color: "var(--texto-tenue)" }}>{fila.ntDia1 ?? "—"}</td>
-                      <td style={{ padding: "4px 6px", textAlign: "center", color: "var(--texto-tenue)" }}>{fila.ntDia2 ?? "—"}</td>
-                      <td style={{ padding: "4px 6px", textAlign: "center", color: "var(--texto-tenue)" }}>{fila.ntDia3 ?? "—"}</td>
-                      <td style={{ padding: "4px 6px", textAlign: "center", fontWeight: 600 }}>
-                        {(fila.notaExamenRecup ?? fila.notaExamenNorm)?.toFixed(1) ?? "—"}
-                      </td>
-                    </>
+                    <td style={{ padding: "4px 6px", textAlign: "center", fontWeight: 600 }}>
+                      {fila.forumEntregado ? (
+                        (fila.notaExamenRecup ?? fila.notaExamenNorm)?.toFixed(1) ?? "—"
+                      ) : (
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          step={0.5}
+                          placeholder="Sin forum"
+                          value={forumGradeEdits[fila.estudianteId] ?? ""}
+                          onChange={(e) => setForumGradeEdits((p) => ({ ...p, [fila.estudianteId]: e.target.value }))}
+                          style={{ width: 64, textAlign: "center", border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 4px", fontSize: 12 }}
+                        />
+                      )}
+                    </td>
                   ) : (
                     <td style={{ padding: "4px 6px", textAlign: "center" }}>
                       {(fila.notaExamenRecup ?? fila.notaExamenNorm)?.toFixed(1) ?? "—"}
@@ -403,7 +419,7 @@ export default function NotasSheetPage() {
 
       <div style={{ marginTop: 12, fontSize: 12, color: "var(--texto-tenue)" }}>
         {data.tipo === "DIPLOMADO"
-          ? "Forum D1/D2/D3 = nota puesta al revisar cada día en Corregir forums · Nota de Forum = promedio de los forums entregados · Final = ⌊(Asist + Nota de Forum) / 2⌋"
+          ? "Nota de Forum = nota puesta al revisar el Forum de la semana en Corregir forums, reemplaza a la nota de examen (si el alumno ya subió su forum, solo se edita ahí). Si no subió nada, se puede poner la nota directo aquí · Final = ⌊(Asist + Nota de Forum) / 2⌋"
           : "NT = nota de transcripción (puesta por revisor) · Exam. = nota del examen del módulo · Final = ⌊(Asist + Exam) / 2⌋"}
       </div>
     </div>

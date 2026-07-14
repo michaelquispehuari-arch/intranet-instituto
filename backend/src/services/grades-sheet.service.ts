@@ -1,6 +1,6 @@
 import { ModoEstudio, Prisma, Rol, TipoCurso } from "@prisma/client";
 import { prisma } from "../utils/prisma.js";
-import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../utils/http-error.js";
 import { notaAsistencia13 } from "../utils/nota-asistencia.js";
 import type { AuthUser } from "../types/auth.js";
 
@@ -47,14 +47,6 @@ async function fetchExamNotes(estudianteId: string, cursoId: string) {
   return { notaExamenNorm, notaExamenRecup };
 }
 
-// Los forums de Diplomado siempre son 3 dias fijos (independiente de "dias de
-// clase a la semana"): un dia sin entrega o sin calificar cuenta como 0 en el
-// promedio, no se descarta del calculo.
-function averageForumNota(notaMap: Record<number, number | null>) {
-  const valores = [1, 2, 3].map((dia) => notaMap[dia] ?? 0);
-  return valores.reduce((sum, v) => sum + v, 0) / valores.length;
-}
-
 async function fetchNTForCourse(estudianteId: string, cursoId: string) {
   const sesiones = await prisma.sesion.findMany({
     where: { cursoId },
@@ -73,15 +65,16 @@ async function fetchNTForCourse(estudianteId: string, cursoId: string) {
   return ntMap; // { 1: 15, 2: null, 3: 12, ... }
 }
 
-async function fetchForumNotasForCourse(estudianteId: string, cursoId: string) {
-  const entregas = await prisma.entregaForum.findMany({
-    where: { cursoId, estudianteId },
-    select: { dia: true, nota: true },
+// Diplomado tiene un unico Forum semanal (dia 1). Si el alumno subio
+// archivos, su nota solo se edita desde "Corregir forums". Si no subio nada,
+// el admin puede colocar una nota manual directamente en la grilla.
+async function fetchForumEntrega(estudianteId: string, cursoId: string) {
+  const entrega = await prisma.entregaForum.findUnique({
+    where: { cursoId_estudianteId_dia: { cursoId, estudianteId, dia: 1 } },
+    select: { nota: true, archivos: true },
   });
-
-  const notaMap: Record<number, number | null> = {};
-  for (const e of entregas) notaMap[e.dia] = e.nota;
-  return notaMap; // { 1: 15, 2: null, 3: 12, ... }
+  const archivosCount = entrega && Array.isArray(entrega.archivos) ? (entrega.archivos as unknown[]).length : 0;
+  return { nota: entrega?.nota ?? null, entregado: archivosCount > 0 };
 }
 
 function computeNotas(modo: ModoEstudio, celdas: Record<string, unknown>, numDias: 1 | 2 | 3, notaExamenNorm: number | null, notaExamenRecup: number | null) {
@@ -122,16 +115,15 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
         where: { estudianteId_cursoId: { estudianteId: est.id, cursoId: courseId } },
       });
 
-      const ntMap = curso.tipo === TipoCurso.DIPLOMADO
-        ? await fetchForumNotasForCourse(est.id, courseId)
-        : await fetchNTForCourse(est.id, courseId);
+      const esDiplomado = curso.tipo === TipoCurso.DIPLOMADO;
+      const ntMap: Record<number, number | null> = esDiplomado ? {} : await fetchNTForCourse(est.id, courseId);
+      const forumEntrega = esDiplomado ? await fetchForumEntrega(est.id, courseId) : null;
       const modo = (registro?.modo ?? est.modo ?? ModoEstudio.SINCRONICO) as ModoEstudio;
       const rowNumDias = (registro?.numDias ?? numDias) as 1 | 2 | 3;
 
-      const { notaExamenNorm, notaExamenRecup } =
-        curso.tipo === TipoCurso.DIPLOMADO
-          ? { notaExamenNorm: averageForumNota(ntMap), notaExamenRecup: null }
-          : await fetchExamNotes(est.id, courseId);
+      const { notaExamenNorm, notaExamenRecup } = esDiplomado
+        ? { notaExamenNorm: forumEntrega!.nota ?? 0, notaExamenRecup: null }
+        : await fetchExamNotes(est.id, courseId);
 
       const celdasCamara = (registro?.celdas as Record<string, unknown> | null) ?? {};
       const celdas: Record<string, unknown> = {
@@ -163,6 +155,7 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
         ntDia1: ntMap[1] ?? null,
         ntDia2: ntMap[2] ?? null,
         ntDia3: ntMap[3] ?? null,
+        forumEntregado: forumEntrega?.entregado ?? false,
         notaAsistencia,
         notaExamenNorm,
         notaExamenRecup,
@@ -279,7 +272,13 @@ export async function getMyPublishedGrades(user: AuthUser) {
 
 export async function upsertGradeRow(
   courseId: string,
-  input: { estudianteId: string; modo: ModoEstudio; numDias: 1 | 2 | 3; celdasCamara: CeldasCamara },
+  input: {
+    estudianteId: string;
+    modo: ModoEstudio;
+    numDias: 1 | 2 | 3;
+    celdasCamara: CeldasCamara;
+    notaForumManual?: number | null;
+  },
   user: AuthUser,
 ) {
   if (user.rol !== Rol.ADMIN) throw new ForbiddenError();
@@ -294,13 +293,27 @@ export async function upsertGradeRow(
     select: { tipo: true },
   });
 
-  const ntMap = curso.tipo === TipoCurso.DIPLOMADO
-    ? await fetchForumNotasForCourse(input.estudianteId, courseId)
-    : await fetchNTForCourse(input.estudianteId, courseId);
-  const { notaExamenNorm, notaExamenRecup } =
-    curso.tipo === TipoCurso.DIPLOMADO
-      ? { notaExamenNorm: averageForumNota(ntMap), notaExamenRecup: null }
-      : await fetchExamNotes(input.estudianteId, courseId);
+  const esDiplomado = curso.tipo === TipoCurso.DIPLOMADO;
+  const ntMap: Record<number, number | null> = esDiplomado ? {} : await fetchNTForCourse(input.estudianteId, courseId);
+
+  if (esDiplomado && input.notaForumManual !== undefined) {
+    const actual = await fetchForumEntrega(input.estudianteId, courseId);
+    if (actual.entregado) {
+      throw new ValidationError("El alumno ya subió su Forum: la nota solo se edita desde Corregir forums.");
+    }
+    if (input.notaForumManual !== null && (input.notaForumManual < 0 || input.notaForumManual > 20)) {
+      throw new ValidationError("La nota debe estar entre 0 y 20.");
+    }
+    await prisma.entregaForum.upsert({
+      where: { cursoId_estudianteId_dia: { cursoId: courseId, estudianteId: input.estudianteId, dia: 1 } },
+      create: { cursoId: courseId, estudianteId: input.estudianteId, dia: 1, archivos: [], nota: input.notaForumManual, revisadoEn: new Date() },
+      update: { nota: input.notaForumManual, revisadoEn: new Date() },
+    });
+  }
+
+  const { notaExamenNorm, notaExamenRecup } = esDiplomado
+    ? { notaExamenNorm: (await fetchForumEntrega(input.estudianteId, courseId)).nota ?? 0, notaExamenRecup: null }
+    : await fetchExamNotes(input.estudianteId, courseId);
 
   const celdas: Record<string, unknown> = {
     ...input.celdasCamara,

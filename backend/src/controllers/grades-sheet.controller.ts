@@ -20,6 +20,7 @@ const upsertRowSchema = z.object({
     d3c2: z.string().optional(),
     d3c3: z.string().optional(),
   }),
+  notaForumManual: z.number().min(0).max(20).nullable().optional(),
 });
 
 export async function getSheet(req: Request, res: Response, next: NextFunction) {

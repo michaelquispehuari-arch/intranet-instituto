@@ -3,8 +3,9 @@
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MAX_VIDEO_DURATION_SECONDS, compressVideo, getVideoDuration, isVideoFile } from "@/lib/video-compress";
+import { AudioRecorder, isAudioRecordingSupported } from "@/lib/audio-record";
 
 type Sesion = {
   id: string;
@@ -68,6 +69,7 @@ type MySummary = {
 type ForumStatus = { id: string; dia: number; archivosCount: number; entregadoEn: string; revisado: boolean };
 type ForumSubmitter = { estudiante: { id: string; nombre: string; apellido: string; email: string }; dias: number[] };
 type ForumSubmission = { id: string; dia: number; archivosCount: number; entregadoEn: string; nota: number | null; revisadoEn: string | null };
+type RecorderState = "inactivo" | "grabando" | "pausado" | "procesando" | "listo";
 
 type Tab = "sesiones" | "material" | "examenes" | "notas" | "alumnos" | "transcripcion" | "forums";
 
@@ -107,13 +109,19 @@ export default function CourseWorkspacePage() {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [deadlineDraft, setDeadlineDraft] = useState("");
   const [savingDeadline, setSavingDeadline] = useState(false);
-  const [myForums, setMyForums] = useState<Record<number, ForumStatus>>({});
+  const [myForum, setMyForum] = useState<ForumStatus | null>(null);
   const [myForumsLoaded, setMyForumsLoaded] = useState(false);
-  const [forumUploadFiles, setForumUploadFiles] = useState<Record<number, File[] | null>>({});
-  const [forumUploadProgress, setForumUploadProgress] = useState<Record<number, number>>({});
-  const [forumUploadPhase, setForumUploadPhase] = useState<Record<number, "preparando" | "subiendo">>({});
-  const [uploadingForumDia, setUploadingForumDia] = useState<number | null>(null);
-  const [deletingForumDia, setDeletingForumDia] = useState<number | null>(null);
+  const [forumUploadFiles, setForumUploadFiles] = useState<File[] | null>(null);
+  const [forumUploadProgress, setForumUploadProgress] = useState<number>(0);
+  const [forumUploadPhase, setForumUploadPhase] = useState<"preparando" | "subiendo" | null>(null);
+  const [uploadingForum, setUploadingForum] = useState(false);
+  const [deletingForum, setDeletingForum] = useState(false);
+  const [recorderState, setRecorderState] = useState<RecorderState>("inactivo");
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [recordedAudio, setRecordedAudio] = useState<File | null>(null);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const audioRecorderRef = useRef<AudioRecorder | null>(null);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [forumSubmitters, setForumSubmitters] = useState<ForumSubmitter[] | null>(null);
   const [forumSubmittersLoaded, setForumSubmittersLoaded] = useState(false);
   const [selectedForumStudent, setSelectedForumStudent] = useState<ForumSubmitter["estudiante"] | null>(null);
@@ -147,6 +155,19 @@ export default function CourseWorkspacePage() {
       setLoading(false);
     });
   }, [id]);
+
+  useEffect(() => {
+    return () => {
+      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+      audioRecorderRef.current?.cancel();
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (recordedAudioUrl) URL.revokeObjectURL(recordedAudioUrl);
+    };
+  }, [recordedAudioUrl]);
 
   const today = new Date().toDateString();
   const rol = session?.user?.rol;
@@ -235,7 +256,7 @@ export default function CourseWorkspacePage() {
     const r = await fetch(`/api/backend/courses/${id}/forums/mine`);
     if (r.ok) {
       const data = await r.json() as ForumStatus[];
-      setMyForums(Object.fromEntries((Array.isArray(data) ? data : []).map((f) => [f.dia, f])));
+      setMyForum(Array.isArray(data) && data.length > 0 ? data[0] : null);
     }
     setMyForumsLoaded(true);
   }
@@ -253,26 +274,26 @@ export default function CourseWorkspacePage() {
     });
   }
 
-  async function uploadForumDia(dia: number) {
-    const files = forumUploadFiles[dia];
-    if (!files || files.length === 0) return;
-    setUploadingForumDia(dia);
-    setForumUploadProgress((prev) => ({ ...prev, [dia]: 0 }));
-    setForumUploadPhase((prev) => ({ ...prev, [dia]: "preparando" }));
+  async function uploadForum() {
+    const files = [...(forumUploadFiles ?? []), ...(recordedAudio ? [recordedAudio] : [])];
+    if (files.length === 0) return;
+    setUploadingForum(true);
+    setForumUploadProgress(0);
+    setForumUploadPhase("preparando");
     try {
       const fd = new FormData();
-      fd.append("dia", String(dia));
       for (const file of files) {
         fd.append("files", isVideoFile(file) ? await compressVideo(file) : file);
       }
-      setForumUploadPhase((prev) => ({ ...prev, [dia]: "subiendo" }));
+      setForumUploadPhase("subiendo");
       const result = await postFormWithProgress(`/api/backend/courses/${id}/forums`, fd, (pct) => {
-        setForumUploadProgress((prev) => ({ ...prev, [dia]: pct }));
+        setForumUploadProgress(pct);
       });
       if (result.ok) {
         const data = JSON.parse(result.body) as ForumStatus;
-        setMyForums((prev) => ({ ...prev, [dia]: data }));
-        setForumUploadFiles((prev) => ({ ...prev, [dia]: null }));
+        setMyForum(data);
+        setForumUploadFiles(null);
+        discardRecordedAudio();
       } else {
         let message = "Error al subir los archivos";
         try {
@@ -286,35 +307,104 @@ export default function CourseWorkspacePage() {
     } catch {
       alert("Error al subir los archivos");
     } finally {
-      setUploadingForumDia(null);
-      setForumUploadProgress((prev) => {
-        const next = { ...prev };
-        delete next[dia];
-        return next;
-      });
-      setForumUploadPhase((prev) => {
-        const next = { ...prev };
-        delete next[dia];
-        return next;
-      });
+      setUploadingForum(false);
+      setForumUploadProgress(0);
+      setForumUploadPhase(null);
     }
   }
 
-  async function deleteForumDia(dia: number) {
-    if (!confirm(`¿Borrar lo que subiste para el Día ${dia}? Esto no se puede deshacer.`)) return;
-    setDeletingForumDia(dia);
-    const r = await fetch(`/api/backend/courses/${id}/forums/${dia}`, { method: "DELETE" });
-    setDeletingForumDia(null);
+  async function deleteForum() {
+    if (!confirm("¿Borrar lo que subiste para el Forum de la semana? Esto no se puede deshacer.")) return;
+    setDeletingForum(true);
+    const r = await fetch(`/api/backend/courses/${id}/forums/1`, { method: "DELETE" });
+    setDeletingForum(false);
     if (r.ok) {
-      setMyForums((prev) => {
-        const next = { ...prev };
-        delete next[dia];
-        return next;
-      });
+      setMyForum(null);
     } else {
       const d = await r.json().catch(() => ({})) as { message?: string };
       alert(d.message ?? "Error al borrar la entrega");
     }
+  }
+
+  function formatRecordTime(totalSeconds: number) {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function clearRecordTimer() {
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+  }
+
+  function discardRecordedAudio() {
+    if (recordedAudioUrl) URL.revokeObjectURL(recordedAudioUrl);
+    setRecordedAudio(null);
+    setRecordedAudioUrl(null);
+    setRecordSeconds(0);
+    setRecorderState("inactivo");
+  }
+
+  async function startAudioRecording() {
+    if (recordedAudioUrl) URL.revokeObjectURL(recordedAudioUrl);
+    setRecordedAudio(null);
+    setRecordedAudioUrl(null);
+    try {
+      const recorder = new AudioRecorder();
+      await recorder.start();
+      audioRecorderRef.current = recorder;
+      setRecordSeconds(0);
+      setRecorderState("grabando");
+      clearRecordTimer();
+      recordTimerRef.current = setInterval(() => {
+        setRecordSeconds((s) => s + 1);
+      }, 1000);
+    } catch {
+      alert("No se pudo acceder al micrófono. Revisa los permisos del navegador.");
+    }
+  }
+
+  function pauseAudioRecording() {
+    audioRecorderRef.current?.pause();
+    clearRecordTimer();
+    setRecorderState("pausado");
+  }
+
+  function resumeAudioRecording() {
+    audioRecorderRef.current?.resume();
+    setRecorderState("grabando");
+    clearRecordTimer();
+    recordTimerRef.current = setInterval(() => {
+      setRecordSeconds((s) => s + 1);
+    }, 1000);
+  }
+
+  async function stopAudioRecording() {
+    const recorder = audioRecorderRef.current;
+    if (!recorder) return;
+    clearRecordTimer();
+    setRecorderState("procesando");
+    try {
+      const file = await recorder.stop();
+      setRecordedAudio(file);
+      setRecordedAudioUrl(URL.createObjectURL(file));
+      setRecorderState("listo");
+    } catch {
+      alert("No se pudo guardar la grabación de audio.");
+      setRecorderState("inactivo");
+    } finally {
+      audioRecorderRef.current = null;
+    }
+  }
+
+  function cancelAudioRecording() {
+    clearRecordTimer();
+    audioRecorderRef.current?.cancel();
+    audioRecorderRef.current = null;
+    setRecordSeconds(0);
+    setRecorderState("inactivo");
   }
 
   async function loadForumSubmitters() {
@@ -664,130 +754,237 @@ export default function CourseWorkspacePage() {
           {esDiplomado && rol === "ESTUDIANTE" && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="card-header">
-                <h3>Subir Forums</h3>
+                <h3>Forum de la semana</h3>
               </div>
               <div className="card-body">
                 <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--texto-tenue)" }}>
-                  Por cada día sube tu video (máximo 3 min y medio) o informe (PDF) de lo aprendido. El admin lo revisará y pondrá tu nota; el promedio de tus forums reemplaza la nota de examen. El video se comprime automáticamente antes de subirse.
+                  Sube tu video (máximo 3 min y medio) o informe (PDF) de lo aprendido, o graba un audio directamente. El admin lo revisará y pondrá tu nota; esa nota reemplaza la nota de examen. El video se comprime automáticamente antes de subirse.
                 </p>
                 {!myForumsLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
-                {myForumsLoaded && (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    {[1, 2, 3].map((dia) => {
-                      const status = myForums[dia];
-                      const yaSubio = (status?.archivosCount ?? 0) > 0;
-                      const selectedFiles = forumUploadFiles[dia];
-                      const count = selectedFiles ? selectedFiles.length : 0;
-                      const subiendo = uploadingForumDia === dia;
-                      const vencido = !!curso.fechaLimiteEntrega && new Date() > new Date(curso.fechaLimiteEntrega);
-                      return (
-                        <article key={dia} className="session-card" style={{ flexWrap: "wrap", gap: 12 }}>
-                          <div className="session-info" style={{ minWidth: 0 }}>
-                            <div className="session-title">Día {dia}</div>
-                            {curso.fechaLimiteEntrega && (
-                              <div style={{ fontSize: 12, color: vencido ? "var(--desaprobado-texto)" : "var(--texto-tenue)", marginTop: 2 }}>
-                                {vencido ? "Plazo vencido: " : "Cierra: "}
-                                {new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
-                              </div>
-                            )}
-                            {yaSubio && (
-                              <div style={{ fontSize: 12, color: "var(--aprobado-texto)", marginTop: 4 }}>
-                                {status.archivosCount} archivo{status.archivosCount !== 1 ? "s" : ""} subido{status.archivosCount !== 1 ? "s" : ""}
-                                {status.entregadoEn ? ` · ${new Date(status.entregadoEn).toLocaleDateString("es-PE")}` : ""}
-                                {status.revisado && <span style={{ marginLeft: 8, color: "var(--aprobado-texto)" }}>· Revisado ✓</span>}
-                              </div>
-                            )}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
-                            {vencido && !yaSubio ? (
-                              <span className="chip chip-resumen">Plazo vencido</span>
-                            ) : (
-                              <>
-                                <label style={{ fontSize: 13 }}>
-                                  <input
-                                    type="file"
-                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip,.mp4,.mov"
-                                    multiple
-                                    style={{ display: "none" }}
-                                    onChange={async (e) => {
-                                      const selected = Array.from(e.target.files ?? []);
-                                      e.target.value = "";
-                                      const valid: File[] = [];
-                                      const rechazados: string[] = [];
-                                      for (const file of selected) {
-                                        if (isVideoFile(file)) {
-                                          try {
-                                            const duracion = await getVideoDuration(file);
-                                            if (duracion > MAX_VIDEO_DURATION_SECONDS) {
-                                              rechazados.push(file.name);
-                                              continue;
-                                            }
-                                          } catch {
-                                            // si no se puede leer la duracion, no bloqueamos la entrega
+                {myForumsLoaded && (() => {
+                  const status = myForum;
+                  const yaSubio = (status?.archivosCount ?? 0) > 0;
+                  const count = (forumUploadFiles?.length ?? 0) + (recordedAudio ? 1 : 0);
+                  const subiendo = uploadingForum;
+                  const recorderBusy = recorderState === "grabando" || recorderState === "pausado" || recorderState === "procesando";
+                  const vencido = !!curso.fechaLimiteEntrega && new Date() > new Date(curso.fechaLimiteEntrega);
+                  return (
+                    <div>
+                      <article className="session-card" style={{ flexWrap: "wrap", gap: 12 }}>
+                        <div className="session-info" style={{ minWidth: 0 }}>
+                          <div className="session-title">Forum de la semana</div>
+                          {curso.fechaLimiteEntrega && (
+                            <div style={{ fontSize: 12, color: vencido ? "var(--desaprobado-texto)" : "var(--texto-tenue)", marginTop: 2 }}>
+                              {vencido ? "Plazo vencido: " : "Cierra: "}
+                              {new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                            </div>
+                          )}
+                          {yaSubio && (
+                            <div style={{ fontSize: 12, color: "var(--aprobado-texto)", marginTop: 4 }}>
+                              {status!.archivosCount} archivo{status!.archivosCount !== 1 ? "s" : ""} subido{status!.archivosCount !== 1 ? "s" : ""}
+                              {status!.entregadoEn ? ` · ${new Date(status!.entregadoEn).toLocaleDateString("es-PE")}` : ""}
+                              {status!.revisado && <span style={{ marginLeft: 8, color: "var(--aprobado-texto)" }}>· Revisado ✓</span>}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+                          {vencido && !yaSubio ? (
+                            <span className="chip chip-resumen">Plazo vencido</span>
+                          ) : (
+                            <>
+                              <label style={{ fontSize: 13 }}>
+                                <input
+                                  type="file"
+                                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip,.mp4,.mov,.mp3,.m4a,.wav,.ogg"
+                                  multiple
+                                  style={{ display: "none" }}
+                                  onChange={async (e) => {
+                                    const selected = Array.from(e.target.files ?? []);
+                                    e.target.value = "";
+                                    const valid: File[] = [];
+                                    const rechazados: string[] = [];
+                                    for (const file of selected) {
+                                      if (isVideoFile(file)) {
+                                        try {
+                                          const duracion = await getVideoDuration(file);
+                                          if (duracion > MAX_VIDEO_DURATION_SECONDS) {
+                                            rechazados.push(file.name);
+                                            continue;
                                           }
+                                        } catch {
+                                          // si no se puede leer la duracion, no bloqueamos la entrega
                                         }
-                                        valid.push(file);
                                       }
-                                      if (rechazados.length > 0) {
-                                        alert(`El video debe durar máximo 3 minutos y medio. No se agregó: ${rechazados.join(", ")}`);
-                                      }
-                                      setForumUploadFiles((prev) => ({ ...prev, [dia]: valid.length > 0 ? valid : null }));
-                                    }}
-                                  />
-                                  <span className="btn btn-secondary" style={{ cursor: "pointer", fontSize: 13 }}>
-                                    {count > 0 ? `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}` : yaSubio ? "Reemplazar" : "Elegir archivos"}
+                                      valid.push(file);
+                                    }
+                                    if (rechazados.length > 0) {
+                                      alert(`El video debe durar máximo 3 minutos y medio. No se agregó: ${rechazados.join(", ")}`);
+                                    }
+                                    setForumUploadFiles((prev) => [...(prev ?? []), ...valid]);
+                                  }}
+                                />
+                                <span className="btn btn-secondary" style={{ cursor: "pointer", fontSize: 13 }}>
+                                  {yaSubio ? "Reemplazar" : "Elegir archivos"}
+                                </span>
+                              </label>
+                              {isAudioRecordingSupported() && recorderState === "inactivo" && !subiendo && (
+                                <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={startAudioRecording}>
+                                  🎙️ Grabar audio
+                                </button>
+                              )}
+                              {count > 0 && (
+                                <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
+                                  {count} archivo{count !== 1 ? "s" : ""} listo{count !== 1 ? "s" : ""} para subir
+                                </span>
+                              )}
+                              {count > 0 && !subiendo && !recorderBusy && (
+                                <button className="btn btn-primary" onClick={uploadForum} style={{ fontSize: 13 }}>
+                                  Subir
+                                </button>
+                              )}
+                              {subiendo && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 130 }}>
+                                  <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
+                                    {forumUploadPhase === "subiendo"
+                                      ? `Subiendo… ${forumUploadProgress}%`
+                                      : "Subiendo…"}
                                   </span>
-                                </label>
-                                {count > 0 && !subiendo && (
-                                  <button className="btn btn-primary" onClick={() => uploadForumDia(dia)} style={{ fontSize: 13 }}>
-                                    Subir
-                                  </button>
-                                )}
-                                {subiendo && (
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 130 }}>
-                                    <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                                      {forumUploadPhase[dia] === "subiendo"
-                                        ? `Subiendo… ${forumUploadProgress[dia] ?? 0}%`
-                                        : "Subiendo…"}
-                                    </span>
-                                    <div style={{ height: 6, borderRadius: 3, background: "#E5E5E0", overflow: "hidden" }}>
-                                      {forumUploadPhase[dia] === "subiendo" ? (
-                                        <div
-                                          style={{
-                                            height: "100%",
-                                            width: `${forumUploadProgress[dia] ?? 0}%`,
-                                            background: "var(--verde-sidebar)",
-                                            transition: "width 0.2s",
-                                          }}
-                                        />
-                                      ) : (
-                                        <div className="progress-indeterminate" style={{ height: "100%", background: "var(--verde-sidebar)" }} />
-                                      )}
-                                    </div>
+                                  <div style={{ height: 6, borderRadius: 3, background: "#E5E5E0", overflow: "hidden" }}>
+                                    {forumUploadPhase === "subiendo" ? (
+                                      <div
+                                        style={{
+                                          height: "100%",
+                                          width: `${forumUploadProgress}%`,
+                                          background: "var(--verde-sidebar)",
+                                          transition: "width 0.2s",
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="progress-indeterminate" style={{ height: "100%", background: "var(--verde-sidebar)" }} />
+                                    )}
                                   </div>
-                                )}
-                                {yaSubio && count === 0 && (
-                                  <>
-                                    <span className="chip chip-ok">Entregado ✓</span>
-                                    <button
-                                      type="button"
-                                      className="btn btn-secondary"
-                                      disabled={deletingForumDia === dia}
-                                      onClick={() => deleteForumDia(dia)}
-                                      style={{ fontSize: 13, color: "var(--desaprobado-texto)" }}
-                                    >
-                                      {deletingForumDia === dia ? "Borrando…" : "Borrar"}
-                                    </button>
-                                  </>
-                                )}
-                              </>
+                                </div>
+                              )}
+                              {yaSubio && count === 0 && (
+                                <>
+                                  <span className="chip chip-ok">Entregado ✓</span>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    disabled={deletingForum}
+                                    onClick={deleteForum}
+                                    style={{ fontSize: 13, color: "var(--desaprobado-texto)" }}
+                                  >
+                                    {deletingForum ? "Borrando…" : "Borrar"}
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </article>
+
+                      {(recorderState === "grabando" || recorderState === "pausado") && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            padding: "14px 18px",
+                            borderRadius: 12,
+                            background: recorderState === "pausado" ? "#FFF6E5" : "#FDECEC",
+                            border: `1px solid ${recorderState === "pausado" ? "#F0CE8C" : "#F2BBBB"}`,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 16,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span
+                              style={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: "50%",
+                                background: recorderState === "pausado" ? "#D9A441" : "#D9534F",
+                                animation: recorderState === "grabando" ? "rec-pulse 1.2s ease-in-out infinite" : "none",
+                                flexShrink: 0,
+                              }}
+                            />
+                            <span style={{ fontWeight: 700, fontSize: 13, color: recorderState === "pausado" ? "#8A6116" : "#B23B3B" }}>
+                              {recorderState === "pausado" ? "Pausado" : "Grabando audio"}
+                            </span>
+                          </div>
+                          <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 22, fontWeight: 700, letterSpacing: 0.5 }}>
+                            {formatRecordTime(recordSeconds)}
+                          </span>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}>
+                            {recorderState === "grabando" ? (
+                              <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={pauseAudioRecording}>
+                                ⏸ Pausar
+                              </button>
+                            ) : (
+                              <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={resumeAudioRecording}>
+                                ▶ Reanudar
+                              </button>
+                            )}
+                            <button type="button" className="btn btn-primary" style={{ fontSize: 13 }} onClick={stopAudioRecording}>
+                              ⏹ Detener
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelAudioRecording}
+                              style={{ fontSize: 13, background: "none", border: "none", color: "var(--texto-tenue)", cursor: "pointer", padding: "4px 6px" }}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {recorderState === "procesando" && (
+                        <div style={{ marginTop: 12, fontSize: 13, color: "var(--texto-tenue)" }}>Guardando grabación…</div>
+                      )}
+
+                      {recorderState === "listo" && recordedAudio && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            padding: "14px 18px",
+                            borderRadius: 12,
+                            background: "var(--aprobado-fondo)",
+                            border: "1px solid rgba(0,0,0,0.06)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 16,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span style={{ fontSize: 24 }}>🎧</span>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220, flex: 1 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--aprobado-texto)" }}>
+                              Audio grabado · {formatRecordTime(recordSeconds)}
+                            </span>
+                            {recordedAudioUrl && (
+                              // eslint-disable-next-line jsx-a11y/media-has-caption
+                              <audio controls src={recordedAudioUrl} style={{ height: 34, width: "100%", maxWidth: 280 }} />
                             )}
                           </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={startAudioRecording}>
+                              🔁 Grabar de nuevo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={discardRecordedAudio}
+                              style={{ fontSize: 13, background: "none", border: "none", color: "var(--desaprobado-texto)", cursor: "pointer", padding: "4px 6px" }}
+                            >
+                              🗑 Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -1103,7 +1300,7 @@ export default function CourseWorkspacePage() {
                       <div className="session-info">
                         <div className="session-title">{s.estudiante.nombre} {s.estudiante.apellido}</div>
                         <div className="session-chips" style={{ marginTop: 6 }}>
-                          {s.dias.map((d) => <span key={d} className="chip chip-capturas">Día {d}</span>)}
+                          {s.dias.length > 0 && <span className="chip chip-capturas">Forum entregado</span>}
                         </div>
                       </div>
                       <button className="btn btn-primary" onClick={() => openForumStudent(s.estudiante)}>
@@ -1135,7 +1332,7 @@ export default function CourseWorkspacePage() {
                       style={{ padding: "12px 16px", border: "0.5px solid var(--borde)", borderRadius: 8, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
                     >
                       <div style={{ flex: 1, minWidth: 160 }}>
-                        <div style={{ fontWeight: 600, marginBottom: 2 }}>Día {s.dia}</div>
+                        <div style={{ fontWeight: 600, marginBottom: 2 }}>Forum de la semana</div>
                         <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
                           {s.archivosCount} archivo{s.archivosCount !== 1 ? "s" : ""} · {new Date(s.entregadoEn).toLocaleDateString("es-PE")}
                         </div>
