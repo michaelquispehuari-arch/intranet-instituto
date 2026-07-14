@@ -120,6 +120,7 @@ export default function CourseWorkspacePage() {
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [recordedAudio, setRecordedAudio] = useState<File | null>(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const [recordLimitExceeded, setRecordLimitExceeded] = useState(false);
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [forumSubmitters, setForumSubmitters] = useState<ForumSubmitter[] | null>(null);
@@ -347,10 +348,27 @@ export default function CourseWorkspacePage() {
     setRecorderState("inactivo");
   }
 
+  function stopRecordingDueToLimit() {
+    clearRecordTimer();
+    audioRecorderRef.current?.cancel();
+    audioRecorderRef.current = null;
+    setRecordSeconds(0);
+    setRecorderState("inactivo");
+    setRecordLimitExceeded(true);
+  }
+
+  useEffect(() => {
+    if (recorderState === "grabando" && recordSeconds > MAX_VIDEO_DURATION_SECONDS) {
+      stopRecordingDueToLimit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordSeconds, recorderState]);
+
   async function startAudioRecording() {
     if (recordedAudioUrl) URL.revokeObjectURL(recordedAudioUrl);
     setRecordedAudio(null);
     setRecordedAudioUrl(null);
+    setRecordLimitExceeded(false);
     try {
       const recorder = new AudioRecorder();
       await recorder.start();
@@ -758,7 +776,7 @@ export default function CourseWorkspacePage() {
               </div>
               <div className="card-body">
                 <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--texto-tenue)" }}>
-                  Sube tu video (máximo 3 min y medio) o informe (PDF) de lo aprendido, o graba un audio directamente. El admin lo revisará y pondrá tu nota; esa nota reemplaza la nota de examen. El video se comprime automáticamente antes de subirse.
+                  Sube tu video (máximo 3 min y medio) o informe (PDF) de lo aprendido, o graba un audio de 2 a 3 min. El admin lo revisará y pondrá tu nota; esa nota reemplaza la nota de examen. El video se comprime automáticamente antes de subirse.
                 </p>
                 {!myForumsLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
                 {myForumsLoaded && (() => {
@@ -942,6 +960,33 @@ export default function CourseWorkspacePage() {
 
                       {recorderState === "procesando" && (
                         <div style={{ marginTop: 12, fontSize: 13, color: "var(--texto-tenue)" }}>Guardando grabación…</div>
+                      )}
+
+                      {recordLimitExceeded && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            padding: "10px 14px",
+                            borderRadius: 10,
+                            background: "#FDECEC",
+                            border: "1px solid #F2BBBB",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                          }}
+                        >
+                          <span style={{ fontSize: 13, color: "#B23B3B", flex: 1 }}>
+                            ⚠️ Se superó el tiempo límite de grabación (3 min y medio). Cierra este aviso y vuelve a grabar.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setRecordLimitExceeded(false)}
+                            aria-label="Cerrar aviso"
+                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, lineHeight: 1, color: "#B23B3B", padding: 2 }}
+                          >
+                            ✕
+                          </button>
+                        </div>
                       )}
 
                       {recorderState === "listo" && recordedAudio && (
