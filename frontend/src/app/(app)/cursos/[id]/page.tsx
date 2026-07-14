@@ -776,7 +776,7 @@ export default function CourseWorkspacePage() {
               </div>
               <div className="card-body">
                 <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--texto-tenue)" }}>
-                  Sube tu video (máximo 3 min y medio) o informe (PDF) de lo aprendido, o graba un audio de 2 a 3 min. El admin lo revisará y pondrá tu nota; esa nota reemplaza la nota de examen. El video se comprime automáticamente antes de subirse.
+                  Grabar su Forum, en un tiempo de 2 min a 3 min.
                 </p>
                 {!myForumsLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
                 {myForumsLoaded && (() => {
