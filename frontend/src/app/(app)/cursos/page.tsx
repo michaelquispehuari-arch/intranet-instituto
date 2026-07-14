@@ -109,7 +109,6 @@ export default function CursosPage() {
     <div>
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <span className="page-eyebrow">Academia</span>
           <h1 className="page-title">Cursos</h1>
         </div>
         {rol === "ADMIN" && (

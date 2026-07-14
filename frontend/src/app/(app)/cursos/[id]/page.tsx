@@ -566,7 +566,7 @@ export default function CourseWorkspacePage() {
   return (
     <div>
       {/* Topbar del curso */}
-      <div className="course-topbar" style={{ margin: "-28px -32px 0", position: "sticky", top: 0, zIndex: 10 }}>
+      <div className="course-topbar course-topbar-bleed" style={{ position: "sticky", top: 0, zIndex: 10 }}>
         <div className="course-topbar-left">
           <Link href="/cursos" style={{ fontSize: 12, color: "var(--texto-tenue)", marginBottom: 2, display: "block" }}>
             ← Cursos
@@ -582,7 +582,7 @@ export default function CourseWorkspacePage() {
       </div>
 
       {/* Tabs */}
-      <div className="workspace-tabs" style={{ margin: "0 -32px", marginBottom: 24 }}>
+      <div className="workspace-tabs workspace-tabs-bleed">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -934,7 +934,7 @@ export default function CourseWorkspacePage() {
                           <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 22, fontWeight: 700, letterSpacing: 0.5 }}>
                             {formatRecordTime(recordSeconds)}
                           </span>
-                          <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginLeft: "auto" }}>
                             {recorderState === "grabando" ? (
                               <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={pauseAudioRecording}>
                                 ⏸ Pausar
