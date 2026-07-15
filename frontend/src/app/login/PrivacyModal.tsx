@@ -40,8 +40,8 @@ export function PrivacyModal({ open, onClose }: { open: boolean; onClose: () => 
           <p><strong>Responsable del tratamiento:</strong> Seminario Teológico de Remanentes (PeRTS).</p>
 
           <p><strong>1. Datos que tratamos.</strong> Recopilamos los datos necesarios para la
-          gestión académica: nombre y apellidos, correo electrónico, rol (estudiante, profesor o
-          administrador), cursos en los que participa, calificaciones, asistencia y materiales.</p>
+          gestión académica: nombre y apellidos, correo electrónico, DNI, teléfono, los cursos
+          en los que participa, calificaciones, asistencia y materiales.</p>
 
           <p><strong>2. Finalidad.</strong> Los datos se usan únicamente para administrar el acceso
           a la intranet, gestionar cursos, exámenes, materiales y calificaciones, y comunicar
@@ -60,14 +60,10 @@ export function PrivacyModal({ open, onClose }: { open: boolean; onClose: () => 
           según su rol. Las contraseñas se almacenan cifradas; el acceso se realiza mediante
           conexión segura (HTTPS).</p>
 
-          <p><strong>6. Derechos (ARCO).</strong> La persona titular puede ejercer sus derechos de
-          acceso, rectificación, cancelación y oposición escribiendo a{" "}
-          <em>administracion@seminarioremanentes.edu</em>.</p>
-
-          <p><strong>7. Cambios.</strong> Esta política puede actualizarse; la versión vigente
+          <p><strong>6. Cambios.</strong> Esta política puede actualizarse; la versión vigente
           estará siempre disponible en esta misma ventana.</p>
 
-          <p className="privacy__updated">Última actualización: junio 2025.</p>
+          <p className="privacy__updated">Última actualización: julio 2026.</p>
         </div>
       </div>
     </div>

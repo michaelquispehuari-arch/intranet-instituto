@@ -1,3 +1,7 @@
+// Pantalla funcional (config de peso asistencia/promedio por curso) pero sin ningun
+// link de navegacion que apunte aqui (no esta en sidebar.tsx ni en ninguna otra pagina).
+// No confundir con (app)/configuracion, que es el enlace de Zoom global. Revisar si se
+// debe enlazar desde /cursos/[id] o eliminar si ya no hace falta.
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/app/dashboard/logout-button";
