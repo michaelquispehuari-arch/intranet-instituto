@@ -1,4 +1,6 @@
 import type { Session } from "next-auth";
+import { getToken } from "next-auth/jwt";
+import { cookies } from "next/headers";
 import { env } from "./env";
 
 type BackendRequestOptions = {
@@ -30,15 +32,35 @@ async function readBackendError(response: Response) {
   return `Backend respondio ${response.status}`;
 }
 
+// El JWT de NextAuth (cookie httpOnly) es la unica fuente del backendToken.
+// No se lee de `session` porque `session` viaja al navegador via useSession().
+async function getBackendToken(session: Session): Promise<string> {
+  if (!session.user) {
+    throw new BackendRequestError(401, "Sesion no valida");
+  }
+
+  const token = await getToken({
+    req: { cookies: await cookies() } as unknown as Parameters<typeof getToken>[0]["req"],
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+
+  if (!token?.backendToken) {
+    throw new BackendRequestError(401, "Sesion no valida");
+  }
+
+  return token.backendToken;
+}
+
 async function backendRequest<T>(
   path: string,
   session: Session,
   options: BackendRequestOptions = {},
 ): Promise<T> {
+  const backendToken = await getBackendToken(session);
   const response = await fetch(`${env.BACKEND_URL}${path}`, {
     method: options.method ?? "GET",
     headers: {
-      Authorization: `Bearer ${session.backendToken}`,
+      Authorization: `Bearer ${backendToken}`,
       ...(options.body ? { "Content-Type": "application/json" } : {}),
     },
     body: options.formData ?? (options.body ? JSON.stringify(options.body) : undefined),

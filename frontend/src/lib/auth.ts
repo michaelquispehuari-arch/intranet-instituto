@@ -74,7 +74,9 @@ export const authOptions: NextAuthOptions = {
         return session;
       }
 
-      session.backendToken = token.backendToken;
+      // backendToken se queda solo en el JWT (cookie httpOnly), nunca se copia a `session`
+      // para que no viaje al navegador via useSession()/getSession(). El backend lo lee
+      // con getBackendToken() (frontend/src/lib/backend.ts) usando next-auth/jwt.getToken().
       session.user = {
         ...session.user,
         ...token.user,

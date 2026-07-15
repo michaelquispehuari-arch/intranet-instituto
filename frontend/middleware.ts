@@ -32,13 +32,15 @@ export default withAuth({
       }
 
       const pathname = req.nextUrl.pathname;
-      const rule = Object.entries(roleAccess).find(([path]) => pathname.startsWith(path));
+      const matches = Object.entries(roleAccess)
+        .filter(([path]) => pathname.startsWith(path))
+        .sort(([a], [b]) => b.length - a.length);
 
-      if (!rule) {
+      if (matches.length === 0) {
         return true;
       }
 
-      return rule[1].includes(token.user.rol);
+      return matches[0][1].includes(token.user.rol);
     },
   },
 });
