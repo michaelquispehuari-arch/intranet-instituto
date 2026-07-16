@@ -28,7 +28,7 @@ Archivo base:
 El pipeline valida backend y frontend en cada push o pull request hacia `dev` y `main`.
 El deploy real queda pendiente hasta definir proveedor y credenciales seguras.
 
-## Demo Railway + Render
+## Despliegue en Railway
 
 Guia operativa:
 
@@ -36,4 +36,4 @@ Guia operativa:
 infra/DEPLOY_DEMO.md
 ```
 
-Usar esa guia para configurar Railway, Render, Cloudflare R2, SMTP y el worker sin documentar secretos reales.
+Usar esa guia para configurar Railway (backend + frontend + PostgreSQL + Redis), Cloudflare R2, SMTP y el worker sin documentar secretos reales.

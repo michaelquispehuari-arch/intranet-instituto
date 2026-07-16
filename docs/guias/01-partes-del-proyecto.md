@@ -6,7 +6,7 @@
 intranet-instituto/
 ├── backend/     Express + TypeScript + Prisma + PostgreSQL (puerto 4000)
 ├── frontend/    Next.js App Router (puerto 3000)
-├── infra/       Notas de despliegue (nginx, Railway/Render)
+├── infra/       Notas de despliegue (nginx, Railway)
 └── docs/guias/  Esta carpeta
 ```
 
@@ -102,4 +102,4 @@ Doble capa, ambas necesarias:
 | `frontend/.env` | `BACKEND_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET` — local |
 | `backend/.env.example`, `frontend/.env.example` | plantilla sin secretos, sí se sube a git |
 
-En producción (Railway/Render) estas variables se configuran en el dashboard de cada plataforma, nunca en un archivo del repo. Ver [servicios externos](./02-servicios-externos.md).
+En producción (Railway) estas variables se configuran en el dashboard, servicio por servicio (backend y frontend son dos servicios distintos dentro del mismo proyecto Railway), nunca en un archivo del repo. Ver [servicios externos](./02-servicios-externos.md).

@@ -1,17 +1,20 @@
-# Despliegue demo sin dominio propio
+# Despliegue
 
 ## Objetivo
 
 Mantener la demo publica usando:
 
 ```text
-Frontend: Render
+Frontend: Railway (mismo proyecto que el backend, servicio separado)
 Backend: Railway
 PostgreSQL: Railway
 Archivos: Cloudflare R2
 Redis: Railway
+Dominio propio: Cloudflare (DNS) -> apunta al servicio frontend en Railway
 SMTP: pendiente por proveedor
 ```
+
+El frontend vivio antes en Render; se migro a Railway. Cualquier referencia a Render mas abajo en commits o docs viejas ya no aplica.
 
 No escribir secretos reales en este archivo.
 
@@ -48,7 +51,7 @@ Variables necesarias:
 ```text
 NODE_ENV=production
 PORT=4000
-FRONTEND_URL=https://intranet-instituto-frontend.onrender.com
+FRONTEND_URL=<dominio publico del frontend: dominio propio o *.up.railway.app>
 DATABASE_URL=<Railway PostgreSQL DATABASE_PUBLIC_URL o URL valida>
 JWT_SECRET=<secreto largo>
 REDIS_URL=<redis real>
@@ -75,9 +78,9 @@ Despues de cambiar variables:
 
 ---
 
-## Render - frontend
+## Railway - frontend
 
-Servicio actual:
+Servicio separado dentro del mismo proyecto Railway del backend:
 
 ```text
 Root Directory: frontend
@@ -89,11 +92,23 @@ Variables necesarias:
 
 ```text
 BACKEND_URL=https://intranet-instituto-production.up.railway.app
-NEXTAUTH_URL=https://intranet-instituto-frontend.onrender.com
+NEXTAUTH_URL=<dominio publico del frontend: dominio propio o *.up.railway.app>
 NEXTAUTH_SECRET=<secreto largo diferente a JWT_SECRET>
 ```
 
-Si cambia la URL del backend, actualizar `BACKEND_URL` y redeploy.
+Como backend y frontend estan en el mismo proyecto Railway, `BACKEND_URL` puede usar el dominio privado interno (`http://<servicio-backend>.railway.internal:4000`) en vez de la URL publica, para que el trafico entre servicios no salga a internet.
+
+Si cambia la URL del backend o del frontend, actualizar las variables correspondientes (`BACKEND_URL` aca, `FRONTEND_URL` en el backend) y redeploy ambos servicios.
+
+### Dominio propio
+
+```text
+1. Railway -> servicio frontend -> Settings -> Networking -> Custom Domain -> agregar dominio.
+2. Copiar el CNAME que da Railway.
+3. Cloudflare DNS -> crear ese CNAME, proxy en "DNS only" hasta que Railway emita el certificado.
+4. Cuando este activo: actualizar NEXTAUTH_URL (frontend) y FRONTEND_URL (backend) al dominio nuevo, redeploy ambos.
+5. Opcional: activar proxy naranja de Cloudflare despues, con SSL/TLS en modo "Full".
+```
 
 ---
 
@@ -212,29 +227,11 @@ Validacion:
 
 ## Sobre "despertar" servicios
 
-Mientras se use plan gratuito, alguna plataforma puede dormir servicios por inactividad.
-
-Para estudiantes reales, se debe pagar al menos el servicio que recibe trafico publico:
+Con todo en Railway (backend, frontend, PostgreSQL, Redis) en un mismo proyecto, ya no aplica la logica anterior de "pagar Railway pero mantener el frontend gratis en Render". Revisar el plan de Railway usado y que ningun servicio con trafico publico quede en un tier que se duerma por inactividad.
 
 ```text
-Railway: backend, PostgreSQL y Redis.
-Render: frontend.
+Railway: backend, frontend, PostgreSQL y Redis.
 Worker: necesario cuando SMTP este listo.
-```
-
-Decision con presupuesto de USD 5:
-
-```text
-Pagar primero Railway.
-Mantener Render en plan gratuito por ahora.
-No mover frontend a Railway todavia para no aumentar consumo.
-```
-
-Motivo:
-
-```text
-El backend y la base de datos son criticos para todo el sistema.
-La espera inicial de Render free es molesta, pero menos grave que detener backend/PostgreSQL/Redis.
 ```
 
 ---
