@@ -8,5 +8,6 @@ Carpeta de referencia para entender, mantener y modificar el proyecto sin tener 
 4. [Git: subir y revertir cambios](./04-git-guia.md) — comandos para el día a día y cómo deshacer un error.
 5. [Auditoría y pruebas (2026-07-01)](./05-auditoria-y-pruebas.md) — registro de la revisión de seguridad, conexiones, código muerto y carga hecha en esta fecha: qué se encontró, qué se corrigió y qué queda pendiente.
 6. [Reset total de Railway](./06-reset-total-railway.md) — cómo borrar todos los datos de prueba (o absolutamente todo) para empezar a probar desde cero creando profesores y cursos desde la app.
+7. [Desarrollo local](./07-desarrollo-local.md) — levantar Postgres/Redis con Docker y correr backend + frontend en tu PC antes de subir a producción.
 
 Esta carpeta no se actualiza sola. Si agregas una pantalla nueva, un servicio nuevo o cambias el flujo de login, actualiza la guía correspondiente.

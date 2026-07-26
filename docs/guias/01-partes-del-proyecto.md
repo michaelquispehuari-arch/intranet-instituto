@@ -4,10 +4,11 @@
 
 ```
 intranet-instituto/
-├── backend/     Express + TypeScript + Prisma + PostgreSQL (puerto 4000)
-├── frontend/    Next.js App Router (puerto 3000)
-├── infra/       Notas de despliegue (nginx, Railway)
-└── docs/guias/  Esta carpeta
+├── backend/            Express + TypeScript + Prisma + PostgreSQL (puerto 4000)
+├── frontend/           Next.js App Router (puerto 3000)
+├── infra/              Notas de despliegue (nginx, Railway)
+├── docker-compose.yml  Redis local (ver guía 07-desarrollo-local.md; Postgres corre en un contenedor aparte)
+└── docs/guias/         Esta carpeta
 ```
 
 El frontend NUNCA llama directo al backend desde el navegador. Todo pasa por:

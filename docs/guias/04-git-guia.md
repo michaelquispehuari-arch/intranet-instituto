@@ -1,18 +1,27 @@
 # Git: subir cambios y volver atrás
 
-Estado actual del repo (2026-07-01): una sola rama remota, `dev`, en GitHub (`origin`). No existe todavía una rama `main` separada — todo el trabajo va directo a `dev`. El pipeline de CI (`.github/workflows/ci.yml`) corre automáticamente en cada push a `dev` (o a `main`, cuando exista): typecheck, build, tests y `npm audit` de frontend y backend.
+Estado actual del repo (2026-07-23): dos ramas remotas en GitHub (`origin`), `dev` y `main`. Railway despliega **solo desde `main`** (backend y frontend, cada uno como servicio separado) — un push a `dev` ya NO afecta el sitio real. `dev` es para trabajar y probar en local (ver [guía de desarrollo local](./07-desarrollo-local.md)); `main` es lo que ven los alumnos. El pipeline de CI (`.github/workflows/ci.yml`) corre automáticamente en cada push a `dev` o `main`: typecheck, build, tests y `npm audit` de frontend y backend.
 
-## Día a día: subir un cambio
+## Día a día: trabajar en `dev` y probar en local
 
 ```bash
 git status                      # qué archivos cambiaron
 git diff                        # qué cambió línea por línea (sin stage)
 git add ruta/al/archivo.ts      # agregar archivos puntuales (evita "git add ." si no revisaste todo)
 git commit -m "Mensaje corto describiendo el cambio"
-git push                        # sube a origin/dev
+git push                        # sube a origin/dev, NO toca producción
 ```
 
-Antes de hacer push, revisa que `npm run typecheck` y `npm run build` pasen en el/los paquete(s) que tocaste (`backend/` y/o `frontend/`) — si fallan localmente, van a fallar igual en CI.
+Antes de hacer push, revisa que `npm run typecheck` y `npm run build` pasen en el/los paquete(s) que tocaste (`backend/` y/o `frontend/`) — si fallan localmente, van a fallar igual en CI. Prueba el cambio corriendo el proyecto en local ([guía 07](./07-desarrollo-local.md)) antes de mandarlo a producción.
+
+## Subir un cambio ya probado a producción (`main`)
+
+```bash
+git checkout main
+git merge dev                   # trae los commits nuevos de dev
+git push origin main            # esto SÍ dispara el redeploy real en Railway
+git checkout dev                # vuelves a dev para seguir trabajando
+```
 
 ## Ver el historial
 
@@ -59,6 +68,7 @@ git checkout dev             # y para volver a la rama normal
 
 ## Reglas prácticas para este proyecto
 
-- Nunca hagas `git push --force` a `dev` sin avisar — puede borrar trabajo de otra sesión/commit que no viste.
+- Nunca hagas `git push --force` a `dev` ni a `main` sin avisar — puede borrar trabajo de otra sesión/commit que no viste, y en `main` además sería un redeploy accidental.
 - Nunca subas `backend/.env` ni `frontend/.env` (ya están en `.gitignore`, verifícalo con `git status` antes de un `git add .`).
+- Nunca pegues `DATABASE_URL`, credenciales de R2/SMTP ni ningún secreto real en el chat con el asistente (ni en ningún otro chat) — pásalos como variable de entorno directo en tu terminal (`$env:VAR="valor"` en PowerShell). Si un secreto se llega a pegar por error, rótalo en Railway/Cloudflare lo antes posible.
 - Si CI falla después de un push, corrige y sube un commit nuevo — no reescribas el commit que ya está en GitHub.

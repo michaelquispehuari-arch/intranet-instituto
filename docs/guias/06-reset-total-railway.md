@@ -25,7 +25,7 @@ Pasos:
    $env:DATABASE_URL = "<DATABASE_PUBLIC_URL de Railway>"
    node dist/src/scripts/reset-demo-data.js --confirm-reset-demo
    ```
-   El flag `--confirm-reset-demo` es obligatorio a propósito, para que no borres datos por accidente al copiar el comando sin pensarlo.
+   El flag `--confirm-reset-demo` es obligatorio a propósito, para que no borres datos por accidente al copiar el comando sin pensarlo. Si solo pones `DATABASE_URL` y dejas las variables `CLOUDFLARE_R2_*` con los valores de ejemplo de tu `backend/.env` local, el paso de R2 falla con un error de SSL confuso (intenta conectarse a un host que no existe) — exporta también las 4 variables `CLOUDFLARE_R2_*` reales (Railway → backend → Variables) en la misma terminal antes de correr el script.
 4. Verás una tabla en consola con el conteo de filas borradas por tabla. Al final, revisa que diga "Se conservaron usuarios ADMIN y configuracion global."
 5. Entra a la intranet con tu cuenta ADMIN existente y empieza a crear profesores, cursos, matrículas, etc. desde la propia app — así pruebas el flujo real, no solo la base de datos.
 
