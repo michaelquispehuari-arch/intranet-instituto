@@ -1,14 +1,16 @@
 # Partes del proyecto — dónde modificar qué
 
+> **Contiene:** mapa de carpetas del repo — qué archivo tocar para cambiar un texto, una imagen, una opción de menú, una conexión backend/frontend, o dónde vive cada capa (routes/controllers/services). Léelo primero si no sabes en qué archivo va tu cambio.
+
 ## Estructura general
 
 ```
 intranet-instituto/
 ├── backend/            Express + TypeScript + Prisma + PostgreSQL (puerto 4000)
 ├── frontend/           Next.js App Router (puerto 3000)
-├── infra/              Notas de despliegue (nginx, Railway)
+├── infra/nginx/        Config de Nginx (solo si se usa servidor propio)
 ├── docker-compose.yml  Redis local (ver guía 07-desarrollo-local.md; Postgres corre en un contenedor aparte)
-└── docs/guias/         Esta carpeta
+└── Documentacion/      Toda la documentación del proyecto (esta carpeta)
 ```
 
 El frontend NUNCA llama directo al backend desde el navegador. Todo pasa por:

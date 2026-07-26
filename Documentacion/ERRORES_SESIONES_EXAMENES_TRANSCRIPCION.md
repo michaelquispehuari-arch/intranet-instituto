@@ -1,5 +1,7 @@
 # Errores: Sesiones, Exámenes y Transcripción
 
+> **Contiene:** el modelo de tiempo real del examen (`disponibleDesde` + `duracionMinutos` + `ingresoHastaMin`, cierre global para todos, resultados visibles solo tras el cierre) y cómo la transcripción que sube el alumno se conecta a la NT (nota de transcripción) sin crear campos nuevos. Leer antes de tocar la lógica de exámenes o de transcripciones/NT.
+
 Fecha: 2026-06-16
 Objetivo: arreglar el guardado de sesiones, reestructurar el tiempo del examen y conectar la subida de
 transcripción del alumno con el cálculo automático de notas YA existente (sin crear variables nuevas).

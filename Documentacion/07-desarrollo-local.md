@@ -1,5 +1,7 @@
 # Desarrollo local (Postgres + Redis con Docker)
 
+> **Contiene:** cómo levantar Postgres/Redis con Docker y correr backend + frontend en tu PC. Punto de partida obligatorio antes de escribir código — todo cambio se prueba aquí antes de subir a `main`.
+
 Desde el 2026-07-23, `main` es la única rama que Railway despliega (ver [guía de git](./04-git-guia.md)). Todo cambio se prueba primero aquí, en local, antes de mergear `dev` → `main`.
 
 ## Requisitos

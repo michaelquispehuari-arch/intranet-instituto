@@ -1,5 +1,7 @@
 # Base de datos (PostgreSQL en Railway)
 
+> **Contiene:** cómo ver/editar datos reales (Railway Data tab, Prisma Studio), cómo corren las migraciones, el seed de prueba, y el script de reset total. Leer antes de tocar `schema.prisma` o correr algo contra la DB de producción.
+
 ## Cómo ver y editar datos reales
 
 1. Entra al proyecto en Railway → servicio PostgreSQL → pestaña **Data**. Railway trae un editor de tablas integrado, sirve para mirar/editar filas puntuales sin instalar nada.

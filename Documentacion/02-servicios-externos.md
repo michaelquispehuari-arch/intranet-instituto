@@ -1,6 +1,6 @@
 # Servicios externos: Railway, Cloudflare R2
 
-Guía operativa detallada ya existente: `infra/DEPLOY_DEMO.md` (no duplicar secretos, solo referencia). Esta guía explica el "para qué" de cada servicio y dónde toca el código.
+> **Contiene:** para qué sirve cada servicio externo (Railway, R2, dominio) y en qué archivo del código toca cada uno. Guía operativa paso a paso con variables exactas: [09-deploy-railway.md](./09-deploy-railway.md) (no duplicar secretos aquí, solo referencia).
 
 ## Mapa general
 
@@ -24,7 +24,7 @@ Un solo proyecto Railway con cuatro servicios:
 
 El backend valida TODAS sus variables de entorno al arrancar con Zod (`backend/src/config/env.ts`). Si falta `JWT_SECRET` o está mal formado, el proceso no arranca — es intencional, mejor que fallar a medias.
 
-Variables que se configuran en el dashboard de Railway (nunca en el repo): ver la lista completa en `infra/DEPLOY_DEMO.md`.
+Variables que se configuran en el dashboard de Railway (nunca en el repo): ver la lista completa en `09-deploy-railway.md`.
 
 Endpoint para confirmar que todo está bien conectado tras un deploy: `GET /health/ready` — devuelve el estado de postgres, redis, r2, smtp y sentry por separado. Si un servicio no está configurado, aparece `"status":"missing"` (no es un error fatal, es informativo).
 
@@ -62,7 +62,7 @@ CLOUDFLARE_R2_SECRET_ACCESS_KEY
 CLOUDFLARE_R2_BUCKET_NAME
 ```
 
-Pasos para crear el bucket y el token: ver `infra/DEPLOY_DEMO.md` sección "Cloudflare R2" (paso a paso ya escrito, no repetido aquí).
+Pasos para crear el bucket y el token: ver `09-deploy-railway.md` sección "Cloudflare R2" (paso a paso ya escrito, no repetido aquí).
 
 ## SMTP (recuperación de contraseña)
 
@@ -72,4 +72,4 @@ El envío real de correos corre en un proceso aparte (`npm run start:email-worke
 
 ## "Dormir" por plan gratuito
 
-Railway en plan gratuito puede pausar un servicio por inactividad (primera visita del día tarda más). Antes de compartir la demo con usuarios reales, confirmar que backend, frontend, PostgreSQL y Redis estén en un plan que no se duerma — ver `infra/DEPLOY_DEMO.md`.
+Railway en plan gratuito puede pausar un servicio por inactividad (primera visita del día tarda más). Antes de compartir la demo con usuarios reales, confirmar que backend, frontend, PostgreSQL y Redis estén en un plan que no se duerma — ver `09-deploy-railway.md`.

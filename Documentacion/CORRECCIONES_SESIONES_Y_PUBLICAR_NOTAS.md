@@ -1,5 +1,7 @@
 # Correcciones: Sesiones y publicación de notas
 
+> **Contiene:** por qué la grilla completa de notas es solo-ADMIN (profesor/estudiante solo ven la nota final), cómo funciona "Mandar notas" (snapshot con `notaFinalPublicada` y `notasPublicadasEn`), y el schema mínimo para guardar una sesión (título + link YouTube) sin error de validación. Leer antes de tocar visibilidad de notas o el guardado de sesiones.
+
 Fecha: 2026-06-16
 Contexto: el hosting es RAILWAY (no Render). Exámenes ya funciona tras aplicar la migración.
 Pendientes: (1) publicar link en Sesiones sigue fallando; (2) visibilidad de notas con botón "Mandar notas".

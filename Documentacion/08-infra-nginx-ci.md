@@ -1,4 +1,6 @@
-# Infraestructura
+# Infraestructura: Nginx y CI
+
+> **Contiene:** plantilla de Nginx (solo aplica si algún día se usa servidor propio en vez de Railway) y qué valida el pipeline de CI en cada push/PR. Para el despliegue real actual en Railway, ver [09-deploy-railway.md](./09-deploy-railway.md).
 
 ## Nginx
 
@@ -33,7 +35,7 @@ El deploy real queda pendiente hasta definir proveedor y credenciales seguras.
 Guia operativa:
 
 ```text
-infra/DEPLOY_DEMO.md
+09-deploy-railway.md
 ```
 
 Usar esa guia para configurar Railway (backend + frontend + PostgreSQL + Redis), Cloudflare R2, SMTP y el worker sin documentar secretos reales.

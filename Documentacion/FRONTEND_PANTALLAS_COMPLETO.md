@@ -1,5 +1,7 @@
 # Inventario Completo de Pantallas — Intranet Instituto
 
+> **Contiene:** cada pantalla del sistema, sus campos, botones, roles que la ven y a qué endpoint del backend llama, más el mapa completo de navegación. Punto de partida obligatorio antes de tocar cualquier pantalla existente o crear una nueva — evita romper un botón o un endpoint que no viste.
+>
 > Documento de referencia para rediseño de UI. Cubre cada pantalla, sus acciones, botones y conexiones backend.
 > Roles: **ADMIN** · **PROFESOR** · **ESTUDIANTE**
 

@@ -1,5 +1,7 @@
 # Correcciones de navegación y módulos (las 3 cuentas)
 
+> **Contiene:** la regla "una sola forma de llegar a cada pantalla" (módulos por-curso solo dentro del workspace del curso, nunca sueltos en el sidebar), el mapa final de sidebar/pestañas por rol, y reglas puntuales de Exámenes/Alumnos/registro de Profesores. Leer antes de agregar un ítem al sidebar o una ruta nueva.
+
 Fecha: 2026-06-16
 Base: revisar DOCUMENTACION_CONSOLIDADA_AVANCE_ACTUAL.md y DOCUMENTACION_AVANCE_VALIDACION_ACTUAL.md.
 Objetivo: quitar la ambigüedad de navegación y corregir Sesiones, Exámenes, Alumnos y el registro de Profesores.

@@ -1,5 +1,7 @@
 # Git: subir cambios y volver atrás
 
+> **Contiene:** comandos de git del día a día, cómo deshacer un error, y el flujo `dev` (trabajo/pruebas local) → `main` (producción, dispara redeploy en Railway). Leer antes de hacer push si no tienes claro a qué rama.
+
 Estado actual del repo (2026-07-23): dos ramas remotas en GitHub (`origin`), `dev` y `main`. Railway despliega **solo desde `main`** (backend y frontend, cada uno como servicio separado) — un push a `dev` ya NO afecta el sitio real. `dev` es para trabajar y probar en local (ver [guía de desarrollo local](./07-desarrollo-local.md)); `main` es lo que ven los alumnos. El pipeline de CI (`.github/workflows/ci.yml`) corre automáticamente en cada push a `dev` o `main`: typecheck, build, tests y `npm audit` de frontend y backend.
 
 ## Día a día: trabajar en `dev` y probar en local

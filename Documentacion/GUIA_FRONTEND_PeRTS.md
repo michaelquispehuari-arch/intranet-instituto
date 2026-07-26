@@ -1,6 +1,8 @@
 # Guía de Implementación de Frontend — Intranet PeRTS
 ### Seminario Teológico de Remanentes · Sistema de diseño + rediseño pantalla por pantalla
 
+> **Contiene:** sistema de diseño completo — tokens de color/tipografía (`frontend/src/app/tokens.css`), componentes base (botón, card, tabla, chip, tabs), catálogo cerrado de animaciones, diccionario de copy (qué texto técnico no debe verse en pantalla) y el rediseño pantalla por pantalla. Consultar antes de crear o cambiar cualquier componente visual, para no inventar un estilo nuevo fuera de los tokens.
+
 > **Para Claude Code.** Este documento es la fuente de verdad de **diseño visual** del frontend.
 > No cambia la lógica de negocio ni los endpoints (esos viven en la arquitectura del proyecto).
 > Su trabajo es: aplicar el sistema de diseño, los componentes, las animaciones y el copy limpio

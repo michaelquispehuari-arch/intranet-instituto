@@ -1,5 +1,7 @@
 # Contexto de implementación — Intranet Educativa
 
+> **Contiene:** modelo de datos y endpoints de Sesiones, Resúmenes, Configuración global (Zoom) y Sustitutorios; jerarquía Curso → Sesión; permisos por rol (ADMIN/PROFESOR/ESTUDIANTE); estructura de carpetas del frontend. Leer antes de tocar el schema de Prisma o esos módulos del backend/frontend. Complementar con [REGISTRO_Y_CALCULO_NOTAS.md](./REGISTRO_Y_CALCULO_NOTAS.md) para la fórmula real de notas (esta guía tiene una versión simplificada, ya reemplazada).
+
 Fecha: 2026-06-14
 Propósito: este documento es la fuente de verdad de PRODUCTO y ESTRUCTURA para implementar la plataforma. Las reglas generales de programación viven en el CLAUDE.md global; aquí va TODO lo específico del proyecto. Léelo completo antes de tocar código.
 

@@ -1,5 +1,7 @@
 # Auditoría de seguridad, conexiones y código muerto — 2026-07-01
 
+> **Contiene:** registro histórico de una auditoría puntual (qué se corrigió, qué se verificó sin hallazgos, prueba de carga). Es un snapshot fechado, no un checklist vivo — útil para no repetir una revisión ya hecha, no para saber el estado actual del sistema.
+
 Registro de la revisión completa pedida antes del lanzamiento: conexiones, seguridad entre cuentas, ataques, carga, código sin uso y pantallas sin conectar. El proyecto todavía no tenía usuarios reales en esta fecha, por eso se pudieron correr pruebas de carga y seguridad sin restricción de entorno.
 
 ## Corregido

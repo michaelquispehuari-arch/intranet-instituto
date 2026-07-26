@@ -1,4 +1,6 @@
-# Despliegue
+# Despliegue en Railway
+
+> **Contiene:** guía operativa paso a paso — variables de entorno exactas de cada servicio (backend, frontend), dominio propio, Cloudflare R2, SMTP, email-worker. Consultar cuando toque cambiar algo en el dashboard de Railway.
 
 ## Objetivo
 

@@ -1,5 +1,7 @@
 # Reset total de la base de datos en Railway (para empezar pruebas desde cero)
 
+> **Contiene:** los dos comandos para borrar datos de Railway (conservando o no el ADMIN) y cómo evitar el error de SSL con R2 al correrlos. **El proyecto ya tiene usuarios reales desde 2026-07-23** — antes de usar esto, confirmar que de verdad hace falta borrar datos de producción, no es una operación libre de riesgo.
+
 Objetivo: dejar la base de datos de Railway sin cursos, inscripciones, exámenes, asistencias, materiales, etc., para volver a probar todo el flujo creando profesores y cursos desde la app, como si fuera el primer uso real.
 
 Hay dos formas. Usa la **Opción A** salvo que quieras también borrar el usuario ADMIN.

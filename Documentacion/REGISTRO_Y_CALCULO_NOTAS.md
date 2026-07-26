@@ -1,5 +1,7 @@
 # Registro de estudiantes y cálculo de notas (RTS Perú)
 
+> **Contiene:** la fórmula real y exacta de la nota de asistencia (símbolos F/A/M/C/T/J, modos SINCRONICO/ASINCRONICO/MIXTO), de dónde salen la NT (transcripción) y la nota de examen (automáticas, nunca a mano), la fórmula de la nota final (entera, truncada), y las columnas del registro de estudiantes. **Leer siempre antes de tocar cualquier cosa relacionada a notas/calificaciones/asistencia** — la fórmula es específica y fácil de romper sin darse cuenta.
+
 Fecha: 2026-06-16
 Propósito: definir el registro real de estudiantes y el cálculo real de la nota semanal del seminario.
 ESTO REEMPLAZA el enfoque placeholder de asistencia del documento de contexto.
