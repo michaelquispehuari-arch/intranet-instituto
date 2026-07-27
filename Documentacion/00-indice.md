@@ -16,6 +16,7 @@ Esta carpeta no se actualiza sola. Si agregas una pantalla, un servicio nuevo o 
 
 4. [Git: subir y revertir cambios](./04-git-guia.md) — comandos del día a día, cómo deshacer un error, y el flujo `dev` (local) → `main` (producción, dispara redeploy en Railway).
 7. [Desarrollo local](./07-desarrollo-local.md) — levantar Postgres/Redis con Docker y correr backend + frontend en tu PC antes de subir a producción. Leer antes de tocar cualquier código.
+10. [Sesión y autenticación](./10-sesion-y-autenticacion.md) — por qué la sesión no vencía por inactividad y los cursos "desaparecían" (401 silencioso), y los tres mecanismos que lo corrigen: `maxAge` de NextAuth, `middleware.ts` y el interceptor de fetch. Leer antes de tocar login, `authOptions` o cualquier `fetch` a `/api/backend/*`.
 
 ## Auditoría y mantenimiento de datos
 

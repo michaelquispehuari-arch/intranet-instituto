@@ -16,6 +16,12 @@ type BackendLoginResponse = {
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
+    // Cierre de sesion por inactividad: si pasa 1h sin actividad (sin que se
+    // refresque el token) la cookie vence y el middleware manda a /login.
+    // updateAge mas chico que maxAge permite que el uso activo vaya
+    // extendiendo la sesion en vez de cortarla a la hora exacta del login.
+    maxAge: 60 * 60,
+    updateAge: 5 * 60,
   },
   pages: {
     signIn: "/login",
