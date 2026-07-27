@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { notaAsistencia13 } from "@/lib/nota-asistencia";
 
 type ModoEstudio = "SINCRONICO" | "ASINCRONICO" | "MIXTO";
 
@@ -46,6 +47,26 @@ function chipClase(nota: number | null) {
   if (nota === null) return { color: "var(--texto-tenue)", bg: "#F6F7F5" };
   if (nota >= 11) return { color: "var(--aprobado-texto)", bg: "var(--aprobado-fondo)" };
   return { color: "var(--desaprobado-texto)", bg: "var(--desaprobado-fondo)" };
+}
+
+// Vista previa en vivo: misma fórmula que el backend (frontend/src/lib/nota-asistencia.ts),
+// recalculada en cada cambio de celda para que Asist./Final se actualicen sin tener que guardar.
+function calcularPreview(
+  modo: ModoEstudio,
+  celdas: Record<string, string>,
+  numDias: 1 | 2 | 3,
+  ntVals: (number | null)[],
+  notaExamen: number,
+): { notaAsistencia: number; notaFinal: number } {
+  const row = [
+    modo,
+    celdas.d1c1 ?? "", celdas.d1c2 ?? "", celdas.d1c3 ?? "", ntVals[0] ?? "",
+    celdas.d2c1 ?? "", celdas.d2c2 ?? "", celdas.d2c3 ?? "", ntVals[1] ?? "",
+    celdas.d3c1 ?? "", celdas.d3c2 ?? "", celdas.d3c3 ?? "", ntVals[2] ?? "",
+  ];
+  const notaAsistencia = notaAsistencia13(row, numDias);
+  const notaFinal = Math.floor((notaAsistencia + notaExamen) / 2);
+  return { notaAsistencia, notaFinal };
 }
 
 export default function NotasSheetPage() {
@@ -315,7 +336,15 @@ export default function NotasSheetPage() {
           <tbody>
             {data.filas.map((fila) => {
               const ntVals = [fila.ntDia1, fila.ntDia2, fila.ntDia3];
-              const notaFinal = fila.notaFinal;
+              const modoActual = modos[fila.estudianteId] ?? fila.modo;
+              const celdasActuales = edits[fila.estudianteId] ?? fila.celdasCamara;
+              const forumRaw = forumGradeEdits[fila.estudianteId];
+              const notaExamenEfectivo =
+                data.tipo === "DIPLOMADO" && !fila.forumEntregado
+                  ? (forumRaw !== undefined && forumRaw !== "" && !isNaN(Number(forumRaw)) ? Number(forumRaw) : 0)
+                  : fila.notaExamenRecup ?? fila.notaExamenNorm ?? 0;
+              const preview = calcularPreview(modoActual, celdasActuales, numDias, ntVals, notaExamenEfectivo);
+              const notaFinal = preview.notaFinal;
               const chip = chipClase(notaFinal);
 
               return (
@@ -363,7 +392,7 @@ export default function NotasSheetPage() {
                   ))}
 
                   <td style={{ padding: "4px 6px", textAlign: "center", fontWeight: 600 }}>
-                    {fila.notaAsistencia?.toFixed(1) ?? "—"}
+                    {preview.notaAsistencia.toFixed(1)}
                   </td>
                   {data.tipo === "DIPLOMADO" ? (
                     <td style={{ padding: "4px 6px", textAlign: "center", fontWeight: 600 }}>

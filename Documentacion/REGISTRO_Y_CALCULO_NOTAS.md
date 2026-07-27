@@ -197,7 +197,8 @@ function normalizar(v: Celda): string {
 ```
 
 El backend arma `row` así: `[modo, ...celdas]`, donde las celdas NT ya vienen de la transcripción (sección 4).
-El frontend NUNCA calcula la nota.
+El frontend calcula la nota SOLO para la vista previa en vivo (sección 7); lo que se guarda en la base
+de datos siempre lo calcula el backend al recibir el POST de `/grades-sheet`.
 
 ---
 
@@ -263,7 +264,11 @@ Verificado contra la hoja del cliente: los .5 caen hacia abajo (16.5 -> 16, 13.5
 - Celdas NO editables (se traen solas): NT (de la transcripción), Examen (del módulo), Nota Asist y Nota Final (calculadas).
 - Entrada rápida: Tab / Enter / flechas entre celdas, como hoja de cálculo.
 - Selector de numDias (1, 2 o 3) por curso.
-- Nota Asist y Nota Final se recalculan al guardar la fila (las calcula el backend) y se muestran de solo lectura.
+- Nota Asist y Nota Final se recalculan EN VIVO en el navegador con cada cambio de celda (cámara, modo o
+  días de clase), usando una copia de la fórmula de la sección 3 en `frontend/src/lib/nota-asistencia.ts`.
+  Es solo una VISTA PREVIA: al hacer clic en "Guardar" el backend vuelve a calcular con la misma fórmula
+  (`backend/src/utils/nota-asistencia.ts`) y ESA es la nota que se persiste — el backend sigue siendo la
+  única autoridad de lo que queda guardado. Si se edita la fórmula, hay que actualizar ambos archivos.
 - Resaltado opcional: nota desaprobatoria en rojo.
 
 OPCIONAL / EXPERIMENTAL — entrada por voz:
@@ -307,6 +312,7 @@ POST   /api/courses/:id/grades-sheet  upsert de una fila { estudianteId, modo, n
 [ ] La nota de examen se trae del módulo (NORM normal, RECUP sustitutorio); examen vacío = 0.
 [ ] La nota de asistencia coincide con la fórmula oficial (probar con filas reales de la hoja del cliente).
 [ ] La nota final es ENTERA y truncada hacia abajo; coincide con la hoja.
-[ ] El cálculo ocurre en el backend; el frontend solo captura las celdas de cámara y muestra.
+[x] El backend es la autoridad de lo que se guarda; el frontend además muestra una vista previa en
+    vivo recalculada con cada cambio de celda (misma fórmula duplicada en `frontend/src/lib/nota-asistencia.ts`).
 [ ] backend y frontend: typecheck + build OK; pruebas de la fórmula con casos conocidos.
 ```
