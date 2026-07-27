@@ -1,10 +1,10 @@
 # Reset total de la base de datos en Railway (para empezar pruebas desde cero)
 
-> **Contiene:** los dos comandos para borrar datos de Railway (conservando o no el ADMIN) y cómo evitar el error de SSL con R2 al correrlos. **El proyecto ya tiene usuarios reales desde 2026-07-23** — antes de usar esto, confirmar que de verdad hace falta borrar datos de producción, no es una operación libre de riesgo.
+> **Contiene:** los comandos para borrar datos de Railway — todo (conservando o no el ADMIN) o solo estudiantes — y cómo evitar el error de SSL con R2 al correrlos. **El proyecto ya tiene usuarios reales desde 2026-07-23** — antes de usar esto, confirmar que de verdad hace falta borrar datos de producción, no es una operación libre de riesgo.
 
 Objetivo: dejar la base de datos de Railway sin cursos, inscripciones, exámenes, asistencias, materiales, etc., para volver a probar todo el flujo creando profesores y cursos desde la app, como si fuera el primer uso real.
 
-Hay dos formas. Usa la **Opción A** salvo que quieras también borrar el usuario ADMIN.
+Hay tres formas. Usa la **Opción A** para un reset completo salvo que quieras también borrar el usuario ADMIN (**Opción B**), o la **Opción C** si solo quieres borrar estudiantes y dejar cursos/profesores como están.
 
 ## Antes de empezar: backup
 
@@ -47,7 +47,35 @@ npx prisma migrate reset --skip-seed
 - Sin ningún usuario ADMIN en la base, nadie puede entrar al panel de administración a crear profesores/cursos (esas rutas exigen rol ADMIN). Necesitas al menos un ADMIN inicial: la forma más simple es correr el seed completo (crea `admin@instituto.test` / `Password123!`) y luego borrar manualmente desde Prisma Studio los profesores/cursos/estudiantes de ejemplo que no quieras, dejando solo ese admin.
 - Esta opción **no toca los archivos de R2** — si quieres limpiarlos también, corre igual el paso de R2 de la Opción A o bórralos manualmente desde el dashboard de Cloudflare.
 
-## Después del reset (cualquiera de las dos opciones)
+## Opción C: borrar SOLO estudiantes (conserva cursos, profesores y admin)
+
+Para cuando lo que sobra son estudiantes de prueba, pero los cursos/profesores/exámenes ya están bien
+armados y no quieres tocarlos. Script: `backend/src/scripts/delete-all-students.ts` (`npm run delete:students`).
+Borra, en una sola transacción, TODO lo que dependa de usuarios con rol `ESTUDIANTE`: respuestas de examen,
+envíos de examen, notas manuales, asistencias, resúmenes (transcripciones), entregas de Forum, registros
+semanales, habilitaciones de sustitutorio, inscripciones, y finalmente los propios usuarios `ESTUDIANTE`.
+También borra en Cloudflare R2 los archivos de esas transcripciones/forums (si `CLOUDFLARE_R2_*` está
+configurado). **No toca** cursos, sesiones, exámenes, preguntas, materiales, ni usuarios `ADMIN`/`PROFESOR`.
+
+Local:
+```
+cd backend
+npm run build
+npm run delete:students -- --confirm-delete-students
+```
+
+Railway (mismo patrón que la Opción A — backup primero, y exporta `DATABASE_URL` apuntando a
+`DATABASE_PUBLIC_URL` en la misma terminal, sin pegarlo en el chat):
+```
+cd backend
+npm run build
+$env:DATABASE_URL = "<DATABASE_PUBLIC_URL de Railway>"
+node dist/src/scripts/delete-all-students.js --confirm-delete-students
+```
+
+El flag `--confirm-delete-students` es obligatorio a propósito, igual que en la Opción A.
+
+## Después del reset (cualquiera de las opciones)
 
 - Revisa las variables de entorno del backend en Railway (`CLOUDFLARE_R2_*`, `JWT_SECRET`, etc.) — el reset no las toca, pero conviene confirmar que apuntan al entorno correcto antes de empezar a subir archivos de prueba.
 - El frontend no necesita ningún cambio: al no haber sesión activa, redirige normal al login.

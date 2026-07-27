@@ -21,7 +21,7 @@ Esta carpeta no se actualiza sola. Si agregas una pantalla, un servicio nuevo o 
 ## Auditoría y mantenimiento de datos
 
 5. [Auditoría y pruebas (2026-07-01)](./05-auditoria-y-pruebas.md) — registro de la revisión de seguridad, conexiones, código muerto y carga hecha en esa fecha: qué se encontró, qué se corrigió y qué quedó pendiente.
-6. [Reset total de Railway](./06-reset-total-railway.md) — cómo borrar todos los datos de prueba (o absolutamente todo) para empezar de cero. Usar con cuidado: **el proyecto ya tiene usuarios reales** (desde 2026-07-23), esto ya no es una operación libre de riesgo.
+6. [Reset total de Railway](./06-reset-total-railway.md) — cómo borrar todos los datos de prueba (o absolutamente todo), o solo los estudiantes (Opción C, conserva cursos/profesores). Usar con cuidado: **el proyecto ya tiene usuarios reales** (desde 2026-07-23), esto ya no es una operación libre de riesgo.
 
 ## Arquitectura y lógica de negocio (qué hace el sistema, no cómo se despliega)
 
