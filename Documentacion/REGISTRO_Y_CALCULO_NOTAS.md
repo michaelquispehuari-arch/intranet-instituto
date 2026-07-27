@@ -266,9 +266,15 @@ Verificado contra la hoja del cliente: los .5 caen hacia abajo (16.5 -> 16, 13.5
 - Selector de numDias (1, 2 o 3) por curso.
 - Nota Asist y Nota Final se recalculan EN VIVO en el navegador con cada cambio de celda (cámara, modo o
   días de clase), usando una copia de la fórmula de la sección 3 en `frontend/src/lib/nota-asistencia.ts`.
-  Es solo una VISTA PREVIA: al hacer clic en "Guardar" el backend vuelve a calcular con la misma fórmula
-  (`backend/src/utils/nota-asistencia.ts`) y ESA es la nota que se persiste — el backend sigue siendo la
-  única autoridad de lo que queda guardado. Si se edita la fórmula, hay que actualizar ambos archivos.
+  Es solo una VISTA PREVIA: la nota real la vuelve a calcular el backend con la misma fórmula
+  (`backend/src/utils/nota-asistencia.ts`) al guardar — el backend sigue siendo la única autoridad de lo
+  que queda persistido. Si se edita la fórmula, hay que actualizar ambos archivos.
+- NO hay botón "Guardar" por fila. Los cambios de la grilla (celdas, modo, nota de Forum manual) viven
+  solo en el estado del navegador hasta que el admin hace clic en "Mandar notas": ese botón primero
+  guarda TODAS las filas (una petición POST /grades-sheet por alumno, en paralelo) y recién después
+  publica (POST /grades/publish), dejando la nota visible para el profesor/alumno.
+  Implicancia: si se recarga o cierra la página antes de "Mandar notas", los cambios no guardados se
+  pierden (antes existía un guardado incremental por fila que persistía sin publicar).
 - Resaltado opcional: nota desaprobatoria en rojo.
 
 OPCIONAL / EXPERIMENTAL — entrada por voz:
@@ -298,6 +304,8 @@ GET    /api/courses/:id/grades-sheet  filas con celdas de cámara editables + NT
 POST   /api/courses/:id/grades-sheet  upsert de una fila { estudianteId, modo, numDias, celdasCamara }
    -> el backend toma NT de las transcripciones del día, examen del módulo,
       recalcula notaAsistencia (sección 3) y notaFinal (sección 6), y guarda.
+   -> el frontend ya no lo llama desde un botón "Guardar" por fila: lo llama una vez por alumno,
+      en paralelo, justo antes de publicar (ver sección 7).
 ```
 
 ---

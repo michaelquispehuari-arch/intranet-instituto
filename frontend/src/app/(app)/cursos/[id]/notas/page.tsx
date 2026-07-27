@@ -80,7 +80,6 @@ export default function NotasSheetPage() {
   const [edits, setEdits] = useState<Record<string, Record<string, string>>>({});
   const [modos, setModos] = useState<Record<string, ModoEstudio>>({});
   const [forumGradeEdits, setForumGradeEdits] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [publishing, setPublishing] = useState(false);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
 
@@ -118,38 +117,47 @@ export default function NotasSheetPage() {
 
   useEffect(() => { if (rol) load(); }, [load, rol]);
 
-  async function saveRow(estudianteId: string) {
-    setSaving((s) => ({ ...s, [estudianteId]: true }));
-    const fila = data?.filas.find((f) => f.estudianteId === estudianteId);
-    const incluirNotaForum = data?.tipo === "DIPLOMADO" && fila && !fila.forumEntregado;
-    const raw = forumGradeEdits[estudianteId];
-    const r = await fetch(`/api/backend/courses/${cursoId}/grades-sheet`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        estudianteId,
-        modo: modos[estudianteId] ?? "SINCRONICO",
-        numDias,
-        celdasCamara: edits[estudianteId] ?? {},
-        ...(incluirNotaForum ? { notaForumManual: raw !== undefined && raw !== "" ? Number(raw) : null } : {}),
-      }),
-    });
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({})) as { message?: string };
-      alert(d.message ?? "Error al guardar la fila");
-    }
-    await load();
-    setSaving((s) => ({ ...s, [estudianteId]: false }));
+  // Guarda todas las filas de la grilla (una petición por alumno, en paralelo).
+  // Ya no hay botón "Guardar" por fila: todo se guarda de una vez al mandar/publicar notas.
+  async function saveAllRows(): Promise<boolean> {
+    if (!data) return true;
+    const resultados = await Promise.all(
+      data.filas.map(async (fila) => {
+        const incluirNotaForum = data.tipo === "DIPLOMADO" && !fila.forumEntregado;
+        const raw = forumGradeEdits[fila.estudianteId];
+        const r = await fetch(`/api/backend/courses/${cursoId}/grades-sheet`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            estudianteId: fila.estudianteId,
+            modo: modos[fila.estudianteId] ?? fila.modo,
+            numDias,
+            celdasCamara: edits[fila.estudianteId] ?? {},
+            ...(incluirNotaForum ? { notaForumManual: raw !== undefined && raw !== "" ? Number(raw) : null } : {}),
+          }),
+        });
+        return r.ok;
+      })
+    );
+    return resultados.every(Boolean);
   }
 
   async function handlePublish() {
     setPublishing(true);
+    const guardadoOk = await saveAllRows();
+    if (!guardadoOk) {
+      alert("Hubo un error guardando alguna fila. Revisa la grilla e intenta de nuevo.");
+      await load();
+      setPublishing(false);
+      return;
+    }
     const r = await fetch(`/api/backend/courses/${cursoId}/grades/publish`, { method: "POST" });
-    setPublishing(false);
     if (r.ok) {
       const d = await r.json() as { notasPublicadasEn: string };
       setPublishedAt(d.notasPublicadasEn);
     }
+    await load();
+    setPublishing(false);
   }
 
   if (loading) return <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>;
@@ -268,7 +276,7 @@ export default function NotasSheetPage() {
               onClick={handlePublish}
               disabled={publishing}
             >
-              {publishing ? "Publicando…" : "Mandar notas"}
+              {publishing ? "Guardando y publicando…" : "Mandar notas"}
             </button>
             {publishedAt && (
               <span style={{ fontSize: 11, color: "var(--texto-tenue)" }}>
@@ -330,7 +338,6 @@ export default function NotasSheetPage() {
                 <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Exam.</th>
               )}
               <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Final</th>
-              <th style={{ padding: "8px 6px", textAlign: "center" }}></th>
             </tr>
           </thead>
           <tbody>
@@ -429,16 +436,6 @@ export default function NotasSheetPage() {
                       {notaFinal ?? "—"}
                     </span>
                   </td>
-                  <td style={{ padding: "4px 6px", textAlign: "center" }}>
-                    <button
-                      className="btn btn-primary"
-                      style={{ fontSize: 12, padding: "4px 10px" }}
-                      onClick={() => saveRow(fila.estudianteId)}
-                      disabled={saving[fila.estudianteId]}
-                    >
-                      {saving[fila.estudianteId] ? "…" : "Guardar"}
-                    </button>
-                  </td>
                 </tr>
               );
             })}
@@ -450,6 +447,7 @@ export default function NotasSheetPage() {
         {data.tipo === "DIPLOMADO"
           ? "Nota de Forum = nota puesta al revisar el Forum de la semana en Corregir forums, reemplaza a la nota de examen (si el alumno ya subió su forum, solo se edita ahí). Si no subió nada, se puede poner la nota directo aquí · Final = ⌊(Asist + Nota de Forum) / 2⌋"
           : "NT = nota de transcripción (puesta por revisor) · Exam. = nota del examen del módulo · Final = ⌊(Asist + Exam) / 2⌋"}
+        {" · "}Los cambios de la grilla se guardan recién al hacer clic en &quot;Mandar notas&quot; (ya no hay botón de guardar por fila).
       </div>
     </div>
   );
