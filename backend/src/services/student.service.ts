@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import { ModoEstudio, Prisma, Rol } from "@prisma/client";
 import { prisma } from "../utils/prisma.js";
-import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../utils/http-error.js";
 import type { AuthUser } from "../types/auth.js";
 
 export type CreateStudentInput = {
@@ -64,6 +64,14 @@ export async function listStudents(query: string, user: AuthUser) {
 
 export async function createStudent(input: CreateStudentInput, user: AuthUser) {
   if (user.rol !== Rol.ADMIN) throw new ForbiddenError();
+
+  const existsByEmail = await prisma.usuario.findUnique({ where: { email: input.email } });
+  if (existsByEmail) throw new ValidationError("Ya existe un usuario con ese correo");
+
+  if (input.codigo) {
+    const existsByCodigo = await prisma.usuario.findUnique({ where: { codigo: input.codigo } });
+    if (existsByCodigo) throw new ValidationError("Ya existe un estudiante con ese código");
+  }
 
   const passwordHash = await bcrypt.hash(input.dni, 12);
 

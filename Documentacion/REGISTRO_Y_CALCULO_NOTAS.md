@@ -36,6 +36,10 @@ Funcionalidades:
 - Búsqueda / filtro por CÓDIGO para ver un estudiante en particular (también por nombre).
 - IMPORTACIÓN CSV con esas mismas columnas (el cliente ya tiene sus datos en ese formato).
   Validar duplicados por CÓDIGO y por CORREO.
+- Alta manual de un estudiante (formulario "Agregar"): valida duplicados por CORREO y por CÓDIGO
+  ANTES de crear, igual que la importación CSV (`createStudent` en `backend/src/services/student.service.ts`).
+  Si ya existe, devuelve 400 con mensaje claro ("Ya existe un usuario con ese correo" / "...con ese código")
+  en vez de un error 500 de restricción única de la base de datos.
 - Solo ADMIN gestiona el registro.
 ```
 
