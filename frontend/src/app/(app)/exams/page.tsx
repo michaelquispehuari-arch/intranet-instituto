@@ -34,6 +34,19 @@ function canOpenExam(exam: ExamListItem, role: string) {
   return getExamAvailabilityLabel(exam) === "Disponible";
 }
 
+function getExamStateChip(exam: ExamListItem) {
+  const now = new Date();
+  const desde = exam.disponibleDesde ? new Date(exam.disponibleDesde) : null;
+  const cierre = desde ? new Date(desde.getTime() + exam.duracionMinutos * 60_000) : null;
+  const disponible = Boolean(exam.publicadoEn) && desde !== null && desde <= now && cierre !== null && cierre > now;
+  const vencido = cierre !== null && cierre < now;
+
+  if (!exam.publicadoEn) return { label: "Borrador", chipClass: "chip-capturas" };
+  if (vencido) return { label: "Vencido", chipClass: "chip-resumen" };
+  if (disponible) return { label: "En curso", chipClass: "chip-ok" };
+  return { label: "Pendiente", chipClass: "chip-capturas" };
+}
+
 async function publishExam(formData: FormData) {
   "use server";
 
@@ -91,65 +104,66 @@ export default async function ExamsPage() {
       </div>
 
       {data.exams.length === 0 ? (
-        <section className="card empty-state">
-          <strong>No hay examenes disponibles.</strong>
-          <p className="muted">Cuando exista una evaluacion para tu rol, aparecera aqui.</p>
-        </section>
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-icon">📝</div>
+            <p className="empty-state-title">Sin exámenes</p>
+            <p>{canManageExams ? "Crea el primer examen desde el botón de arriba." : "Cuando exista una evaluación para tu rol, aparecerá aquí."}</p>
+          </div>
+        </div>
       ) : (
-        <section className="stat-grid" aria-label="Examenes disponibles">
-          {data.exams.map((exam) => (
-            <article className="card exam-card" style={{ padding: 20 }} key={exam.id}>
-              <div>
-                <span className="badge">{getExamAvailabilityLabel(exam)}</span>
-                <h2 style={{ margin: "8px 0 4px", fontSize: 17 }}>{exam.titulo}</h2>
-                <p style={{ color: "var(--texto-secundario)", fontSize: 14 }}>{exam.descripcion ?? "Sin descripcion"}</p>
-                <dl className="meta-list">
-                  <div>
-                    <dt>Curso</dt>
-                    <dd>{exam.curso.nombre}</dd>
+        <div className="session-list" aria-label="Exámenes disponibles">
+          {data.exams.map((exam) => {
+            const estado = getExamStateChip(exam);
+            const desde = exam.disponibleDesde ? new Date(exam.disponibleDesde) : null;
+            const cierre = desde ? new Date(desde.getTime() + exam.duracionMinutos * 60_000) : null;
+            return (
+              <article className="session-card" style={{ cursor: "default" }} key={exam.id}>
+                <div className="session-info">
+                  <div className="session-title">{exam.titulo}</div>
+                  <div style={{ fontSize: 13, color: "var(--texto-tenue)", marginTop: 4 }}>
+                    {exam.curso.nombre} · {exam.duracionMinutos} min · {exam._count.preguntas} pregunta(s)
+                    {desde && ` · Inicio ${desde.toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
+                    {cierre && ` · Cierre ${cierre.toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
                   </div>
-                  <div>
-                    <dt>Duracion</dt>
-                    <dd>{exam.duracionMinutos} min</dd>
+                  <div className="session-chips" style={{ marginTop: 6 }}>
+                    <span className={`chip ${estado.chipClass}`}>{estado.label}</span>
+                    {exam._count.envios > 0 && (
+                      <span className="chip chip-grabacion">{exam._count.envios} envío(s)</span>
+                    )}
                   </div>
-                  <div>
-                    <dt>Preguntas</dt>
-                    <dd>{exam._count.preguntas}</dd>
-                  </div>
-                  <div>
-                    <dt>Publicado</dt>
-                    <dd>{formatDate(exam.publicadoEn)}</dd>
-                  </div>
-                </dl>
-              </div>
-
-              <div className="card-actions">
-                {canOpenExam(exam, session.user.rol) ? (
-                  <Link className="btn btn-secondary" href={`/exams/${exam.id}`}>
-                    {session.user.rol === "ESTUDIANTE" ? "Dar examen" : "Abrir"}
-                  </Link>
-                ) : (
-                  <span className="btn btn-secondary" aria-disabled="true">
-                    No disponible
-                  </span>
-                )}
-                {exam._count.envios > 0 || session.user.rol !== "ESTUDIANTE" ? (
-                  <Link className="btn btn-secondary" href={`/exams/${exam.id}/results`}>
-                    Resultados
-                  </Link>
-                ) : null}
-                {canManageExams && !exam.publicadoEn ? (
-                  <form action={publishExam}>
-                    <input name="examId" type="hidden" value={exam.id} />
-                    <button className="btn btn-primary" type="submit">
-                      Publicar
-                    </button>
-                  </form>
-                ) : null}
-              </div>
-            </article>
-          ))}
-        </section>
+                  {exam.descripcion && (
+                    <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--texto-secundario)" }}>{exam.descripcion}</p>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+                  {canOpenExam(exam, session.user.rol) ? (
+                    <Link className="btn btn-primary" style={{ fontSize: 13 }} href={`/exams/${exam.id}`}>
+                      {session.user.rol === "ESTUDIANTE" ? "Dar examen" : "Abrir"}
+                    </Link>
+                  ) : (
+                    <span className="btn btn-secondary" style={{ fontSize: 13, opacity: 0.5, cursor: "not-allowed" }} aria-disabled="true">
+                      No disponible
+                    </span>
+                  )}
+                  {exam._count.envios > 0 || session.user.rol !== "ESTUDIANTE" ? (
+                    <Link className="btn btn-secondary" style={{ fontSize: 13 }} href={`/exams/${exam.id}/results`}>
+                      Resultados
+                    </Link>
+                  ) : null}
+                  {canManageExams && !exam.publicadoEn ? (
+                    <form action={publishExam}>
+                      <input name="examId" type="hidden" value={exam.id} />
+                      <button className="btn btn-primary" style={{ fontSize: 13 }} type="submit">
+                        Publicar
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
       )}
     </div>
   );

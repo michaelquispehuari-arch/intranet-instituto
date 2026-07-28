@@ -58,10 +58,13 @@ export default async function ExamResultsPage({ params, searchParams }: ExamResu
     return (
       <div>
         {backLink}
-        <section className="card empty-state">
-          <strong>Resultados no disponibles</strong>
-          <p className="muted">Los resultados de este examen serán revisados y publicados por el administrador.</p>
-        </section>
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-icon">⏳</div>
+            <p className="empty-state-title">Resultados no disponibles</p>
+            <p>Los resultados de este examen serán revisados y publicados por el administrador.</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -70,10 +73,13 @@ export default async function ExamResultsPage({ params, searchParams }: ExamResu
     return (
       <div>
         {backLink}
-        <section className="card empty-state">
-          <strong>Resultado aún no disponible</strong>
-          <p className="muted">El resultado estará disponible a partir de las {cierreLabel}, cuando cierre el examen para todos.</p>
-        </section>
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-icon">⏳</div>
+            <p className="empty-state-title">Resultado aún no disponible</p>
+            <p>El resultado estará disponible a partir de las {cierreLabel}, cuando cierre el examen para todos.</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -82,14 +88,17 @@ export default async function ExamResultsPage({ params, searchParams }: ExamResu
     return (
       <div>
         {backLink}
-        <section className="page-header">
-          <span className="badge">Resultados</span>
+        <div className="page-header">
+          <span className="page-eyebrow">Resultados</span>
           <h1 className="page-title">{data?.exam.titulo ?? "Examen"}</h1>
-        </section>
-        <section className="card empty-state">
-          <strong>Sin envíos completados.</strong>
-          <p className="muted">Cuando un estudiante envíe el examen, el resultado aparecerá aquí.</p>
-        </section>
+        </div>
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-icon">📊</div>
+            <p className="empty-state-title">Sin envíos completados</p>
+            <p>Cuando un estudiante envíe el examen, el resultado aparecerá aquí.</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -107,9 +116,12 @@ export default async function ExamResultsPage({ params, searchParams }: ExamResu
                 ← Lista de alumnos
               </Link>
             </div>
-            <section className="card empty-state">
-              <p>Alumno no encontrado en los resultados de este examen.</p>
-            </section>
+            <div className="card">
+              <div className="empty-state">
+                <p className="empty-state-title">Alumno no encontrado</p>
+                <p>No aparece en los resultados de este examen.</p>
+              </div>
+            </div>
           </div>
         );
       }
@@ -122,16 +134,16 @@ export default async function ExamResultsPage({ params, searchParams }: ExamResu
               ← Lista de alumnos
             </Link>
           </div>
-          <section className="page-header">
-            <span className="badge">Respuestas</span>
+          <div className="page-header">
+            <span className="page-eyebrow">Respuestas</span>
             <h1 className="page-title">{data.exam.titulo}</h1>
             <p className="page-subtitle">
               {sub.estudiante.nombre} {sub.estudiante.apellido} · {sub.estudiante.email}
             </p>
-          </section>
+          </div>
           <section className="card" style={{ padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-              <span className="badge">Puntaje total: {formatScore(sub.puntajeTotal)}</span>
+              <span className="chip chip-ok">Puntaje total: {formatScore(sub.puntajeTotal)}</span>
               {sub.enviadoEn && (
                 <span style={{ fontSize: 13, color: "var(--texto-tenue)" }}>
                   Enviado:{" "}
@@ -172,44 +184,47 @@ export default async function ExamResultsPage({ params, searchParams }: ExamResu
     return (
       <div>
         {backLink}
-        <section className="page-header">
-          <span className="badge">Resultados</span>
+        <div className="page-header">
+          <span className="page-eyebrow">Resultados</span>
           <h1 className="page-title">{data.exam.titulo}</h1>
           <p className="page-subtitle">{data.submissions.length} alumno(s) completaron el examen.</p>
-        </section>
-        <section className="stack" aria-label="Lista de alumnos">
-          {data.submissions.map((sub) => (
-            <article className="card" style={{ padding: "16px 20px" }} key={sub.id}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>
+        </div>
+        <div className="session-list" aria-label="Lista de alumnos">
+          {data.submissions.map((sub) => {
+            const aprobado = sub.puntajeTotal !== null ? sub.puntajeTotal >= 11 : null;
+            return (
+              <article className="session-card" style={{ cursor: "default" }} key={sub.id}>
+                <div className="session-info">
+                  <div className="session-title">
                     {sub.estudiante.nombre} {sub.estudiante.apellido}
                   </div>
                   <div style={{ fontSize: 13, color: "var(--texto-tenue)" }}>{sub.estudiante.email}</div>
-                  {sub.enviadoEn && (
-                    <div style={{ fontSize: 12, color: "var(--texto-tenue)", marginTop: 2 }}>
-                      {new Intl.DateTimeFormat("es-PE", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                        timeZone: "America/Lima",
-                      }).format(new Date(sub.enviadoEn))}
-                    </div>
-                  )}
+                  <div className="session-chips" style={{ marginTop: 6 }}>
+                    <span className={`chip ${aprobado === true ? "chip-ok" : aprobado === false ? "chip-resumen" : "chip-capturas"}`}>
+                      {formatScore(sub.puntajeTotal)} pts
+                    </span>
+                    {sub.enviadoEn && (
+                      <span style={{ fontSize: 12, color: "var(--texto-tenue)", alignSelf: "center" }}>
+                        Enviado {new Intl.DateTimeFormat("es-PE", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                          timeZone: "America/Lima",
+                        }).format(new Date(sub.enviadoEn))}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span className="badge">{formatScore(sub.puntajeTotal)} pts</span>
-                  <Link
-                    href={`/exams/${id}/results?studentId=${sub.estudiante.id}`}
-                    className="btn btn-secondary"
-                    style={{ fontSize: 13 }}
-                  >
-                    Ver examen
-                  </Link>
-                </div>
-              </div>
-            </article>
-          ))}
-        </section>
+                <Link
+                  href={`/exams/${id}/results?studentId=${sub.estudiante.id}`}
+                  className="btn btn-secondary"
+                  style={{ fontSize: 13, flexShrink: 0 }}
+                >
+                  Ver examen
+                </Link>
+              </article>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -219,11 +234,11 @@ export default async function ExamResultsPage({ params, searchParams }: ExamResu
   return (
     <div>
       {backLink}
-      <section className="page-header">
-        <span className="badge">Mi resultado</span>
+      <div className="page-header">
+        <span className="page-eyebrow">Mi resultado</span>
         <h1 className="page-title">{data.exam.titulo}</h1>
         <p className="page-subtitle">Puntaje total: {formatScore(mySubmission.puntajeTotal)}</p>
-      </section>
+      </div>
       <section className="card" style={{ padding: 20 }}>
         <div className="stack compact-stack">
           {mySubmission.respuestas.map((answer) => (

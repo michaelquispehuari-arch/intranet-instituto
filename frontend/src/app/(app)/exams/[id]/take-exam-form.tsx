@@ -78,17 +78,18 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
 
   if (finished) {
     return (
-      <section className="card empty-state">
-        <h2>Examen finalizado</h2>
-        <p className="muted">
-          Tu respuesta fue registrada. El administrador revisará y publicará la nota correspondiente.
-        </p>
-        <div className="card-actions">
-          <Link href="/exams" className="btn btn-secondary">
-            Volver a exámenes
-          </Link>
+      <div className="card">
+        <div className="empty-state">
+          <div className="empty-state-icon">✅</div>
+          <p className="empty-state-title">Examen finalizado</p>
+          <p>Tu respuesta fue registrada. El administrador revisará y publicará la nota correspondiente.</p>
+          <div className="card-actions" style={{ justifyContent: "center", marginTop: 16 }}>
+            <Link href="/exams" className="btn btn-secondary">
+              Volver a exámenes
+            </Link>
+          </div>
         </div>
-      </section>
+      </div>
     );
   }
 
@@ -98,17 +99,23 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
       : `${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")}`;
 
   return (
-    <form className="panel form wide-form" onSubmit={handleSubmit}>
+    <div className="card">
       {remainingLabel ? (
-        <div className="card-actions">
-          <span className="badge">Tiempo restante: {remainingLabel}</span>
+        <div className="card-header">
+          <h3 style={{ margin: 0 }}>Rindiendo examen</h3>
+          <span className={`chip ${remainingSeconds !== null && remainingSeconds < 60 ? "chip-resumen" : "chip-capturas"}`}>
+            Tiempo restante: {remainingLabel}
+          </span>
         </div>
       ) : null}
 
+      <form className="card-body" onSubmit={handleSubmit} style={{ display: "grid", gap: 20 }}>
       <div className="stack">
         {exam.preguntas.map((question) => (
           <fieldset className="question-box" key={question.id}>
-            <legend>Pregunta {question.orden}</legend>
+            <legend>
+              <span className="chip chip-capturas">Pregunta {question.orden}</span>
+            </legend>
             <h2>{question.texto}</h2>
             <p className="muted">Puntaje: {question.puntaje}</p>
             {question.tipo === "ABIERTA" ? (
@@ -145,10 +152,11 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
       {error ? <p className="error">{error}</p> : null}
 
       <div className="card-actions">
-        <button className="button" type="submit" disabled={isSubmitting || remainingSeconds === 0}>
+        <button className="btn btn-primary" type="submit" disabled={isSubmitting || remainingSeconds === 0}>
           {isSubmitting ? "Enviando..." : "Enviar examen"}
         </button>
       </div>
-    </form>
+      </form>
+    </div>
   );
 }

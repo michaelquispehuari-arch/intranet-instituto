@@ -146,7 +146,11 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
   }
 
   return (
-    <form className="panel form wide-form" onSubmit={handleSubmit}>
+    <div className="card">
+      <div className="card-header">
+        <h3 style={{ margin: 0 }}>Datos del examen</h3>
+      </div>
+      <form className="card-body" onSubmit={handleSubmit} style={{ display: "grid", gap: 20 }}>
       <div className="form-grid">
         <label className="field">
           <span>Titulo</span>
@@ -191,7 +195,9 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
         {questions.map((question, questionIndex) => (
           <fieldset className="question-box google-question" key={questionIndex}>
             <div className="question-toolbar">
-              <legend>Pregunta {questionIndex + 1}</legend>
+              <legend>
+                <span className="chip chip-capturas">Pregunta {questionIndex + 1}</span>
+              </legend>
               <select
                 value={question.tipo}
                 onChange={(event) => changeQuestionType(questionIndex, event.target.value as QuestionForm["tipo"])}
@@ -289,13 +295,14 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
       {error ? <p className="error">{error}</p> : null}
 
       <div className="card-actions">
-        <button className="button secondary" type="button" onClick={() => setQuestions([...questions, emptyQuestion()])}>
+        <button className="btn btn-secondary" type="button" onClick={() => setQuestions([...questions, emptyQuestion()])}>
           Agregar pregunta
         </button>
-        <button className="button" type="submit" disabled={isSubmitting || courses.length === 0}>
+        <button className="btn btn-primary" type="submit" disabled={isSubmitting || courses.length === 0}>
           {isSubmitting ? "Guardando..." : "Crear examen"}
         </button>
       </div>
-    </form>
+      </form>
+    </div>
   );
 }

@@ -38,10 +38,13 @@ export default async function ExamPage({ params }: ExamPageProps) {
             Volver a examenes
           </Link>
         </div>
-        <section className="card empty-state">
-          <p className="empty-state-title">Examen no disponible</p>
-          <p>{message}</p>
-        </section>
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-icon">🔒</div>
+            <p className="empty-state-title">Examen no disponible</p>
+            <p>{message}</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -56,30 +59,33 @@ export default async function ExamPage({ params }: ExamPageProps) {
         </Link>
       </div>
 
-        <section className="page-header">
-          <span className="badge">{exam.curso.nombre}</span>
+        <div className="page-header">
+          <span className="page-eyebrow">{exam.curso.nombre}</span>
           <h1 className="page-title">{exam.titulo}</h1>
           <p className="page-subtitle">
             {exam.descripcion ?? "Sin descripcion"} · {exam.duracionMinutos} minutos
           </p>
-        </section>
+        </div>
 
         {canTakeExam && exam.intento?.completado ? (
-          <section className="card empty-state">
-            <h2>{exam.esSustitutorio ? "Examen finalizado" : "Examen enviado"}</h2>
-            <p className="muted">
-              {exam.esSustitutorio
-                ? "Tu respuesta fue registrada. El administrador revisará y publicará la nota."
-                : "Tu envío ya fue registrado."}
-            </p>
-            {!exam.esSustitutorio && (
-              <div className="card-actions">
-                <Link className="btn btn-primary" href={`/exams/${exam.id}/results`}>
-                  Ver resultado
-                </Link>
-              </div>
-            )}
-          </section>
+          <div className="card">
+            <div className="empty-state">
+              <div className="empty-state-icon">✅</div>
+              <p className="empty-state-title">{exam.esSustitutorio ? "Examen finalizado" : "Examen enviado"}</p>
+              <p>
+                {exam.esSustitutorio
+                  ? "Tu respuesta fue registrada. El administrador revisará y publicará la nota."
+                  : "Tu envío ya fue registrado."}
+              </p>
+              {!exam.esSustitutorio && (
+                <div className="card-actions" style={{ justifyContent: "center", marginTop: 16 }}>
+                  <Link className="btn btn-primary" href={`/exams/${exam.id}/results`}>
+                    Ver resultado
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
         ) : canTakeExam ? (
           <TakeExamForm exam={exam} />
         ) : (
@@ -87,7 +93,7 @@ export default async function ExamPage({ params }: ExamPageProps) {
             <div className="stack">
               {exam.preguntas.map((question) => (
                 <article className="question-box" key={question.id}>
-                  <span className="badge">Pregunta {question.orden}</span>
+                  <span className="chip chip-capturas">Pregunta {question.orden}</span>
                   <h2>{question.texto}</h2>
                   <p className="muted">Puntaje: {question.puntaje}</p>
                   {question.tipo === "ABIERTA" ? (
