@@ -43,6 +43,18 @@ const DIAS_KEYS = [
   ["d3c1", "d3c2", "d3c3"],
 ];
 
+// Ancho de las columnas fijas (Cód. / Apellidos y Nombres) para calcular el
+// offset "left" de cada una al quedar pegadas durante el scroll horizontal.
+const COL_CODIGO_W = 64;
+const COL_NOMBRE_W = 190;
+
+function ordenarPorApellido<T extends { apellido: string; nombre: string }>(filas: T[]): T[] {
+  return [...filas].sort((a, b) =>
+    a.apellido.localeCompare(b.apellido, "es", { sensitivity: "base" }) ||
+    a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
+  );
+}
+
 function chipClase(nota: number | null) {
   if (nota === null) return { color: "var(--texto-tenue)", bg: "#F6F7F5" };
   if (nota >= 11) return { color: "var(--aprobado-texto)", bg: "var(--aprobado-fondo)" };
@@ -82,6 +94,8 @@ export default function NotasSheetPage() {
   const [forumGradeEdits, setForumGradeEdits] = useState<Record<string, string>>({});
   const [publishing, setPublishing] = useState(false);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   // PROFESOR state
   const [pubData, setPubData] = useState<PublishedData | null>(null);
@@ -94,6 +108,7 @@ export default function NotasSheetPage() {
       const r = await fetch(`/api/backend/courses/${cursoId}/grades-sheet`);
       if (r.ok) {
         const d: SheetData = await r.json();
+        d.filas = ordenarPorApellido(d.filas);
         setData(d);
         setNumDias(d.numDias ?? 3);
         const initEdits: Record<string, Record<string, string>> = {};
@@ -110,7 +125,11 @@ export default function NotasSheetPage() {
       }
     } else if (rol === "PROFESOR") {
       const r = await fetch(`/api/backend/courses/${cursoId}/grades`);
-      if (r.ok) setPubData(await r.json());
+      if (r.ok) {
+        const d: PublishedData = await r.json();
+        d.filas = ordenarPorApellido(d.filas);
+        setPubData(d);
+      }
     }
     setLoading(false);
   }, [cursoId, rol]);
@@ -140,6 +159,19 @@ export default function NotasSheetPage() {
       })
     );
     return resultados.every(Boolean);
+  }
+
+  // Guarda la grilla en Postgres sin publicarla: el profesor no ve estos
+  // cambios todavía, pero ya no se pierden si se cierra la página.
+  async function handleSave() {
+    setSaving(true);
+    const guardadoOk = await saveAllRows();
+    if (!guardadoOk) {
+      alert("Hubo un error guardando alguna fila. Revisa la grilla e intenta de nuevo.");
+    } else {
+      setSavedAt(new Date().toISOString());
+    }
+    setSaving(false);
   }
 
   async function handlePublish() {
@@ -270,19 +302,31 @@ export default function NotasSheetPage() {
             ))}
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-            <button
-              className="btn btn-primary"
-              style={{ fontSize: 13 }}
-              onClick={handlePublish}
-              disabled={publishing}
-            >
-              {publishing ? "Guardando y publicando…" : "Mandar notas"}
-            </button>
-            {publishedAt && (
-              <span style={{ fontSize: 11, color: "var(--texto-tenue)" }}>
-                Publicadas {new Intl.DateTimeFormat("es-PE", { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(publishedAt))}
-              </span>
-            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                className="btn btn-secondary"
+                style={{ fontSize: 13 }}
+                onClick={handleSave}
+                disabled={saving || publishing}
+              >
+                {saving ? "Guardando…" : "Guardar notas"}
+              </button>
+              <button
+                className="btn btn-primary"
+                style={{ fontSize: 13 }}
+                onClick={handlePublish}
+                disabled={publishing || saving}
+              >
+                {publishing ? "Guardando y publicando…" : "Mandar notas"}
+              </button>
+            </div>
+            <span style={{ fontSize: 11, color: "var(--texto-tenue)" }}>
+              {publishedAt
+                ? `Publicadas ${new Intl.DateTimeFormat("es-PE", { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(publishedAt))}`
+                : savedAt
+                  ? `Guardadas (sin publicar) ${new Intl.DateTimeFormat("es-PE", { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(savedAt))}`
+                  : ""}
+            </span>
           </div>
         </div>
       </div>
@@ -316,12 +360,22 @@ export default function NotasSheetPage() {
         </table>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
+      <div className="notas-grid-scroll">
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 700 }}>
           <thead>
             <tr style={{ background: "var(--verde-sidebar)", color: "#fff" }}>
-              <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap" }}>Cód.</th>
-              <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap" }}>Apellidos y Nombres</th>
+              <th
+                className="notas-col-fija notas-col-fija--header"
+                style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap", left: 0, width: COL_CODIGO_W, minWidth: COL_CODIGO_W }}
+              >
+                Cód.
+              </th>
+              <th
+                className="notas-col-fija notas-col-fija--header"
+                style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap", left: COL_CODIGO_W, width: COL_NOMBRE_W, minWidth: COL_NOMBRE_W, boxShadow: "2px 0 4px -2px rgba(0,0,0,0.35)" }}
+              >
+                Apellidos y Nombres
+              </th>
               <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Modo</th>
               {dias.map((_, di) => (
                 <>
@@ -356,10 +410,16 @@ export default function NotasSheetPage() {
 
               return (
                 <tr key={fila.estudianteId} style={{ borderBottom: "0.5px solid var(--borde)" }}>
-                  <td style={{ padding: "6px 10px", color: "var(--texto-tenue)", whiteSpace: "nowrap" }}>
+                  <td
+                    className="notas-col-fija"
+                    style={{ padding: "6px 10px", color: "var(--texto-tenue)", whiteSpace: "nowrap", left: 0, width: COL_CODIGO_W, minWidth: COL_CODIGO_W, zIndex: 1 }}
+                  >
                     {fila.codigo || "—"}
                   </td>
-                  <td style={{ padding: "6px 10px", fontWeight: 500, whiteSpace: "nowrap" }}>
+                  <td
+                    className="notas-col-fija"
+                    style={{ padding: "6px 10px", fontWeight: 500, whiteSpace: "nowrap", left: COL_CODIGO_W, width: COL_NOMBRE_W, minWidth: COL_NOMBRE_W, zIndex: 1, boxShadow: "2px 0 4px -2px rgba(0,0,0,0.15)" }}
+                  >
                     {fila.apellido}, {fila.nombre}
                   </td>
                   <td style={{ padding: "4px 4px", textAlign: "center" }}>
@@ -447,7 +507,7 @@ export default function NotasSheetPage() {
         {data.tipo === "DIPLOMADO"
           ? "Nota de Forum = nota puesta al revisar el Forum de la semana en Corregir forums, reemplaza a la nota de examen (si el alumno ya subió su forum, solo se edita ahí). Si no subió nada, se puede poner la nota directo aquí · Final = ⌊(Asist + Nota de Forum) / 2⌋"
           : "NT = nota de transcripción (puesta por revisor) · Exam. = nota del examen del módulo · Final = ⌊(Asist + Exam) / 2⌋"}
-        {" · "}Los cambios de la grilla se guardan recién al hacer clic en &quot;Mandar notas&quot; (ya no hay botón de guardar por fila).
+        {" · "}&quot;Guardar notas&quot; guarda la grilla en la base de datos sin publicarla (el profesor no la ve todavía) · &quot;Mandar notas&quot; guarda y además publica las notas para el profesor.
       </div>
     </div>
   );

@@ -652,3 +652,43 @@ button, input, select, textarea { font: inherit; }
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.45; transform: scale(0.75); }
 }
+
+/* Grilla de notas: caja con alto máximo y scroll propio (X e Y), para que la
+   barra horizontal quede siempre a la vista sin tener que bajar hasta el
+   final de la lista de alumnos. Barra siempre visible (Windows/macOS pueden
+   ocultar la nativa hasta el hover) y encabezado + columnas de código/nombre
+   fijos al desplazar, como en Excel. */
+.notas-grid-scroll {
+  overflow: auto;
+  max-height: 65vh;
+  scrollbar-width: auto;
+}
+.notas-grid-scroll::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+.notas-grid-scroll::-webkit-scrollbar-track {
+  background: var(--line);
+  border-radius: 6px;
+}
+.notas-grid-scroll::-webkit-scrollbar-thumb {
+  background: var(--pine-700);
+  border-radius: 6px;
+}
+.notas-grid-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--pine-800);
+}
+.notas-grid-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--verde-sidebar);
+}
+.notas-col-fija {
+  position: sticky;
+  background: var(--card);
+}
+.notas-grid-scroll thead th.notas-col-fija--header {
+  background: var(--verde-sidebar);
+  z-index: 3;
+}

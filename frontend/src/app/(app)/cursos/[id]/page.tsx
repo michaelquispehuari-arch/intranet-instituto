@@ -151,7 +151,12 @@ export default function CourseWorkspacePage() {
       setDeadlineDraft(loadedCourse?.fechaLimiteEntrega ? loadedCourse.fechaLimiteEntrega.slice(0, 10) : "");
       setEnlaceZoom(zoomData?.enlaceZoom ?? null);
       if (loadedCourse?.inscripciones) {
-        setAlumnos(loadedCourse.inscripciones.map((i) => ({ ...i.estudiante, codigo: i.estudiante.codigo ?? null })));
+        const listaAlumnos = loadedCourse.inscripciones.map((i) => ({ ...i.estudiante, codigo: i.estudiante.codigo ?? null }));
+        listaAlumnos.sort((a, b) =>
+          a.apellido.localeCompare(b.apellido, "es", { sensitivity: "base" }) ||
+          a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
+        );
+        setAlumnos(listaAlumnos);
       }
       setLoading(false);
     });
