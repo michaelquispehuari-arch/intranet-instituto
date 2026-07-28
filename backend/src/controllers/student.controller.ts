@@ -15,7 +15,7 @@ const createStudentSchema = z.object({
   pais: z.string().max(80).optional(),
   semestreIngreso: z.number().int().min(1).max(2).optional(),
   anioIngreso: z.number().int().min(2000).max(2100).optional(),
-  dni: z.string().trim().min(1).max(20),
+  dni: z.string().trim().max(20).optional(),
   telefono: z.string().max(20).optional(),
   fechaNacimiento: z.string().optional(),
   coordinador: z.string().max(120).optional(),

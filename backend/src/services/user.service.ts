@@ -3,6 +3,7 @@ import { Prisma, Rol } from "@prisma/client";
 import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, HttpError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
+import { randomPassword } from "../utils/random-password.js";
 import type { CreateUserInput, UpdateUserInput } from "../schemas/user.schema.js";
 
 const userSelect = {
@@ -43,7 +44,7 @@ export async function createUser(input: CreateUserInput) {
     throw new HttpError(400, "El email ya esta registrado");
   }
 
-  const passwordHash = await bcrypt.hash(input.password, 12);
+  const passwordHash = await bcrypt.hash(input.password?.trim() || input.dni?.trim() || randomPassword(), 12);
 
   const user = await prisma.$transaction(async (tx) => {
     const createdUser = await tx.usuario.create({

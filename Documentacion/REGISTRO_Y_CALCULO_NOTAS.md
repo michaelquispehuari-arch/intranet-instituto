@@ -34,12 +34,24 @@ CÓDIGO | NOMBRES | APELLIDOS | MODO | IGLESIA | PAÍS | SEM. | AÑO | DNI | TEL
 Funcionalidades:
 - Edición tipo celda (registrar/editar como en Excel), guardado por fila.
 - Búsqueda / filtro por CÓDIGO para ver un estudiante en particular (también por nombre).
-- IMPORTACIÓN CSV con esas mismas columnas (el cliente ya tiene sus datos en ese formato).
-  Validar duplicados por CÓDIGO y por CORREO.
-- Alta manual de un estudiante (formulario "Agregar"): valida duplicados por CORREO y por CÓDIGO
+- La lista siempre se muestra ordenada alfabéticamente por APELLIDO y luego NOMBRE
+  (`orderBy: [{ apellido: "asc" }, { nombre: "asc" }]` en `listStudents`,
+  `backend/src/services/student.service.ts`). Lo mismo aplica a la lista de profesores
+  y a la sección "Alumnos" dentro de cada curso (ordenadas en el frontend).
+- IMPORTACIÓN CSV: el orden de columnas NO importa — el encabezado se reconoce por palabra clave
+  (ej. "Dirección de correo electrónico" se detecta igual que "Correo"), ver `matchHeader` en
+  `frontend/src/lib/csv.ts`. Solo CORREO, NOMBRES y APELLIDOS son obligatorios; DNI es OPCIONAL
+  (si falta, la cuenta se crea con una contraseña provisional y el usuario la define con
+  "olvidé mi contraseña", ver `backend/src/utils/random-password.ts`). Al importar:
+  nombre/apellido/iglesia/país/coordinador se pasan a Primera Letra Mayúscula (`toTitleCase`),
+  el teléfono recibe el prefijo del país si no lo tiene ya (`applyPhonePrefix`), y las fechas de
+  nacimiento aceptan varios formatos sueltos (`parseFlexibleDate`), no solo dd/mm/aaaa.
+  Validar duplicados por CÓDIGO, por CORREO y por DNI.
+- Alta manual de un estudiante (formulario "Agregar"): valida duplicados por CORREO, CÓDIGO y DNI
   ANTES de crear, igual que la importación CSV (`createStudent` en `backend/src/services/student.service.ts`).
-  Si ya existe, devuelve 400 con mensaje claro ("Ya existe un usuario con ese correo" / "...con ese código")
-  en vez de un error 500 de restricción única de la base de datos.
+  Si ya existe, devuelve 400 con mensaje claro ("Ya existe un usuario con ese correo" /
+  "...con ese código" / "...con ese DNI") en vez de un error 500 de restricción única de la base de datos.
+  El chequeo de DNI es por `rol: ESTUDIANTE` (no bloquea si un profesor coincide por DNI).
 - Solo ADMIN gestiona el registro.
 ```
 
@@ -274,11 +286,18 @@ Verificado contra la hoja del cliente: los .5 caen hacia abajo (16.5 -> 16, 13.5
   (`backend/src/utils/nota-asistencia.ts`) al guardar — el backend sigue siendo la única autoridad de lo
   que queda persistido. Si se edita la fórmula, hay que actualizar ambos archivos.
 - NO hay botón "Guardar" por fila. Los cambios de la grilla (celdas, modo, nota de Forum manual) viven
-  solo en el estado del navegador hasta que el admin hace clic en "Mandar notas": ese botón primero
-  guarda TODAS las filas (una petición POST /grades-sheet por alumno, en paralelo) y recién después
-  publica (POST /grades/publish), dejando la nota visible para el profesor/alumno.
-  Implicancia: si se recarga o cierra la página antes de "Mandar notas", los cambios no guardados se
-  pierden (antes existía un guardado incremental por fila que persistía sin publicar).
+  en el estado del navegador y se persisten en Postgres con cualquiera de estos dos botones:
+    - "Guardar notas": guarda TODAS las filas (una petición POST /grades-sheet por alumno, en paralelo)
+      SIN publicar — el profesor/alumno todavía no ve el cambio. Sirve para no perder el trabajo si se
+      va a seguir editando después.
+    - "Mandar notas": hace el mismo guardado y además publica (POST /grades/publish), dejando la nota
+      visible para el profesor/alumno.
+  Implicancia: si se recarga o cierra la página sin haber tocado ninguno de los dos botones, recién ahí
+  se pierden los cambios.
+- La grilla vive dentro de un contenedor con alto máximo (`.notas-grid-scroll`, `max-height: 65vh`) y
+  scroll propio en ambos ejes, para que la barra horizontal quede siempre a la vista sin tener que bajar
+  hasta el final de la lista de alumnos. Encabezado (`thead`) y columnas Código/Apellidos y Nombres
+  quedan fijos al hacer scroll, como en Excel (ver `frontend/src/app/globals.css`).
 - Resaltado opcional: nota desaprobatoria en rojo.
 
 OPCIONAL / EXPERIMENTAL — entrada por voz:
@@ -296,7 +315,7 @@ ESTUDIANTES (registro)
 GET    /api/students                 lista + filtro por codigo/nombre (ADMIN)
 POST   /api/students                 crear (ADMIN)
 PATCH  /api/students/:id             editar (ADMIN)
-POST   /api/students/import          importar CSV (ADMIN); valida duplicados por codigo y correo
+POST   /api/students/import          importar CSV (ADMIN); valida duplicados por codigo, correo y DNI
 
 TRANSCRIPCIÓN / NT
 PATCH  /api/summaries/:id/review     ADMIN: marca revisado y fija notaTranscripcion (NT 0-18).
@@ -309,7 +328,7 @@ POST   /api/courses/:id/grades-sheet  upsert de una fila { estudianteId, modo, n
    -> el backend toma NT de las transcripciones del día, examen del módulo,
       recalcula notaAsistencia (sección 3) y notaFinal (sección 6), y guarda.
    -> el frontend ya no lo llama desde un botón "Guardar" por fila: lo llama una vez por alumno,
-      en paralelo, justo antes de publicar (ver sección 7).
+      en paralelo, tanto al hacer clic en "Guardar notas" como en "Mandar notas" (ver sección 7).
 ```
 
 ---
@@ -318,7 +337,7 @@ POST   /api/courses/:id/grades-sheet  upsert de una fila { estudianteId, modo, n
 
 ```text
 [ ] Registro de estudiantes con TODAS las columnas, edición tipo celda y filtro por código.
-[ ] Importación CSV funciona con el formato del cliente (sin duplicar por código/correo).
+[x] Importación CSV funciona con el formato del cliente (sin duplicar por código/correo/DNI; DNI opcional).
 [ ] La grilla semanal reproduce la hoja; solo las celdas de cámara son editables.
 [ ] La NT se trae de la nota de transcripción puesta por el revisor y NO es visible para el alumno.
 [ ] La nota de examen se trae del módulo (NORM normal, RECUP sustitutorio); examen vacío = 0.

@@ -7,7 +7,7 @@ export const userIdParamSchema = z.object({
 
 export const createUserSchema = z.object({
   email: z.string().trim().email().toLowerCase(),
-  password: z.string().min(8).max(100),
+  password: z.string().min(8).max(100).optional(),
   nombre: z.string().trim().min(2).max(80),
   apellido: z.string().trim().min(2).max(80),
   rol: z.nativeEnum(Rol),

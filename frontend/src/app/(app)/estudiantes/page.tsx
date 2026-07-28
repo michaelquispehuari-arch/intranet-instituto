@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { normalizeCsvHeader, parseCsv, readCsvFile } from "@/lib/csv";
+import { applyPhonePrefix, matchHeader, normalizeCsvHeader, parseCsv, parseFlexibleDate, readCsvFile, toTitleCase } from "@/lib/csv";
 
 type ModoEstudio = "SINCRONICO" | "ASINCRONICO" | "MIXTO";
 
@@ -40,38 +40,8 @@ function parseOptionalInt(value: unknown) {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
-function parseCsvDate(value: string | undefined) {
-  if (!value) return undefined;
-  const clean = value.trim();
-  const match = clean.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (!match) return clean;
-  const [, day, month, year] = match;
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-}
-
-function csvField(row: Record<string, string>, names: string[]) {
-  for (const name of names) {
-    const value = row[normalizeCsvHeader(name)];
-    if (value !== undefined && value.trim() !== "") return value.trim();
-  }
-  return "";
-}
-
-function csvFieldFromRow(
-  row: Record<string, string>,
-  names: string[],
-  cols: string[],
-  fallbackIndex: number,
-) {
-  return csvField(row, names) || (cols[fallbackIndex] ?? "").trim();
-}
-
 function findEmail(cols: string[]) {
   return cols.find((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))?.trim() ?? "";
-}
-
-function findDni(cols: string[]) {
-  return cols.find((value) => /^\d{8}$/.test(value.trim()))?.trim() ?? "";
 }
 
 function isValidEmail(value: string | undefined) {
@@ -205,38 +175,38 @@ export default function EstudiantesPage() {
     }
 
     const rows = csvRows.slice(1).map((cols) => {
-      const obj: Record<string, string> = {};
-      headers.forEach((h, i) => { obj[h] = cols[i] ?? ""; });
-      const modo = normalizeCsvHeader(csvFieldFromRow(obj, ["MODO"], cols, 3)).toUpperCase() || "SINCRONICO";
-      const email = csvFieldFromRow(obj, ["CORREO", "EMAIL", "E-MAIL"], cols, 11) || findEmail(cols);
-      const dni = csvFieldFromRow(obj, ["DNI", "DOCUMENTO"], cols, 8) || findDni(cols);
+      const modoRaw = normalizeCsvHeader(matchHeader(headers, cols, ["modo"])).toUpperCase();
+      const modo = (["SINCRONICO", "ASINCRONICO", "MIXTO"].includes(modoRaw) ? modoRaw : "SINCRONICO") as ModoEstudio;
+      const email = matchHeader(headers, cols, ["correo", "mail"]) || findEmail(cols);
+      const pais = matchHeader(headers, cols, ["pais"]);
+      const telefono = matchHeader(headers, cols, ["telefono", "celular"]);
       return {
         email,
-        nombre: csvFieldFromRow(obj, ["NOMBRES", "NOMBRE"], cols, 1),
-        apellido: csvFieldFromRow(obj, ["APELLIDOS", "APELLIDO"], cols, 2),
-        codigo: csvFieldFromRow(obj, ["CODIGO", "CÓDIGO"], cols, 0) || undefined,
-        modo: modo as ModoEstudio,
-        iglesia: csvFieldFromRow(obj, ["IGLESIA"], cols, 4) || undefined,
-        pais: csvFieldFromRow(obj, ["PAIS", "PAÍS"], cols, 5) || undefined,
-        semestreIngreso: parseOptionalInt(csvFieldFromRow(obj, ["SEM.", "SEM", "SEMESTRE"], cols, 6)),
-        anioIngreso: parseOptionalInt(csvFieldFromRow(obj, ["ANO", "AÑO"], cols, 7)),
-        dni: dni || undefined,
-        telefono: csvFieldFromRow(obj, ["TELEFONO", "TELÉFONO", "CELULAR"], cols, 9) || undefined,
-        fechaNacimiento: parseCsvDate(csvFieldFromRow(obj, ["FECHA DE NACIMIENTO", "FECHA NACIMIENTO"], cols, 10)),
-        coordinador: csvFieldFromRow(obj, ["COORD.", "COORD", "COORDINADOR"], cols, 13) || undefined,
+        nombre: toTitleCase(matchHeader(headers, cols, ["nombre"])),
+        apellido: toTitleCase(matchHeader(headers, cols, ["apellido"])),
+        codigo: matchHeader(headers, cols, ["codigo"]) || undefined,
+        modo,
+        iglesia: toTitleCase(matchHeader(headers, cols, ["iglesia"])) || undefined,
+        pais: toTitleCase(pais) || undefined,
+        semestreIngreso: parseOptionalInt(matchHeader(headers, cols, ["semestre", "sem"])),
+        anioIngreso: parseOptionalInt(matchHeader(headers, cols, ["ano", "anio"])),
+        dni: matchHeader(headers, cols, ["dni", "documento"]) || undefined,
+        telefono: applyPhonePrefix(telefono, pais),
+        fechaNacimiento: parseFlexibleDate(matchHeader(headers, cols, ["nacimiento"])),
+        coordinador: toTitleCase(matchHeader(headers, cols, ["coordinador", "coord"])) || undefined,
       };
-    }).filter((r) => r.email || r.dni || r.nombre || r.apellido);
+    }).filter((r) => r.email || r.nombre || r.apellido);
 
     if (rows.length === 0) {
       setImportStatus(`Error al importar: no se detectaron filas de alumnos. Encabezados detectados: ${headers.join(" | ")}`);
       return;
     }
 
-    const validRows = rows.filter((r) => isValidEmail(r.email) && r.nombre && r.apellido && r.dni);
-    const invalid = rows.filter((r) => !isValidEmail(r.email) || !r.nombre || !r.apellido || !r.dni);
+    const validRows = rows.filter((r) => isValidEmail(r.email) && r.nombre && r.apellido);
+    const invalid = rows.filter((r) => !isValidEmail(r.email) || !r.nombre || !r.apellido);
     if (validRows.length === 0 && invalid.length > 0) {
       const sample = invalid[0];
-      setImportStatus(`Error al importar: ${invalid.length} fila(s) sin CORREO valido, NOMBRES, APELLIDOS o DNI. Primera fila leida: correo=${sample.email || "-"}, nombres=${sample.nombre || "-"}, apellidos=${sample.apellido || "-"}, dni=${sample.dni || "-"}. Encabezados detectados: ${headers.join(" | ")}`);
+      setImportStatus(`Error al importar: ${invalid.length} fila(s) sin CORREO valido, NOMBRES o APELLIDOS. Primera fila leida: correo=${sample.email || "-"}, nombres=${sample.nombre || "-"}, apellidos=${sample.apellido || "-"}. Encabezados detectados: ${headers.join(" | ")}`);
       return;
     }
 
@@ -458,7 +428,8 @@ export default function EstudiantesPage() {
       )}
 
       <div style={{ marginTop: 16, fontSize: 12, color: "var(--texto-tenue)" }}>
-        CSV esperado: CODIGO, NOMBRES, APELLIDOS, MODO, IGLESIA, PAIS, SEM., ANO, DNI, TELEFONO, CORREO, COORD. El DNI es obligatorio y sera la contrasena inicial.
+        CSV esperado: el orden de las columnas no importa, la app reconoce el encabezado por palabra clave (ej. &quot;Dirección de correo electrónico&quot; se detecta igual que &quot;Correo&quot;). Encabezados reconocidos: CODIGO, NOMBRES (o &quot;Nombre Completo&quot; si los apellidos van en otra columna), APELLIDOS, MODO (opcional, S/A/M), IGLESIA, PAIS, SEMESTRE, AÑO, DNI (opcional), TELEFONO, FECHA DE NACIMIENTO, CORREO, COORDINADOR.
+        Solo CORREO, NOMBRES y APELLIDOS son obligatorios &mdash; el DNI ya no es obligatorio: si falta, la cuenta se crea con una contraseña provisional y el alumno puede definir la suya con &quot;olvidé mi contraseña&quot;. Nombres, apellidos, iglesia, país y coordinador se guardan con la Primera Letra En Mayúscula automáticamente, y el teléfono recibe el prefijo del país si no lo tiene.
       </div>
     </div>
   );

@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { normalizeCsvHeader, parseCsv, readCsvFile } from "@/lib/csv";
+import { applyPhonePrefix, matchHeader, normalizeCsvHeader, parseCsv, readCsvFile, toTitleCase } from "@/lib/csv";
+
+function ordenarPorApellido<T extends { apellido: string; nombre: string }>(filas: T[]): T[] {
+  return [...filas].sort((a, b) =>
+    a.apellido.localeCompare(b.apellido, "es", { sensitivity: "base" }) ||
+    a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
+  );
+}
 
 type Profesor = {
   id: string;
@@ -51,7 +58,7 @@ export default function ProfesoresPage() {
             [p.codigo, p.nombre, p.apellido, p.email, p.dni].join(" ").toLowerCase().includes(q.toLowerCase()),
           )
         : all;
-      setProfesores(filtered);
+      setProfesores(ordenarPorApellido(filtered));
     }
     setLoading(false);
   }
@@ -144,21 +151,21 @@ export default function ProfesoresPage() {
     const csvRows = parseCsv(text);
     const headers = (csvRows[0] ?? []).map(normalizeCsvHeader);
     const rows = csvRows.slice(1).map((cols) => {
-      const obj: Record<string, string> = {};
-      headers.forEach((h, i) => { obj[h] = cols[i] ?? ""; });
+      const pais = matchHeader(headers, cols, ["pais"]);
+      const telefono = matchHeader(headers, cols, ["telefono", "celular"]);
       return {
-        codigo: obj.codigo ?? "",
-        nombre: obj.nombres ?? obj.nombre ?? "",
-        apellido: obj.apellidos ?? obj.apellido ?? "",
-        email: obj.correo ?? obj.email ?? "",
-        dni: obj.dni ?? "",
-        telefono: obj.telefono ?? "",
+        codigo: matchHeader(headers, cols, ["codigo"]) || undefined,
+        nombre: toTitleCase(matchHeader(headers, cols, ["nombre"])),
+        apellido: toTitleCase(matchHeader(headers, cols, ["apellido"])),
+        email: matchHeader(headers, cols, ["correo", "mail"]),
+        dni: matchHeader(headers, cols, ["dni", "documento"]) || undefined,
+        telefono: applyPhonePrefix(telefono, pais),
       };
-    }).filter((r) => r.email || r.nombre || r.apellido || r.dni);
+    }).filter((r) => r.email || r.nombre || r.apellido);
 
-    const invalid = rows.filter((r) => !r.email || !r.nombre || !r.apellido || !r.dni);
+    const invalid = rows.filter((r) => !r.email || !r.nombre || !r.apellido);
     if (invalid.length > 0) {
-      setStatus(`Error: ${invalid.length} fila(s) sin CORREO, NOMBRES, APELLIDOS o DNI.`);
+      setStatus(`Error: ${invalid.length} fila(s) sin CORREO, NOMBRES o APELLIDOS.`);
       if (csvRef.current) csvRef.current.value = "";
       return;
     }
@@ -168,7 +175,7 @@ export default function ProfesoresPage() {
       const r = await fetch("/api/backend/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...row, password: row.dni, rol: "PROFESOR" }),
+        body: JSON.stringify({ ...row, ...(row.dni ? { password: row.dni } : {}), rol: "PROFESOR" }),
       });
       if (r.ok) created++; else failed++;
     }
@@ -352,7 +359,7 @@ export default function ProfesoresPage() {
       )}
 
       <div style={{ marginTop: 16, fontSize: 12, color: "var(--texto-tenue)" }}>
-        CSV esperado: CODIGO, NOMBRES, APELLIDOS, CORREO, DNI, TELEFONO. El DNI es obligatorio y será la contraseña inicial.
+        CSV esperado: el orden de columnas no importa, se reconoce el encabezado por palabra clave. Encabezados reconocidos: CODIGO, NOMBRES, APELLIDOS, CORREO, DNI (opcional), TELEFONO, PAIS (solo para anteponer el prefijo telefónico, no se guarda). Solo CORREO, NOMBRES y APELLIDOS son obligatorios. Si hay DNI, es la contraseña inicial; si no, la cuenta queda con una contraseña provisional y el profesor puede definir la suya con &quot;olvidé mi contraseña&quot;. Nombres y apellidos se guardan con la Primera Letra En Mayúscula.
       </div>
     </div>
   );

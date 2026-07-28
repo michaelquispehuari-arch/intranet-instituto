@@ -100,6 +100,121 @@ function toWindows1252Byte(char: string) {
   return map[code] ?? (code <= 0xff ? code : 0x3f);
 }
 
+// Pone en mayuscula la primera letra de cada palabra (separada por espacios).
+export function toTitleCase(value: string) {
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .split(" ")
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
+// Busca, entre los encabezados normalizados de la fila, el primero que
+// contenga alguna de las palabras clave (ej. "correo" matchea "Direccion de
+// correo electronico"). Reemplaza la coincidencia exacta por texto: los
+// formularios (Google Forms, Excel de otras areas) casi nunca usan el mismo
+// nombre de columna que espera la app.
+export function matchHeader(headers: string[], cols: string[], keywords: string[]) {
+  for (let i = 0; i < headers.length; i++) {
+    if (keywords.some((k) => headers[i].includes(k))) {
+      const value = (cols[i] ?? "").trim();
+      if (value) return value;
+    }
+  }
+  return "";
+}
+
+const DIAL_CODES: Record<string, string> = {
+  peru: "51",
+  "estados unidos": "1",
+  eeuu: "1",
+  usa: "1",
+  "puerto rico": "1",
+  canada: "1",
+  cuba: "53",
+  panama: "507",
+  chile: "56",
+  "costa rica": "506",
+  colombia: "57",
+  ecuador: "593",
+  bolivia: "591",
+  venezuela: "58",
+  mexico: "52",
+  argentina: "54",
+  brasil: "55",
+  espana: "34",
+  inglaterra: "44",
+  "reino unido": "44",
+  paraguay: "595",
+  uruguay: "598",
+  guatemala: "502",
+  honduras: "504",
+  "el salvador": "503",
+  nicaragua: "505",
+  "republica dominicana": "1",
+};
+
+function lookupDialCode(pais: string | undefined) {
+  const norm = normalizeCsvHeader(pais ?? "");
+  if (!norm) return undefined;
+  const key = Object.keys(DIAL_CODES).find((k) => norm.includes(k));
+  return key ? DIAL_CODES[key] : undefined;
+}
+
+// Antepone el codigo de pais al telefono si no lo tiene ya (ni como "+" ni
+// como los digitos del codigo al inicio del numero).
+export function applyPhonePrefix(telefono: string | undefined, pais: string | undefined) {
+  const tel = (telefono ?? "").trim();
+  if (!tel) return undefined;
+  if (tel.startsWith("+")) return tel;
+
+  const dial = lookupDialCode(pais);
+  if (!dial) return tel;
+
+  const digitsOnly = tel.replace(/\D/g, "");
+  if (digitsOnly.startsWith(dial)) return `+${digitsOnly}`;
+  return `+${dial} ${tel}`;
+}
+
+const MESES: Record<string, string> = {
+  enero: "01", febrero: "02", marzo: "03", abril: "04", mayo: "05", junio: "06",
+  julio: "07", agosto: "08", septiembre: "09", setiembre: "09", octubre: "10",
+  noviembre: "11", diciembre: "12",
+};
+
+// Acepta dd/mm/aaaa, dd-mm-aa, dd.mm.aaaa (con separadores repetidos o
+// espacios sueltos, como se escriben a mano en formularios) y "dd de mes de
+// aaaa". Si no reconoce el formato devuelve undefined en vez de una fecha
+// invalida que rompa el guardado.
+export function parseFlexibleDate(value: string | undefined) {
+  if (!value) return undefined;
+  const clean = value.trim().replace(/\.+$/, "");
+  if (!clean) return undefined;
+
+  const numeric = clean.match(/^(\d{1,2})[/\-.\s]+(\d{1,2})[/\-.\s]+(\d{2,4})$/);
+  if (numeric) {
+    const [, d, m, yRaw] = numeric;
+    const year = yRaw.length === 2 ? (Number(yRaw) <= 30 ? `20${yRaw}` : `19${yRaw}`) : yRaw;
+    const day = d.padStart(2, "0");
+    const month = m.padStart(2, "0");
+    if (Number(month) >= 1 && Number(month) <= 12 && Number(day) >= 1 && Number(day) <= 31) {
+      return `${year}-${month}-${day}`;
+    }
+    return undefined;
+  }
+
+  const worded = normalizeCsvHeader(clean).match(/^(\d{1,2}) de (\w+) de (\d{4})$/);
+  if (worded) {
+    const [, d, mesRaw, y] = worded;
+    const month = MESES[mesRaw];
+    if (month) return `${y}-${month}-${d.padStart(2, "0")}`;
+  }
+
+  return undefined;
+}
+
 function guessDelimiter(text: string) {
   const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
   const commas = (firstLine.match(/,/g) ?? []).length;

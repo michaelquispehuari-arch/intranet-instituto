@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import { ModoEstudio, Prisma, Rol } from "@prisma/client";
 import { prisma } from "../utils/prisma.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/http-error.js";
+import { randomPassword } from "../utils/random-password.js";
 import type { AuthUser } from "../types/auth.js";
 
 export type CreateStudentInput = {
@@ -14,7 +15,7 @@ export type CreateStudentInput = {
   pais?: string;
   semestreIngreso?: number;
   anioIngreso?: number;
-  dni: string;
+  dni?: string;
   telefono?: string;
   fechaNacimiento?: string;
   coordinador?: string;
@@ -73,7 +74,12 @@ export async function createStudent(input: CreateStudentInput, user: AuthUser) {
     if (existsByCodigo) throw new ValidationError("Ya existe un estudiante con ese código");
   }
 
-  const passwordHash = await bcrypt.hash(input.dni, 12);
+  if (input.dni?.trim()) {
+    const existsByDni = await prisma.usuario.findFirst({ where: { dni: input.dni.trim(), rol: Rol.ESTUDIANTE } });
+    if (existsByDni) throw new ValidationError("Ya existe un estudiante con ese DNI");
+  }
+
+  const passwordHash = await bcrypt.hash(input.dni?.trim() || randomPassword(), 12);
 
   return prisma.$transaction(async (tx) => {
     const student = await tx.usuario.create({
@@ -151,7 +157,12 @@ export async function importStudents(rows: CreateStudentInput[], user: AuthUser)
         if (existsByCodigo) { results.skipped++; continue; }
       }
 
-      const passwordHash = await bcrypt.hash(row.dni, 12);
+      if (row.dni?.trim()) {
+        const existsByDni = await prisma.usuario.findFirst({ where: { dni: row.dni.trim(), rol: Rol.ESTUDIANTE } });
+        if (existsByDni) { results.skipped++; continue; }
+      }
+
+      const passwordHash = await bcrypt.hash(row.dni?.trim() || randomPassword(), 12);
       await prisma.$transaction(async (tx) => {
         const student = await tx.usuario.create({
           data: buildStudentCreateData(row, passwordHash),
