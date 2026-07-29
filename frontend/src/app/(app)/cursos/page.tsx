@@ -177,7 +177,7 @@ export default function CursosPage() {
         </div>
       )}
 
-      <div className="stat-grid">
+      <div className="card-grid">
         {cursos.map((curso) => (
           <Link
             key={curso.id}

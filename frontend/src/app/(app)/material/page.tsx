@@ -113,7 +113,7 @@ export default async function MaterialPage({ searchParams }: MaterialPageProps) 
       )}
 
       {!fetchError && materials.length > 0 && (
-        <div className="stat-grid">
+        <div className="card-grid">
           {materials.map((m) => (
             <div key={m.id} className="card" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>

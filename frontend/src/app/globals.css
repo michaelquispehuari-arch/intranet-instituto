@@ -490,6 +490,9 @@ button, input, select, textarea { font: inherit; }
 /* ── Grid / Stack ── */
 .session-list { display: grid; gap: 10px; }
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+/* Para cards con botones de acción (Descargar/Eliminar, etc.): 160px no alcanza para dos
+   botones lado a lado y el segundo se sale del padding de la card. Ver GUIA_FRONTEND_PeRTS.md §9. */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .stat-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 20px; }
 .stat-card-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-mute); }
 .stat-card-value { font: 700 2rem/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); margin-top: 6px; }

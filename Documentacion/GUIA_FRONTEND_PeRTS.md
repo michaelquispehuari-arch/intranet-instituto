@@ -709,6 +709,10 @@ botón primary "Guardar enlace", botón secondary "Probar enlace" (icono `Extern
 - **Labels reales** en todos los inputs; iconos decorativos con `aria-hidden`.
 - **Responsive**: sidebar → drawer en `<1024px`; grids `repeat(auto-fill,minmax(260px,1fr))`;
   tablas anchas con scroll horizontal contenido (no romper layout); login y auth se apilan en móvil.
+  En `globals.css` esto es la clase **`.card-grid`**. No reutilizar `.stat-grid` (`minmax(160px,1fr)`)
+  para cards con botones de acción — a 160px dos botones lado a lado (ej. "Descargar"/"Eliminar")
+  no entran y el segundo se sale del padding de la card. `.stat-grid` es solo para stat tiles sin
+  botones (ver 8.5 Inicio).
 - **`prefers-reduced-motion`** ya desactiva animaciones (tokens §2).
 - **Estados**: toda lista/tabla tiene loading (skeleton), vacío (con acción) y error (con guía).
 
