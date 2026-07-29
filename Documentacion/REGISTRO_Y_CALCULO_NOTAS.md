@@ -52,6 +52,18 @@ Funcionalidades:
   Si ya existe, devuelve 400 con mensaje claro ("Ya existe un usuario con ese correo" /
   "...con ese código" / "...con ese DNI") en vez de un error 500 de restricción única de la base de datos.
   El chequeo de DNI es por `rol: ESTUDIANTE` (no bloquea si un profesor coincide por DNI).
+- TITLE CASE de nombre/apellido (y de iglesia/país/coordinador en estudiantes): el BACKEND es la
+  autoridad, no solo el import CSV — `toTitleCase` (`backend/src/utils/text.ts`, misma lógica que
+  `frontend/src/lib/csv.ts`) se aplica siempre al crear/editar, sea por CSV, por el formulario manual
+  de "Agregar" o por edición de un registro existente (`student.service.ts` para estudiantes,
+  `user.service.ts` para profesores/admin — mismo Usuario, distinto flujo). Así la grilla de notas y
+  cualquier otra pantalla que muestre nombres siempre ve "Apellido Nombre" con cada palabra en mayúscula
+  inicial, sin importar cómo se haya tipeado.
+  Para arreglar registros que ya estaban mal (creados antes de este cambio, o con datos pegados tal cual
+  de una hoja del cliente): `npm run backfill:titlecase` en `backend/` (script
+  `backend/src/scripts/backfill-titlecase.ts`). Por default hace DRY RUN (solo imprime la tabla de
+  cambios, no escribe nada); agregar `-- --apply` para aplicar. Contra producción, correrlo por el shell
+  de Railway (`railway run npm run backfill:titlecase -- --apply`, primero sin `--apply` para revisar).
 - Solo ADMIN gestiona el registro.
 ```
 

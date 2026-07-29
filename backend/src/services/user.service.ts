@@ -4,6 +4,7 @@ import type { AuthUser } from "../types/auth.js";
 import { ForbiddenError, HttpError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
 import { randomPassword } from "../utils/random-password.js";
+import { toTitleCase } from "../utils/text.js";
 import type { CreateUserInput, UpdateUserInput } from "../schemas/user.schema.js";
 
 const userSelect = {
@@ -51,8 +52,8 @@ export async function createUser(input: CreateUserInput) {
       data: {
         email: input.email,
         passwordHash,
-        nombre: input.nombre,
-        apellido: input.apellido,
+        nombre: toTitleCase(input.nombre),
+        apellido: toTitleCase(input.apellido),
         rol: input.rol,
         codigo: input.codigo || null,
         dni: input.dni || null,
@@ -103,8 +104,8 @@ export async function updateUser(userId: string, input: UpdateUserInput, actor: 
     data: {
       email: input.email,
       passwordHash,
-      nombre: input.nombre,
-      apellido: input.apellido,
+      nombre: input.nombre !== undefined ? toTitleCase(input.nombre) : undefined,
+      apellido: input.apellido !== undefined ? toTitleCase(input.apellido) : undefined,
       rol: input.rol,
       activo: input.activo,
       codigo: input.codigo !== undefined ? input.codigo || null : undefined,

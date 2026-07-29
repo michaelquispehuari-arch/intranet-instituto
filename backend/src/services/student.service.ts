@@ -3,6 +3,7 @@ import { ModoEstudio, Prisma, Rol } from "@prisma/client";
 import { prisma } from "../utils/prisma.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/http-error.js";
 import { randomPassword } from "../utils/random-password.js";
+import { toTitleCase } from "../utils/text.js";
 import type { AuthUser } from "../types/auth.js";
 
 export type CreateStudentInput = {
@@ -99,14 +100,14 @@ export async function updateStudent(id: string, input: UpdateStudentInput, user:
   if (!exists) throw new NotFoundError("Estudiante no encontrado");
 
   const data: Record<string, unknown> = {
-    nombre: input.nombre,
-    apellido: input.apellido,
+    nombre: input.nombre !== undefined ? toTitleCase(input.nombre) : undefined,
+    apellido: input.apellido !== undefined ? toTitleCase(input.apellido) : undefined,
     email: input.email,
     activo: input.activo,
     codigo: input.codigo !== undefined ? input.codigo || null : undefined,
     modo: input.modo,
-    iglesia: input.iglesia !== undefined ? input.iglesia || null : undefined,
-    pais: input.pais !== undefined ? input.pais || null : undefined,
+    iglesia: input.iglesia !== undefined ? (input.iglesia ? toTitleCase(input.iglesia) : null) : undefined,
+    pais: input.pais !== undefined ? (input.pais ? toTitleCase(input.pais) : null) : undefined,
     semestreIngreso: input.semestreIngreso !== undefined ? input.semestreIngreso || null : undefined,
     anioIngreso: input.anioIngreso !== undefined ? input.anioIngreso || null : undefined,
     dni: input.dni !== undefined ? input.dni || null : undefined,
@@ -114,7 +115,7 @@ export async function updateStudent(id: string, input: UpdateStudentInput, user:
     fechaNacimiento: input.fechaNacimiento !== undefined
       ? input.fechaNacimiento ? new Date(input.fechaNacimiento) : null
       : undefined,
-    coordinador: input.coordinador !== undefined ? input.coordinador || null : undefined,
+    coordinador: input.coordinador !== undefined ? (input.coordinador ? toTitleCase(input.coordinador) : null) : undefined,
   };
 
   if (input.dni !== undefined && input.dni.trim().length > 0) {
@@ -184,19 +185,19 @@ function buildStudentCreateData(input: CreateStudentInput, passwordHash: string)
   return {
     email: input.email,
     passwordHash,
-    nombre: input.nombre,
-    apellido: input.apellido,
+    nombre: toTitleCase(input.nombre),
+    apellido: toTitleCase(input.apellido),
     rol: Rol.ESTUDIANTE,
     codigo: input.codigo || null,
     modo: input.modo ?? ModoEstudio.SINCRONICO,
-    iglesia: input.iglesia || null,
-    pais: input.pais || null,
+    iglesia: input.iglesia ? toTitleCase(input.iglesia) : null,
+    pais: input.pais ? toTitleCase(input.pais) : null,
     semestreIngreso: input.semestreIngreso ?? null,
     anioIngreso: input.anioIngreso ?? null,
     dni: input.dni || null,
     telefono: input.telefono || null,
     fechaNacimiento: input.fechaNacimiento ? new Date(input.fechaNacimiento) : null,
-    coordinador: input.coordinador || null,
+    coordinador: input.coordinador ? toTitleCase(input.coordinador) : null,
   };
 }
 
