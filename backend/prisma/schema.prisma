@@ -336,6 +336,8 @@ model RegistroSemanal {
   notaAsistencia       Float?
   notaExamenNorm       Float?
   notaExamenRecup      Float?
+  notaExamenNormManual  Float?  // fallback cuando no hay envio real en el modulo de examenes (edicion a mano / import CSV)
+  notaExamenRecupManual Float?
   notaFinal            Int?
   notaFinalPublicada   Float?
   actualizadoEn        DateTime    @updatedAt

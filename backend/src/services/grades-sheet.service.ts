@@ -47,6 +47,21 @@ async function fetchExamNotes(estudianteId: string, cursoId: string) {
   return { notaExamenNorm, notaExamenRecup };
 }
 
+// El envio real del modulo de examenes SIEMPRE tiene prioridad. El valor manual
+// (edicion a mano o importacion CSV) solo se usa como respaldo mientras no exista
+// un envio real, igual que la nota de Forum en Diplomado.
+function resolveExamNotes(
+  auto: { notaExamenNorm: number | null; notaExamenRecup: number | null },
+  manual: { notaExamenNormManual: number | null; notaExamenRecupManual: number | null } | null,
+) {
+  return {
+    notaExamenNorm: auto.notaExamenNorm ?? manual?.notaExamenNormManual ?? null,
+    notaExamenRecup: auto.notaExamenRecup ?? manual?.notaExamenRecupManual ?? null,
+    examenNormAuto: auto.notaExamenNorm !== null,
+    examenRecupAuto: auto.notaExamenRecup !== null,
+  };
+}
+
 async function fetchNTForCourse(estudianteId: string, cursoId: string) {
   const sesiones = await prisma.sesion.findMany({
     where: { cursoId },
@@ -121,9 +136,9 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
       const modo = (registro?.modo ?? est.modo ?? ModoEstudio.SINCRONICO) as ModoEstudio;
       const rowNumDias = (registro?.numDias ?? numDias) as 1 | 2 | 3;
 
-      const { notaExamenNorm, notaExamenRecup } = esDiplomado
-        ? { notaExamenNorm: forumEntrega!.nota ?? 0, notaExamenRecup: null }
-        : await fetchExamNotes(est.id, courseId);
+      const { notaExamenNorm, notaExamenRecup, examenNormAuto, examenRecupAuto } = esDiplomado
+        ? { notaExamenNorm: forumEntrega!.nota ?? 0, notaExamenRecup: null, examenNormAuto: true, examenRecupAuto: true }
+        : resolveExamNotes(await fetchExamNotes(est.id, courseId), registro);
 
       const celdasCamara = (registro?.celdas as Record<string, unknown> | null) ?? {};
       const celdas: Record<string, unknown> = {
@@ -159,6 +174,8 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
         notaAsistencia,
         notaExamenNorm,
         notaExamenRecup,
+        examenNormAuto,
+        examenRecupAuto,
         notaFinal,
       };
     })
@@ -278,6 +295,8 @@ export async function upsertGradeRow(
     numDias: 1 | 2 | 3;
     celdasCamara: CeldasCamara;
     notaForumManual?: number | null;
+    notaExamenNormManual?: number | null;
+    notaExamenRecupManual?: number | null;
   },
   user: AuthUser,
 ) {
@@ -296,6 +315,22 @@ export async function upsertGradeRow(
   const esDiplomado = curso.tipo === TipoCurso.DIPLOMADO;
   const ntMap: Record<number, number | null> = esDiplomado ? {} : await fetchNTForCourse(input.estudianteId, courseId);
 
+  const registroExistente = esDiplomado ? null : await prisma.registroSemanal.findUnique({
+    where: { estudianteId_cursoId: { estudianteId: input.estudianteId, cursoId: courseId } },
+    select: { notaExamenNormManual: true, notaExamenRecupManual: true },
+  });
+
+  for (const [label, v] of [["NORM.", input.notaExamenNormManual], ["RECUP.", input.notaExamenRecupManual]] as const) {
+    if (v !== undefined && v !== null && (v < 0 || v > 20)) {
+      throw new ValidationError(`La nota de examen ${label} debe estar entre 0 y 20.`);
+    }
+  }
+
+  const notaExamenNormManual = esDiplomado ? null
+    : (input.notaExamenNormManual !== undefined ? input.notaExamenNormManual : registroExistente?.notaExamenNormManual ?? null);
+  const notaExamenRecupManual = esDiplomado ? null
+    : (input.notaExamenRecupManual !== undefined ? input.notaExamenRecupManual : registroExistente?.notaExamenRecupManual ?? null);
+
   if (esDiplomado && input.notaForumManual !== undefined) {
     const actual = await fetchForumEntrega(input.estudianteId, courseId);
     if (actual.entregado) {
@@ -313,7 +348,7 @@ export async function upsertGradeRow(
 
   const { notaExamenNorm, notaExamenRecup } = esDiplomado
     ? { notaExamenNorm: (await fetchForumEntrega(input.estudianteId, courseId)).nota ?? 0, notaExamenRecup: null }
-    : await fetchExamNotes(input.estudianteId, courseId);
+    : resolveExamNotes(await fetchExamNotes(input.estudianteId, courseId), { notaExamenNormManual, notaExamenRecupManual });
 
   const celdas: Record<string, unknown> = {
     ...input.celdasCamara,
@@ -335,6 +370,8 @@ export async function upsertGradeRow(
       notaAsistencia,
       notaExamenNorm,
       notaExamenRecup,
+      notaExamenNormManual,
+      notaExamenRecupManual,
       notaFinal,
     },
     update: {
@@ -344,7 +381,97 @@ export async function upsertGradeRow(
       notaAsistencia,
       notaExamenNorm,
       notaExamenRecup,
+      notaExamenNormManual,
+      notaExamenRecupManual,
       notaFinal,
     },
   });
+}
+
+export type ImportGradeRow = {
+  codigo: string;
+  nombre: string; // "Apellidos y Nombres" tal como viene en el CSV, para matchear por nombre si no hay código.
+  modo?: ModoEstudio;
+  celdasCamara: CeldasCamara;
+  notaExamenManual?: number | null; // Diplomado: nota de Forum. Regular: nota de examen NORM.
+  notaExamenRecupManual?: number | null; // Solo curso regular.
+};
+
+// Normaliza un nombre completo para matchear sin importar tildes, mayusculas,
+// espacios extra o el orden en que vengan apellidos/nombres.
+function normalizarNombreKey(s: string): string {
+  return s
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z\s]/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
+}
+
+// Importa filas de una grilla exportada en formato CSV (código, modo, celdas de
+// cámara por día, examen NORM./RECUP.). Matchea cada fila contra los alumnos
+// inscritos en el curso primero por código; si no hay código o no matchea, cae a
+// nombre y apellido (normalizado). Lo que no matchea queda como "saltado" (alumnos
+// no registrados en este curso), sin crear ni tocar nada para ellos.
+export async function importGradesSheet(
+  courseId: string,
+  numDias: 1 | 2 | 3,
+  rows: ImportGradeRow[],
+  user: AuthUser,
+) {
+  if (user.rol !== Rol.ADMIN) throw new ForbiddenError();
+
+  const curso = await prisma.curso.findUnique({
+    where: { id: courseId },
+    include: { inscripciones: { include: { estudiante: { select: { id: true, codigo: true, modo: true, nombre: true, apellido: true } } } } },
+  });
+  if (!curso) throw new NotFoundError("Curso no encontrado");
+
+  const porCodigo = new Map<string, { id: string; modo: ModoEstudio }>();
+  const porNombre = new Map<string, { id: string; modo: ModoEstudio }>();
+  for (const ins of curso.inscripciones) {
+    const est = ins.estudiante;
+    if (est.codigo) porCodigo.set(est.codigo.trim(), { id: est.id, modo: est.modo });
+    const key = normalizarNombreKey(`${est.apellido} ${est.nombre}`);
+    if (key) porNombre.set(key, { id: est.id, modo: est.modo });
+  }
+
+  let actualizados = 0;
+  let saltados = 0;
+  const errores: string[] = [];
+
+  for (const row of rows) {
+    const codigo = row.codigo.trim();
+    const match = (codigo ? porCodigo.get(codigo) : undefined)
+      ?? (row.nombre ? porNombre.get(normalizarNombreKey(row.nombre)) : undefined);
+    if (!match) {
+      saltados++;
+      errores.push(`"${row.nombre || "(sin nombre)"}" (código: ${codigo || "—"}) no está inscrito en este curso`);
+      continue;
+    }
+
+    try {
+      await upsertGradeRow(
+        courseId,
+        {
+          estudianteId: match.id,
+          modo: row.modo ?? match.modo,
+          numDias,
+          celdasCamara: row.celdasCamara,
+          ...(curso.tipo === TipoCurso.DIPLOMADO
+            ? { notaForumManual: row.notaExamenManual ?? undefined }
+            : { notaExamenNormManual: row.notaExamenManual ?? undefined, notaExamenRecupManual: row.notaExamenRecupManual ?? undefined }),
+        },
+        user,
+      );
+      actualizados++;
+    } catch (e) {
+      errores.push(`Código ${codigo}: ${e instanceof Error ? e.message : "error desconocido"}`);
+      saltados++;
+    }
+  }
+
+  return { actualizados, saltados, errores };
 }

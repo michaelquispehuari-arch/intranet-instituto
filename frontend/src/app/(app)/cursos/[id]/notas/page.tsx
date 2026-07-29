@@ -2,9 +2,10 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { notaAsistencia13 } from "@/lib/nota-asistencia";
+import { parseGradesCsv } from "@/lib/grades-csv";
 
 type ModoEstudio = "SINCRONICO" | "ASINCRONICO" | "MIXTO";
 
@@ -22,6 +23,8 @@ type Fila = {
   notaAsistencia: number | null;
   notaExamenNorm: number | null;
   notaExamenRecup: number | null;
+  examenNormAuto: boolean;
+  examenRecupAuto: boolean;
   notaFinal: number | null;
 };
 
@@ -92,10 +95,13 @@ export default function NotasSheetPage() {
   const [edits, setEdits] = useState<Record<string, Record<string, string>>>({});
   const [modos, setModos] = useState<Record<string, ModoEstudio>>({});
   const [forumGradeEdits, setForumGradeEdits] = useState<Record<string, string>>({});
+  const [examenManualEdits, setExamenManualEdits] = useState<Record<string, { norm?: string; recup?: string }>>({});
   const [publishing, setPublishing] = useState(false);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const csvRef = useRef<HTMLInputElement>(null);
 
   // PROFESOR state
   const [pubData, setPubData] = useState<PublishedData | null>(null);
@@ -114,14 +120,22 @@ export default function NotasSheetPage() {
         const initEdits: Record<string, Record<string, string>> = {};
         const initModos: Record<string, ModoEstudio> = {};
         const initForumGrades: Record<string, string> = {};
+        const initExamenManual: Record<string, { norm?: string; recup?: string }> = {};
         d.filas.forEach((f) => {
           initEdits[f.estudianteId] = { ...f.celdasCamara };
           initModos[f.estudianteId] = f.modo;
           if (!f.forumEntregado) initForumGrades[f.estudianteId] = f.notaExamenNorm !== null ? String(f.notaExamenNorm) : "";
+          if (d.tipo !== "DIPLOMADO") {
+            initExamenManual[f.estudianteId] = {
+              norm: !f.examenNormAuto && f.notaExamenNorm !== null ? String(f.notaExamenNorm) : "",
+              recup: !f.examenRecupAuto && f.notaExamenRecup !== null ? String(f.notaExamenRecup) : "",
+            };
+          }
         });
         setEdits(initEdits);
         setModos(initModos);
         setForumGradeEdits(initForumGrades);
+        setExamenManualEdits(initExamenManual);
       }
     } else if (rol === "PROFESOR") {
       const r = await fetch(`/api/backend/courses/${cursoId}/grades`);
@@ -144,6 +158,8 @@ export default function NotasSheetPage() {
       data.filas.map(async (fila) => {
         const incluirNotaForum = data.tipo === "DIPLOMADO" && !fila.forumEntregado;
         const raw = forumGradeEdits[fila.estudianteId];
+        const examenManual = examenManualEdits[fila.estudianteId] ?? {};
+        const toNumOrNull = (v: string | undefined) => (v !== undefined && v !== "" ? Number(v) : null);
         const r = await fetch(`/api/backend/courses/${cursoId}/grades-sheet`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -153,6 +169,8 @@ export default function NotasSheetPage() {
             numDias,
             celdasCamara: edits[fila.estudianteId] ?? {},
             ...(incluirNotaForum ? { notaForumManual: raw !== undefined && raw !== "" ? Number(raw) : null } : {}),
+            ...(data.tipo !== "DIPLOMADO" && !fila.examenNormAuto ? { notaExamenNormManual: toNumOrNull(examenManual.norm) } : {}),
+            ...(data.tipo !== "DIPLOMADO" && !fila.examenRecupAuto ? { notaExamenRecupManual: toNumOrNull(examenManual.recup) } : {}),
           }),
         });
         return r.ok;
@@ -190,6 +208,54 @@ export default function NotasSheetPage() {
     }
     await load();
     setPublishing(false);
+  }
+
+  // Importa una grilla exportada en CSV (formato RTS): código, modo, celdas de
+  // cámara por día y examen/forum NORM./RECUP. Solo actualiza alumnos ya
+  // inscritos en el curso (matcheados por código); el resto se cuenta como
+  // "saltados" sin tocar nada. Al terminar recarga la grilla desde el backend.
+  async function handleImportCsv(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportStatus("Procesando…");
+
+    const parsed = await parseGradesCsv(file);
+    if ("error" in parsed) {
+      setImportStatus(`Error al importar: ${parsed.error}`);
+      if (csvRef.current) csvRef.current.value = "";
+      return;
+    }
+
+    const r = await fetch(`/api/backend/courses/${cursoId}/grades-sheet/import`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        numDias: parsed.numDias,
+        rows: parsed.rows.map((row) => ({
+          codigo: row.codigo,
+          nombre: row.nombre,
+          modo: row.modo,
+          celdasCamara: row.celdasCamara,
+          notaExamenManual: row.notaExamenManual,
+          notaExamenRecupManual: row.notaExamenRecupManual,
+        })),
+      }),
+    });
+    const result = await r.json() as { actualizados?: number; saltados?: number; errores?: string[]; error?: string };
+    if (!r.ok) {
+      setImportStatus(`Error al importar: ${result.error ?? "Error del servidor"}`);
+    } else {
+      setImportStatus(
+        `Importadas: ${result.actualizados ?? 0} · Saltadas: ${result.saltados ?? 0}` +
+        (result.errores?.length ? ` · Avisos: ${result.errores.join("; ")}` : "")
+      );
+    }
+    await load();
+    // Las filas se guardaron con parsed.numDias; el selector debe reflejarlo DESPUÉS de
+    // load() (que lo resetea al default del curso), o un "Guardar notas" posterior las
+    // reescribiría con el numDias anterior de la pantalla.
+    if (r.ok) setNumDias(parsed.numDias);
+    if (csvRef.current) csvRef.current.value = "";
   }
 
   if (loading) return <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>;
@@ -303,6 +369,15 @@ export default function NotasSheetPage() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
             <div style={{ display: "flex", gap: 8 }}>
+              <input ref={csvRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleImportCsv} />
+              <button
+                className="btn btn-secondary"
+                style={{ fontSize: 13 }}
+                onClick={() => csvRef.current?.click()}
+                disabled={saving || publishing}
+              >
+                Importar CSV
+              </button>
               <button
                 className="btn btn-secondary"
                 style={{ fontSize: 13 }}
@@ -321,11 +396,13 @@ export default function NotasSheetPage() {
               </button>
             </div>
             <span style={{ fontSize: 11, color: "var(--texto-tenue)" }}>
-              {publishedAt
-                ? `Publicadas ${new Intl.DateTimeFormat("es-PE", { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(publishedAt))}`
-                : savedAt
-                  ? `Guardadas (sin publicar) ${new Intl.DateTimeFormat("es-PE", { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(savedAt))}`
-                  : ""}
+              {importStatus
+                ? importStatus
+                : publishedAt
+                  ? `Publicadas ${new Intl.DateTimeFormat("es-PE", { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(publishedAt))}`
+                  : savedAt
+                    ? `Guardadas (sin publicar) ${new Intl.DateTimeFormat("es-PE", { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(savedAt))}`
+                    : ""}
             </span>
           </div>
         </div>
@@ -400,10 +477,16 @@ export default function NotasSheetPage() {
               const modoActual = modos[fila.estudianteId] ?? fila.modo;
               const celdasActuales = edits[fila.estudianteId] ?? fila.celdasCamara;
               const forumRaw = forumGradeEdits[fila.estudianteId];
+              const examenManual = examenManualEdits[fila.estudianteId] ?? {};
+              const numOrNull = (v: string | undefined) => (v !== undefined && v !== "" && !isNaN(Number(v)) ? Number(v) : null);
               const notaExamenEfectivo =
-                data.tipo === "DIPLOMADO" && !fila.forumEntregado
-                  ? (forumRaw !== undefined && forumRaw !== "" && !isNaN(Number(forumRaw)) ? Number(forumRaw) : 0)
-                  : fila.notaExamenRecup ?? fila.notaExamenNorm ?? 0;
+                data.tipo === "DIPLOMADO"
+                  ? (!fila.forumEntregado
+                    ? (forumRaw !== undefined && forumRaw !== "" && !isNaN(Number(forumRaw)) ? Number(forumRaw) : 0)
+                    : fila.notaExamenRecup ?? fila.notaExamenNorm ?? 0)
+                  : (fila.examenRecupAuto ? fila.notaExamenRecup : numOrNull(examenManual.recup))
+                    ?? (fila.examenNormAuto ? fila.notaExamenNorm : numOrNull(examenManual.norm))
+                    ?? 0;
               const preview = calcularPreview(modoActual, celdasActuales, numDias, ntVals, notaExamenEfectivo);
               const notaFinal = preview.notaFinal;
               const chip = chipClase(notaFinal);
@@ -480,7 +563,32 @@ export default function NotasSheetPage() {
                     </td>
                   ) : (
                     <td style={{ padding: "4px 6px", textAlign: "center" }}>
-                      {(fila.notaExamenRecup ?? fila.notaExamenNorm)?.toFixed(1) ?? "—"}
+                      <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          step={0.5}
+                          disabled={fila.examenNormAuto}
+                          placeholder="Norm"
+                          title={fila.examenNormAuto ? "Nota automática del módulo de exámenes" : "Sin envío real: nota manual (CSV o a mano)"}
+                          value={fila.examenNormAuto ? (fila.notaExamenNorm !== null ? String(fila.notaExamenNorm) : "") : (examenManualEdits[fila.estudianteId]?.norm ?? "")}
+                          onChange={(e) => setExamenManualEdits((p) => ({ ...p, [fila.estudianteId]: { ...p[fila.estudianteId], norm: e.target.value } }))}
+                          style={{ width: 42, textAlign: "center", border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 2px", fontSize: 11, background: fila.examenNormAuto ? "#F6F7F5" : "#fff" }}
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          step={0.5}
+                          disabled={fila.examenRecupAuto}
+                          placeholder="Rec"
+                          title={fila.examenRecupAuto ? "Nota automática del módulo de exámenes" : "Sin envío real: nota manual (CSV o a mano)"}
+                          value={fila.examenRecupAuto ? (fila.notaExamenRecup !== null ? String(fila.notaExamenRecup) : "") : (examenManualEdits[fila.estudianteId]?.recup ?? "")}
+                          onChange={(e) => setExamenManualEdits((p) => ({ ...p, [fila.estudianteId]: { ...p[fila.estudianteId], recup: e.target.value } }))}
+                          style={{ width: 42, textAlign: "center", border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 2px", fontSize: 11, background: fila.examenRecupAuto ? "#F6F7F5" : "#fff" }}
+                        />
+                      </div>
                     </td>
                   )}
                   <td style={{ padding: "4px 6px", textAlign: "center" }}>

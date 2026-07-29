@@ -248,13 +248,24 @@ Reglas:
 
 ---
 
-## 5. NOTA DE EXAMEN (se trae del módulo de exámenes)
+## 5. NOTA DE EXAMEN (se trae del módulo de exámenes, con respaldo manual)
 
 ```text
 - notaExamenNorm  = nota del envío del examen NORMAL del curso (ExamenEnvio.puntajeTotal en escala 0-20).
 - notaExamenRecup = nota del envío del examen SUSTITUTORIO (esSustitutorio = true), si existe.
-- Ambas son AUTO y de solo lectura en la grilla; no se digitan a mano.
-- nota de examen usada = RECUP si existe; si no, NORM; si no hay ninguna, 0.
+- El envío real del módulo de exámenes SIEMPRE tiene prioridad ("AUTO"): si existe, es de solo lectura en
+  la grilla y no se puede editar ni sobreescribir a mano ni por CSV.
+- Si NO hay envío real, el campo queda editable ("MANUAL"): se puede escribir a mano en la grilla o traer
+  por importación CSV (sección 9). Ese valor se guarda en RegistroSemanal.notaExamenNormManual /
+  notaExamenRecupManual y se usa como nota de examen SOLO mientras no aparezca un envío real; si más
+  adelante el alumno rinde el examen de verdad en el módulo, el dato automático pasa a mandar solo,
+  sin que haga falta borrar el valor manual (queda guardado pero se ignora).
+  Resolución (`resolveExamNotes` en `backend/src/services/grades-sheet.service.ts`):
+  notaExamenNorm/Recup = AUTO ?? MANUAL ?? null.
+- La grilla expone `examenNormAuto` / `examenRecupAuto` (booleanos) para que el frontend sepa si cada
+  campo está bloqueado (AUTO) o editable (MANUAL).
+- nota de examen usada = RECUP si existe; si no, NORM; si no hay ninguna, 0. (Confirmado con el cliente:
+  NO es promedio de NORM y RECUP, aunque una hoja del cliente pueda sugerirlo — RECUP reemplaza a NORM.)
 ```
 
 ---
@@ -324,16 +335,64 @@ PATCH  /api/summaries/:id/review     ADMIN: marca revisado y fija notaTranscripc
 GRILLA SEMANAL / NOTAS
 GET    /api/courses/:id/grades-sheet  filas con celdas de cámara editables + NT (de transcripción)
                                       + examen (del módulo) + notas calculadas.
-POST   /api/courses/:id/grades-sheet  upsert de una fila { estudianteId, modo, numDias, celdasCamara }
+POST   /api/courses/:id/grades-sheet  upsert de una fila { estudianteId, modo, numDias, celdasCamara,
+                                      notaForumManual?, notaExamenNormManual?, notaExamenRecupManual? }
    -> el backend toma NT de las transcripciones del día, examen del módulo,
       recalcula notaAsistencia (sección 3) y notaFinal (sección 6), y guarda.
    -> el frontend ya no lo llama desde un botón "Guardar" por fila: lo llama una vez por alumno,
       en paralelo, tanto al hacer clic en "Guardar notas" como en "Mandar notas" (ver sección 7).
+POST   /api/courses/:id/grades-sheet/import  importar CSV de la grilla (ADMIN), ver sección 9.
 ```
 
 ---
 
-## 9. Hecho cuando
+## 9. Importación CSV de la grilla de notas
+
+```text
+Botón "Importar CSV" en la grilla (vista ADMIN, `/cursos/[id]/notas`). Pensado para migrar hojas de
+cálculo del cliente (formato RTS) sin tener que re-tipear celda por celda.
+
+FORMATO ESPERADO DEL CSV (igual a la hoja del cliente):
+  Código | Apellidos y Nombres | Modo de estudio | REGISTRO DE CÁMARA (Día1..Día3, cada uno 1h/2h/3h/NT)
+  | NOTA DE ASIST. | NOTA EXAMEN o NOTA FORUM (NORM./RECUP.) | NOTA FINAL
+
+Las columnas se ubican por PALABRA CLAVE en el encabezado (no por posición fija), igual que el import
+de estudiantes (`matchHeader`, ver sección 1): busca "codigo", "apellidos", "modo", "camara", "asist",
+"examen"/"forum". El ancho del bloque de cámara (columnas entre "camara" y "asist") determina numDias
+(12 columnas = 3 días, 8 = 2, 4 = 1); ese numDias se aplica a TODAS las filas importadas y también
+actualiza el selector "Días de clase" de la pantalla (si no se actualizara, un "Guardar notas" posterior
+pisaría el numDias importado con el que tenía la pantalla antes).
+
+QUÉ SE IMPORTA Y QUÉ NO:
+- Se importa: símbolos de cámara (d1c1..d3c3, validados contra la lista de símbolos válidos F/A/M/C/T
+  y sus variantes con J), modo de estudio, y examen/forum NORM./RECUP. como valor MANUAL (sección 5).
+- NO se importa NUNCA: las celdas NT (siempre vienen de la transcripción revisada, sección 4) ni
+  NOTA DE ASIST./NOTA FINAL (el backend las recalcula siempre con la fórmula oficial, nunca se confía
+  en lo que traiga el CSV).
+- Si hay envío real en el módulo de exámenes (AUTO), el valor manual del CSV se guarda pero se IGNORA
+  para el cálculo (sección 5) — el automático manda siempre.
+
+MATCHING DE ALUMNOS (`importGradesSheet` en `backend/src/services/grades-sheet.service.ts`):
+- Solo aplica filas de alumnos YA INSCRITOS en el curso. Nunca crea ni matricula a nadie.
+- Matchea primero por CÓDIGO (si el alumno inscrito tiene código y el CSV trae uno igual).
+- Si no hay código (frecuente: hojas viejas donde muchos alumnos no tienen código asignado) o no matchea,
+  cae a NOMBRE Y APELLIDO normalizado (`normalizarNombreKey`: sin tildes, mayúsculas, orden de palabras
+  ignorado — compara el conjunto de palabras, no el string exacto).
+- A propósito NO se usa matching difuso/por similitud (Levenshtein, substring, etc.): el riesgo de
+  asignarle la nota a un alumno equivocado por nombres parecidos es peor que dejar la fila sin matchear.
+  Si el nombre en el CSV difiere del registrado (apodo, nombre incompleto, typo, apellido distinto), la
+  fila queda como "saltada" y hay que resolverlo a mano (corrigiendo el nombre en el registro o
+  editando esa fila directo en la grilla) — no es un bug del importador.
+- Lo que no matchea (por código o nombre) se cuenta como "saltado", con un aviso legible
+  (`"Nombre" (código: X) no está inscrito en este curso`) para que el ADMIN pueda revisar caso por caso.
+- El parseo del CSV (detección de columnas, símbolos, números) vive en `frontend/src/lib/grades-csv.ts`;
+  reutiliza `readCsvFile`/`parseCsv`/`normalizeCsvHeader` de `frontend/src/lib/csv.ts` (mismo manejo de
+  mojibake/encoding que el import de estudiantes).
+```
+
+---
+
+## 10. Hecho cuando
 
 ```text
 [ ] Registro de estudiantes con TODAS las columnas, edición tipo celda y filtro por código.
@@ -346,4 +405,6 @@ POST   /api/courses/:id/grades-sheet  upsert de una fila { estudianteId, modo, n
 [x] El backend es la autoridad de lo que se guarda; el frontend además muestra una vista previa en
     vivo recalculada con cada cambio de celda (misma fórmula duplicada en `frontend/src/lib/nota-asistencia.ts`).
 [ ] backend y frontend: typecheck + build OK; pruebas de la fórmula con casos conocidos.
+[x] Importación CSV de la grilla de notas (sección 9): matchea por código y, si falta, por nombre y
+    apellido normalizado; nunca matricula a nadie nuevo; nunca pisa un examen con envío real en el módulo.
 ```

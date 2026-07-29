@@ -20,6 +20,7 @@ courseRoutes.delete("/:id", requireRole(Rol.ADMIN), courseController.remove);
 
 courseRoutes.get("/:id/grades-sheet", requireRole(Rol.ADMIN), gradesSheetController.getSheet);
 courseRoutes.post("/:id/grades-sheet", requireRole(Rol.ADMIN), gradesSheetController.upsertRow);
+courseRoutes.post("/:id/grades-sheet/import", requireRole(Rol.ADMIN), gradesSheetController.importSheet);
 courseRoutes.post("/:id/grades/publish", requireRole(Rol.ADMIN), gradesSheetController.publishGrades);
 courseRoutes.get("/:id/grades", requireRole(Rol.PROFESOR), gradesSheetController.getPublishedGrades);
 courseRoutes.get("/:id/summaries/mine", requireRole(Rol.ESTUDIANTE), sessionController.getMySummariesForCourse);
