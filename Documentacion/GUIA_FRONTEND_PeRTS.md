@@ -707,6 +707,13 @@ botón primary "Guardar enlace", botón secondary "Probar enlace" (icono `Extern
 - **Foco visible** en todo elemento interactivo (`--sh-focus`). No remover outline sin reemplazo.
 - **Teclado**: tabs navegables con flechas; modales atrapan foco y cierran con Esc.
 - **Labels reales** en todos los inputs; iconos decorativos con `aria-hidden`.
+- **Alto de pantalla en mobile**: usar `dvh` (dynamic viewport height), nunca `vh` a secas, en
+  cualquier bloque que deba ocupar "toda la pantalla" (`.shell__rail`, `.login__stage`, modales
+  a pantalla completa, etc.). En Chrome/Safari mobile `100vh` se calcula con la barra de
+  direcciones oculta (viewport máximo), más alto que lo que realmente se ve con la barra visible
+  — el sidebar quedaba cortado y "Cerrar sesión" fuera de pantalla sin forma de hacer scroll hasta
+  él. Patrón: `height: 100vh; height: 100dvh;` (la segunda línea pisa a la primera en navegadores
+  que soportan `dvh`, y sirve de fallback en los que no).
 - **Responsive**: sidebar → drawer en `<1024px`; grids `repeat(auto-fill,minmax(260px,1fr))`;
   tablas anchas con scroll horizontal contenido (no romper layout); login y auth se apilan en móvil.
   En `globals.css` esto es la clase **`.card-grid`**. No reutilizar `.stat-grid` (`minmax(160px,1fr)`)
