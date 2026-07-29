@@ -350,6 +350,14 @@ button, input, select, textarea { font: inherit; }
   display: none;
 }
 
+/* El bleed debe coincidir con el padding de .shell__content en cada breakpoint,
+   si no el titulo del curso queda pegado al borde real de la pantalla en movil.
+   Esta regla base tiene que ir ANTES del media query de abajo: como las dos
+   reglas tienen la misma especificidad, si esta fuera la ultima en el archivo
+   ganaria siempre (incluso en mobile) y anularia el valor de -20px. */
+.course-topbar-bleed { margin: -28px -36px 0; }
+.workspace-tabs-bleed { margin: 0 -36px 24px; }
+
 /* ── Responsive ── */
 @media (max-width: 1024px) {
   .shell__rail {
@@ -398,11 +406,6 @@ button, input, select, textarea { font: inherit; }
   font-family: var(--font-display); font-size: 20px;
   font-weight: 500; margin: 0; color: var(--ink);
 }
-
-/* El bleed debe coincidir con el padding de .shell__content en cada breakpoint,
-   si no el titulo del curso queda pegado al borde real de la pantalla en movil. */
-.course-topbar-bleed { margin: -28px -36px 0; }
-.workspace-tabs-bleed { margin: 0 -36px 24px; }
 
 /* ── Botón Zoom (legacy) ── */
 .zoom-button {

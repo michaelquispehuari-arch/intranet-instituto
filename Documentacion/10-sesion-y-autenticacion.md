@@ -82,6 +82,28 @@ Esto cubre el caso donde la cookie de NextAuth sigue viva (el usuario está acti
 etc.). Antes cada pantalla ignoraba el 401 en silencio; ahora cualquier 401 de `/api/backend/*` fuerza
 un cierre de sesión limpio y manda a `/login`, en vez de dejar la pantalla con datos vacíos/viejos.
 
+## 2.4 Renovar la sesión solo con actividad real (no con el foco de la pestaña)
+
+**Fecha: 2026-07-29.** El `maxAge`/`updateAge` de la sección 2.1 vence la cookie por inactividad,
+pero "inactividad" para NextAuth por defecto significa "la pestaña no recuperó el foco" — no "el
+usuario no usó la app". `useSession()` (vía `SessionProvider`) refresca la sesión automáticamente
+cuando la ventana recupera el foco, pero **navegar entre páginas protegidas (lo que valida
+`middleware.ts` en cada request) NO renueva la cookie**. Se confirmó con una prueba directa:
+loguear por `curl`, visitar `/inicio` (pasa por el middleware) y comparar la cookie antes/después
+— no cambia. Solo pegarle a `/api/auth/session` (lo que dispara el foco de ventana) la renueva.
+
+Consecuencia real: una pestaña dejada abierta en segundo plano (sin usar la intranet para nada)
+podía mantener la sesión viva indefinidamente con solo volver a enfocar esa pestaña de vez en
+cuando — típico en Android, donde "cerrar" la app con el gesto de recientes muchas veces no mata
+la pestaña de Chrome, solo la manda a segundo plano.
+
+**Corrección** (`frontend/src/components/providers.tsx`): el mismo interceptor de `fetch` que
+detecta los 401 (sección 2.3) ahora también llama a `update()` de `useSession()` ante cualquier
+respuesta exitosa de `/api/backend/*`, como máximo una vez cada 5 minutos (mismo valor que
+`updateAge`). Esa llamada exitosa a la API — no el foco de la ventana — es lo que ahora extiende
+la sesión. Si no hay actividad real, nadie la renueva y vence sola a la hora, sin importar cuántas
+veces se reenfoque la pestaña.
+
 ## 3. Qué NO cambió (a propósito)
 
 ```text
