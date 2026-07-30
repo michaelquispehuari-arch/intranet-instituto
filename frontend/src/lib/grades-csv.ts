@@ -23,11 +23,15 @@ function normalizarSimbolo(v: string): string {
   return SIMBOLOS_VALIDOS.has(s) ? s : "";
 }
 
+// Notas fuera de 0-20 son datos corruptos de la hoja original (celdas corridas,
+// formulas rotas, etc.) -- se ignoran en vez de tumbar la importacion completa
+// (el backend rechaza el batch entero si una sola fila trae una nota invalida).
 function parseNota(v: string): number | undefined {
   const t = v.trim().replace(",", ".");
   if (!t) return undefined;
   const n = Number(t);
-  return Number.isFinite(n) ? n : undefined;
+  if (!Number.isFinite(n) || n < 0 || n > 20) return undefined;
+  return n;
 }
 
 // Parsea el CSV de la grilla de notas (formato RTS: Código | Apellidos y Nombres |
