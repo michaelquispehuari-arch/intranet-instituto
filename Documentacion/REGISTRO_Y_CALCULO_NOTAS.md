@@ -383,6 +383,13 @@ QUÉ SE IMPORTA Y QUÉ NO:
   en lo que traiga el CSV).
 - Si hay envío real en el módulo de exámenes (AUTO), el valor manual del CSV se guarda pero se IGNORA
   para el cálculo (sección 5) — el automático manda siempre.
+- Notas de examen (NORM./RECUP.) fuera de 0-20 se IGNORAN fila por fila en el parser
+  (`parseNota` en `frontend/src/lib/grades-csv.ts`), no se mandan al backend. Son datos corruptos de la
+  hoja original (celda corrida, fórmula rota, copy-paste de otra columna), no algo que el usuario haya
+  querido guardar de verdad. Antes de este fix, una sola fila así (ej. RECUP. = 114.00) tumbaba la
+  importación COMPLETA con "Datos inválidos", porque el backend valida 0-20 sobre el batch entero
+  (`importSchema` en `backend/src/controllers/grades-sheet.controller.ts`) y rechaza todo el array si
+  una fila falla — no solo esa fila.
 
 MATCHING DE ALUMNOS (`importGradesSheet` en `backend/src/services/grades-sheet.service.ts`):
 - Solo aplica filas de alumnos YA INSCRITOS en el curso. Nunca crea ni matricula a nadie.
