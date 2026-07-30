@@ -1,0 +1,38 @@
+import type { cursos as cursosEs } from "../es/cursos";
+
+export const cursos: typeof cursosEs = {
+  title: "Courses",
+  newCourse: "+ New course",
+  emptyAdmin: "There are no courses yet. Create the first one from course management.",
+  emptyProfesor: "You have no courses assigned this week.",
+  emptyEstudiante: "You are not enrolled in any active course.",
+  emptyTitle: "No courses",
+  createForm: {
+    heading: "New course",
+    nameLabel: "Course name",
+    profesorLabel: "Teacher",
+    selectPlaceholder: "Select…",
+    typeLabel: "Course type",
+    typeRegular: "Regular (with exam)",
+    typeDiplomado: "Diploma (no exam, with daily assignments)",
+    cycleLabel: "Cycle",
+    yearLabel: "Year",
+    descriptionLabel: "Description (optional)",
+    submit: "Create course",
+    submitting: "Creating…",
+    genericError: "Error creating course",
+  },
+  tipo: {
+    REGULAR: "Regular",
+    ENTRENAMIENTO: "Training",
+    ESPECIAL: "Special",
+    DIPLOMADO: "Diploma",
+  },
+  inactive: "Inactive",
+  teacherCycle: "Prof. {{nombre}} {{apellido}} · Cycle {{ciclo}} / {{anio}}",
+  deleteCourse: "Delete course",
+  confirmDelete: 'Delete course "{{nombre}}"? It will become inactive and its history will not be deleted.',
+  deleted: "Course deleted.",
+  deleteError: "Error deleting: {{motivo}}",
+  serverError: "Server error",
+};

@@ -35,6 +35,7 @@ Esta carpeta no se actualiza sola. Si agregas una pantalla, un servicio nuevo o 
 
 - [Inventario de pantallas](./FRONTEND_PANTALLAS_COMPLETO.md) — cada pantalla del sistema, sus campos, botones y a qué endpoint llama. Punto de partida obligatorio antes de tocar cualquier pantalla existente o crear una nueva.
 - [Guía de diseño (PeRTS)](./GUIA_FRONTEND_PeRTS.md) — sistema de diseño: tokens de color/tipografía (`frontend/src/app/tokens.css`), componentes base (botón, card, tabla, chip), catálogo de animaciones y diccionario de copy (qué texto técnico no debe verse en pantalla).
+- [Idiomas (i18n)](./11-idiomas-i18n.md) — selector español/inglés/coreano: dónde están los diccionarios, cómo agregar texto nuevo (siempre en los 3 idiomas a la vez) y cómo formatear fechas según el idioma activo. Leer antes de tocar cualquier texto visible o agregar una pantalla nueva.
 
 ---
 

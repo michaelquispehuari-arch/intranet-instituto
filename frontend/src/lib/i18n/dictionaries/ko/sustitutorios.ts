@@ -1,0 +1,52 @@
+import type { sustitutorios as sustitutoriosEs } from "../es/sustitutorios";
+
+export const sustitutorios: typeof sustitutoriosEs = {
+  eyebrow: "관리",
+  title: "보강 시험",
+  subtitle: "보강 시험을 관리하고 제출물을 채점합니다.",
+  tabs: {
+    exams: "시험",
+    eligibleStudents: "응시 가능 학생",
+  },
+  loading: "불러오는 중…",
+  examCount: "보강 시험 {{count}}건",
+  createButton: "+ 만들기",
+  noExams: {
+    title: "보강 시험 없음",
+    description: '"보강 시험임" 옵션을 선택하여 시험을 만드세요.',
+  },
+  notPublished: "게시되지 않음",
+  selectExam: {
+    title: "시험을 선택하세요",
+    description: "시험을 클릭하면 제출물을 확인하고 채점할 수 있습니다.",
+  },
+  loadingSubmissions: "제출물을 불러오는 중…",
+  submissionsCount: "— 제출 {{count}}건",
+  noSubmissions: "아직 이 시험을 제출한 학생이 없습니다.",
+  submittedAt: "제출일:",
+  allGraded: "✓ 채점 완료",
+  pointsLabel: "{{value}}점",
+  gradeLabel: "점수 (0–{{max}}):",
+  savedLabel: "저장됨: {{value}}",
+  saveGrade: "점수 저장",
+  saving: "저장 중…",
+  markReviewed: "검토 완료로 표시",
+  reviewing: "처리 중…",
+  gradeAllFirst: "먼저 모든 답변을 채점하세요",
+  errors: {
+    saveGrade: "저장 중 오류가 발생했습니다",
+    markReviewed: "검토 완료 처리 중 오류가 발생했습니다",
+  },
+  gradeSaved: "점수가 저장되었습니다 ✓",
+  reviewedSuccess: "검토 완료 ✓ — 보강 시험 점수: {{nota}}",
+  eligibleStudentsHeading: "응시 가능 학생 ({{count}}명)",
+  noEligible: {
+    title: "응시 가능 학생 없음",
+    description: "낙제 과목이 1~3개이면서 성적이 모두 등록된 학생이 없습니다.",
+  },
+  courseFailedSingular: "낙제 과목 {{count}}개",
+  courseFailedPlural: "낙제 과목 {{count}}개",
+  manualEnableIntro: "이미 일반 시험을 치른 학생을 수동으로 활성화하려면 다음을 사용하세요:",
+  manualEnableWith: "그리고",
+  manualEnableAnd: "및",
+};

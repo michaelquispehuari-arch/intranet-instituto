@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage() {
@@ -24,6 +25,9 @@ export default async function LoginPage() {
           aria-hidden="true"
         />
         <span className="login__brandtext">Seminario Teológico de Remanentes</span>
+        <span className="login__lang">
+          <LanguageSwitcher />
+        </span>
       </header>
 
       <div className="login__rule" aria-hidden="true" />

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { readApiError } from "@/lib/api-error";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 import type { CourseOption } from "../types";
 
 type UploadFormProps = {
@@ -11,6 +12,7 @@ type UploadFormProps = {
 };
 
 export function UploadForm({ courses, selectedCourseId }: UploadFormProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,7 +34,7 @@ export function UploadForm({ courses, selectedCourseId }: UploadFormProps) {
       setError(
         await readApiError(
           response,
-          "No se pudo subir el material. Revisa el archivo, curso y credenciales R2.",
+          t("material.subir.uploadError"),
         ),
       );
       return;
@@ -45,24 +47,24 @@ export function UploadForm({ courses, selectedCourseId }: UploadFormProps) {
   return (
     <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
       <div className="field">
-        <label htmlFor="cursoId">Curso</label>
+        <label htmlFor="cursoId">{t("material.subir.courseLabel")}</label>
         <select id="cursoId" name="cursoId" defaultValue={selectedCourseId ?? ""} required>
-          <option value="">Selecciona un curso</option>
+          <option value="">{t("material.subir.selectCourse")}</option>
           {courses.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.nombre} — ciclo {c.ciclo}, {c.anio}
+              {c.nombre} {t("material.subir.courseOption", { ciclo: c.ciclo, anio: c.anio })}
             </option>
           ))}
         </select>
       </div>
 
       <div className="field">
-        <label htmlFor="nombre">Nombre visible</label>
+        <label htmlFor="nombre">{t("material.subir.nameLabel")}</label>
         <input id="nombre" name="nombre" minLength={3} maxLength={150} required />
       </div>
 
       <div className="field">
-        <label htmlFor="files">Archivos (puedes seleccionar varios)</label>
+        <label htmlFor="files">{t("material.subir.filesLabel")}</label>
         <input
           id="files"
           name="files"
@@ -74,7 +76,7 @@ export function UploadForm({ courses, selectedCourseId }: UploadFormProps) {
       </div>
 
       <div className="field">
-        <label htmlFor="descripcion">Descripción</label>
+        <label htmlFor="descripcion">{t("material.subir.descriptionLabel")}</label>
         <textarea id="descripcion" name="descripcion" maxLength={500} rows={3} />
       </div>
 
@@ -84,7 +86,7 @@ export function UploadForm({ courses, selectedCourseId }: UploadFormProps) {
 
       <div>
         <button type="submit" className="btn btn-primary" disabled={isSubmitting || courses.length === 0}>
-          {isSubmitting ? "Subiendo…" : "Subir material"}
+          {isSubmitting ? t("material.subir.submitting") : t("material.subir.submitButton")}
         </button>
       </div>
     </form>

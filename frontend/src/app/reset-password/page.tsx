@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ResetPasswordForm } from "./reset-password-form";
+import { ResetPasswordContent } from "./reset-password-content";
 
 type ResetPasswordPageProps = {
   searchParams: Promise<{
@@ -12,18 +11,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
 
   return (
     <main className="login-page">
-      <section className="panel login-panel">
-        <h1>Nueva contrasena</h1>
-        <p className="muted">Crea una contrasena segura para tu cuenta.</p>
-        {token ? (
-          <ResetPasswordForm token={token} />
-        ) : (
-          <p className="error">Token no encontrado</p>
-        )}
-        <Link className="text-link login-footer-link" href="/login">
-          Volver al login
-        </Link>
-      </section>
+      <ResetPasswordContent token={token} />
     </main>
   );
 }

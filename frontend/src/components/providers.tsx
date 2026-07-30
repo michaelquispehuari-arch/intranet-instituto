@@ -2,6 +2,7 @@
 
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 import { useEffect, useRef } from "react";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 
 // Igual al updateAge de authOptions.session en lib/auth.ts: no tiene sentido
 // refrescar la cookie de sesion mas seguido que eso.
@@ -63,7 +64,9 @@ function SessionKeepAlive({ children }: { children: React.ReactNode }) {
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <SessionKeepAlive>{children}</SessionKeepAlive>
+      <LanguageProvider>
+        <SessionKeepAlive>{children}</SessionKeepAlive>
+      </LanguageProvider>
     </SessionProvider>
   );
 }

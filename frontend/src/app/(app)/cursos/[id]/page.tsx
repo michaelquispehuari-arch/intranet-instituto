@@ -6,6 +6,11 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { MAX_VIDEO_DURATION_SECONDS, compressVideo, getVideoDuration, isVideoFile } from "@/lib/video-compress";
 import { AudioRecorder, isAudioRecordingSupported } from "@/lib/audio-record";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
+import { INTL_LOCALES } from "@/lib/i18n/types";
+import { cursoDetalle as cursoDetalleEs } from "@/lib/i18n/dictionaries/es/cursoDetalle";
+import { cursoDetalle as cursoDetalleEn } from "@/lib/i18n/dictionaries/en/cursoDetalle";
+import { cursoDetalle as cursoDetalleKo } from "@/lib/i18n/dictionaries/ko/cursoDetalle";
 
 type Sesion = {
   id: string;
@@ -73,17 +78,9 @@ type RecorderState = "inactivo" | "grabando" | "pausado" | "procesando" | "listo
 
 type Tab = "sesiones" | "material" | "examenes" | "notas" | "alumnos" | "transcripcion" | "forums";
 
-const TIPO_LABEL: Record<string, string> = {
-  REGULAR: "Curso Regular",
-  ENTRENAMIENTO: "Entrenamiento",
-  ESPECIAL: "Especial",
-  DIPLOMADO: "Diplomado",
-};
-
-const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-
 export default function CourseWorkspacePage() {
   const { id } = useParams<{ id: string }>();
+  const { t, locale } = useTranslation();
   const { data: session } = useSession();
   const [curso, setCurso] = useState<Curso | null>(null);
   const [sesiones, setSesiones] = useState<Sesion[]>([]);
@@ -237,7 +234,7 @@ export default function CourseWorkspacePage() {
       setUploadFiles((prev) => ({ ...prev, [sesionId]: null }));
     } else {
       const d = await r.json().catch(() => ({})) as { message?: string };
-      alert(d.message ?? "Error al subir los archivos");
+      alert(d.message ?? t("cursoDetalle.transcripcion.uploadError"));
     }
   }
 
@@ -301,7 +298,7 @@ export default function CourseWorkspacePage() {
         setForumUploadFiles(null);
         discardRecordedAudio();
       } else {
-        let message = "Error al subir los archivos";
+        let message = t("cursoDetalle.material.forum.uploadError");
         try {
           const d = JSON.parse(result.body) as { message?: string };
           if (d.message) message = d.message;
@@ -311,7 +308,7 @@ export default function CourseWorkspacePage() {
         alert(message);
       }
     } catch {
-      alert("Error al subir los archivos");
+      alert(t("cursoDetalle.material.forum.uploadError"));
     } finally {
       setUploadingForum(false);
       setForumUploadProgress(0);
@@ -320,7 +317,7 @@ export default function CourseWorkspacePage() {
   }
 
   async function deleteForum() {
-    if (!confirm("¿Borrar lo que subiste para el Forum de la semana? Esto no se puede deshacer.")) return;
+    if (!confirm(t("cursoDetalle.material.forum.confirmDelete"))) return;
     setDeletingForum(true);
     const r = await fetch(`/api/backend/courses/${id}/forums/1`, { method: "DELETE" });
     setDeletingForum(false);
@@ -328,7 +325,7 @@ export default function CourseWorkspacePage() {
       setMyForum(null);
     } else {
       const d = await r.json().catch(() => ({})) as { message?: string };
-      alert(d.message ?? "Error al borrar la entrega");
+      alert(d.message ?? t("cursoDetalle.material.forum.deleteError"));
     }
   }
 
@@ -385,7 +382,7 @@ export default function CourseWorkspacePage() {
         setRecordSeconds((s) => s + 1);
       }, 1000);
     } catch {
-      alert("No se pudo acceder al micrófono. Revisa los permisos del navegador.");
+      alert(t("cursoDetalle.material.forum.micError"));
     }
   }
 
@@ -415,7 +412,7 @@ export default function CourseWorkspacePage() {
       setRecordedAudioUrl(URL.createObjectURL(file));
       setRecorderState("listo");
     } catch {
-      alert("No se pudo guardar la grabación de audio.");
+      alert(t("cursoDetalle.material.forum.saveAudioError"));
       setRecorderState("inactivo");
     } finally {
       audioRecorderRef.current = null;
@@ -519,7 +516,7 @@ export default function CourseWorkspacePage() {
     if (!response.ok) {
       const d = await response.json().catch(() => ({})) as { message?: string; errors?: Record<string, string[]> };
       const fieldMsg = d.errors ? Object.entries(d.errors).map(([f, e]) => `${f}: ${e.join(", ")}`).join(" | ") : "";
-      setSessionError(fieldMsg || d.message || "Error al crear la clase.");
+      setSessionError(fieldMsg || d.message || t("cursoDetalle.sesiones.createError"));
       return;
     }
 
@@ -531,14 +528,22 @@ export default function CourseWorkspacePage() {
 
   const esDiplomado = curso?.tipo === "DIPLOMADO";
 
+  const tipoLabel: Record<string, string> = {
+    REGULAR: t("cursoDetalle.tipo.REGULAR"),
+    ENTRENAMIENTO: t("cursoDetalle.tipo.ENTRENAMIENTO"),
+    ESPECIAL: t("cursoDetalle.tipo.ESPECIAL"),
+    DIPLOMADO: t("cursoDetalle.tipo.DIPLOMADO"),
+  };
+  const meses = locale === "en" ? cursoDetalleEn.meses : locale === "ko" ? cursoDetalleKo.meses : cursoDetalleEs.meses;
+
   const allTabs: { key: Tab; label: string; roles: Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }[] = [
-    { key: "sesiones", label: "Sesiones", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
-    { key: "material", label: "Material", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
-    ...(esDiplomado ? [] : [{ key: "examenes" as const, label: "Exámenes", roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
-    { key: "notas", label: "Notas", roles: ["ADMIN", "PROFESOR"] },
-    { key: "alumnos", label: "Alumnos", roles: ["ADMIN", "PROFESOR"] },
-    ...(esDiplomado ? [] : [{ key: "transcripcion" as const, label: "Transcripción", roles: ["ESTUDIANTE"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
-    ...(esDiplomado ? [{ key: "forums" as const, label: "Corregir forums", roles: ["ADMIN"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }] : []),
+    { key: "sesiones", label: t("cursoDetalle.tabs.sesiones"), roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+    { key: "material", label: t("cursoDetalle.tabs.material"), roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] },
+    ...(esDiplomado ? [] : [{ key: "examenes" as const, label: t("cursoDetalle.tabs.examenes"), roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
+    { key: "notas", label: t("cursoDetalle.tabs.notas"), roles: ["ADMIN", "PROFESOR"] },
+    { key: "alumnos", label: t("cursoDetalle.tabs.alumnos"), roles: ["ADMIN", "PROFESOR"] },
+    ...(esDiplomado ? [] : [{ key: "transcripcion" as const, label: t("cursoDetalle.tabs.transcripcion"), roles: ["ESTUDIANTE"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
+    ...(esDiplomado ? [{ key: "forums" as const, label: t("cursoDetalle.tabs.forums"), roles: ["ADMIN"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }] : []),
   ];
   const tabs = allTabs.filter((t) => !rol || t.roles.includes(rol as "ADMIN" | "PROFESOR" | "ESTUDIANTE"));
 
@@ -555,14 +560,14 @@ export default function CourseWorkspacePage() {
   }
 
   if (loading) {
-    return <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>;
+    return <p style={{ color: "var(--texto-tenue)" }}>{t("cursoDetalle.loading")}</p>;
   }
 
   if (!curso) {
     return (
       <div className="card">
         <div className="empty-state">
-          <p className="empty-state-title">Curso no encontrado</p>
+          <p className="empty-state-title">{t("cursoDetalle.notFound")}</p>
         </div>
       </div>
     );
@@ -574,14 +579,14 @@ export default function CourseWorkspacePage() {
       <div className="course-topbar course-topbar-bleed" style={{ position: "sticky", top: 0, zIndex: 10 }}>
         <div className="course-topbar-left">
           <Link href="/cursos" style={{ fontSize: 12, color: "var(--texto-tenue)", marginBottom: 2, display: "block" }}>
-            ← Cursos
+            {t("cursoDetalle.backToCourses")}
           </Link>
-          <span className="course-topbar-eyebrow">{TIPO_LABEL[curso.tipo] ?? curso.tipo}</span>
+          <span className="course-topbar-eyebrow">{tipoLabel[curso.tipo] ?? curso.tipo}</span>
           <h1 className="course-topbar-title">{curso.nombre}</h1>
         </div>
         {enlaceZoom && (
           <a href={enlaceZoom} target="_blank" rel="noopener noreferrer" className="zoom-button">
-            🎥 Unirse a Zoom
+            {t("cursoDetalle.joinZoom")}
           </a>
         )}
       </div>
@@ -602,16 +607,16 @@ export default function CourseWorkspacePage() {
       {tab === "sesiones" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Clases grabadas</h2>
-            {canCreateSessions && <span className="badge">Agrega clases abajo</span>}
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{t("cursoDetalle.sesiones.heading")}</h2>
+            {canCreateSessions && <span className="badge">{t("cursoDetalle.sesiones.addBadge")}</span>}
           </div>
 
           {sesiones.length === 0 && (
             <div className="card">
               <div className="empty-state">
                 <div className="empty-state-icon">🎬</div>
-                <p className="empty-state-title">Sin grabaciones aún</p>
-                <p>{canCreateSessions ? "Agrega la primera clase con su link de YouTube." : "Las grabaciones aparecerán aquí cuando estén disponibles."}</p>
+                <p className="empty-state-title">{t("cursoDetalle.sesiones.emptyTitle")}</p>
+                <p>{canCreateSessions ? t("cursoDetalle.sesiones.emptyAdmin") : t("cursoDetalle.sesiones.emptyOther")}</p>
               </div>
             </div>
           )}
@@ -628,7 +633,7 @@ export default function CourseWorkspacePage() {
                 >
                   <div className="session-date">
                     <div className="session-date-day">{fecha.getDate()}</div>
-                    <div className="session-date-month">{MESES[fecha.getMonth()]}</div>
+                    <div className="session-date-month">{meses[fecha.getMonth()]}</div>
                   </div>
                   <div className="session-info">
                     <div className="session-title">{sesion.titulo}</div>
@@ -640,18 +645,18 @@ export default function CourseWorkspacePage() {
                         className="text-link"
                         style={{ display: "inline-block", marginTop: 8 }}
                       >
-                        Ver grabacion
+                        {t("cursoDetalle.sesiones.viewRecording")}
                       </a>
                     ) : (
                       <p className="muted" style={{ margin: "8px 0 0", fontSize: 13 }}>
-                        Grabacion pendiente.
+                        {t("cursoDetalle.sesiones.recordingPending")}
                       </p>
                     )}
                     {canManageRecordings && (
                       <div className="recording-form" style={{ display: "grid", gap: 6 }}>
                         <input
-                          aria-label={`Título de la clase ${sesion.titulo}`}
-                          placeholder="Título de la clase"
+                          aria-label={t("cursoDetalle.sesiones.titleAriaLabel", { titulo: sesion.titulo })}
+                          placeholder={t("cursoDetalle.sesiones.titlePlaceholder")}
                           value={titleDrafts[sesion.id] ?? ""}
                           onChange={(event) =>
                             setTitleDrafts((current) => ({
@@ -662,8 +667,8 @@ export default function CourseWorkspacePage() {
                         />
                         <div style={{ display: "flex", gap: 8 }}>
                           <input
-                            aria-label={`Link de grabacion para ${sesion.titulo}`}
-                            placeholder="Pegar link de YouTube"
+                            aria-label={t("cursoDetalle.sesiones.linkAriaLabel", { titulo: sesion.titulo })}
+                            placeholder={t("cursoDetalle.sesiones.linkPlaceholder")}
                             value={recordingDrafts[sesion.id] ?? ""}
                             onChange={(event) =>
                               setRecordingDrafts((current) => ({
@@ -679,14 +684,14 @@ export default function CourseWorkspacePage() {
                             disabled={savingRecordingId === sesion.id}
                             onClick={() => saveSessionRecording(sesion.id)}
                           >
-                            {savingRecordingId === sesion.id ? "Guardando..." : "Guardar cambios"}
+                            {savingRecordingId === sesion.id ? t("cursoDetalle.saving") : t("cursoDetalle.sesiones.saveChanges")}
                           </button>
                         </div>
                       </div>
                     )}
                     <div className="session-chips">
-                      {esHoy && <span className="chip chip-ok">Hoy</span>}
-                      {sesion.enlaceGrabacion && <span className="chip chip-grabacion">🎬 Grabación</span>}
+                      {esHoy && <span className="chip chip-ok">{t("cursoDetalle.sesiones.today")}</span>}
+                      {sesion.enlaceGrabacion && <span className="chip chip-grabacion">{t("cursoDetalle.sesiones.recordingChip")}</span>}
                     </div>
                   </div>
                 </article>
@@ -695,21 +700,21 @@ export default function CourseWorkspacePage() {
           </div>
           {canCreateSessions && (
             <form className="card form wide-form" onSubmit={createSession} style={{ marginTop: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 16 }}>Publicar grabación de clase</h3>
+              <h3 style={{ margin: 0, fontSize: 16 }}>{t("cursoDetalle.sesiones.createHeading")}</h3>
               <div className="form-grid">
                 <label className="field">
-                  <span>Título</span>
+                  <span>{t("cursoDetalle.sesiones.titleLabel")}</span>
                   <input
-                    placeholder={`Clase ${sesiones.length + 1} — ${curso.nombre}`}
+                    placeholder={t("cursoDetalle.sesiones.titlePlaceholderNew", { numero: sesiones.length + 1, nombreCurso: curso.nombre })}
                     value={newSession.titulo}
                     onChange={(event) => setNewSession((current) => ({ ...current, titulo: event.target.value }))}
                     required
                   />
                 </label>
                 <label className="field">
-                  <span>Link YouTube</span>
+                  <span>{t("cursoDetalle.sesiones.linkLabel")}</span>
                   <input
-                    placeholder="https://youtu.be/... o https://www.youtube.com/watch?v=..."
+                    placeholder={t("cursoDetalle.sesiones.linkPlaceholderNew")}
                     value={newSession.enlaceGrabacion}
                     onChange={(event) =>
                       setNewSession((current) => ({ ...current, enlaceGrabacion: event.target.value }))
@@ -723,7 +728,7 @@ export default function CourseWorkspacePage() {
               )}
               <div className="card-actions">
                 <button className="btn btn-primary" type="submit" disabled={creatingSession}>
-                  {creatingSession ? "Publicando..." : "Publicar clase"}
+                  {creatingSession ? t("cursoDetalle.sesiones.publishing") : t("cursoDetalle.sesiones.publish")}
                 </button>
               </div>
             </form>
@@ -734,10 +739,10 @@ export default function CourseWorkspacePage() {
       {tab === "material" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Material del curso</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{t("cursoDetalle.material.heading")}</h2>
             {(rol === "ADMIN" || rol === "PROFESOR") && (
               <Link href={`/material/subir?cursoId=${id}`} className="btn btn-primary">
-                + Subir material
+                {t("cursoDetalle.material.upload")}
               </Link>
             )}
           </div>
@@ -746,20 +751,20 @@ export default function CourseWorkspacePage() {
             canManageRecordings ? (
               <div className="card" style={{ marginBottom: 16, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>
-                  Fecha Límite para Alumnos Forums:{" "}
+                  {t("cursoDetalle.material.deadlineLabel")}{" "}
                   <input
                     type="date"
-                    aria-label="Fecha límite para alumnos forums"
+                    aria-label={t("cursoDetalle.material.deadlineAriaLabel")}
                     value={deadlineDraft}
                     onChange={(event) => setDeadlineDraft(event.target.value)}
                   />
                 </label>
                 <button className="btn btn-secondary" type="button" disabled={savingDeadline} onClick={saveDeadline}>
-                  {savingDeadline ? "Guardando..." : "Guardar fecha"}
+                  {savingDeadline ? t("cursoDetalle.saving") : t("cursoDetalle.material.saveDate")}
                 </button>
                 {curso.fechaLimiteEntrega && (
                   <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                    Actual: {new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                    {t("cursoDetalle.material.currentDate", { fecha: new Date(curso.fechaLimiteEntrega).toLocaleDateString(INTL_LOCALES[locale]) })}
                   </span>
                 )}
               </div>
@@ -767,8 +772,8 @@ export default function CourseWorkspacePage() {
               <div className="card" style={{ marginBottom: 16 }}>
                 <div className="card-body" style={{ color: "var(--texto-tenue)", fontSize: 13 }}>
                   {curso.fechaLimiteEntrega
-                    ? `Fecha límite para subir forums: ${new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}`
-                    : "Aún no hay fecha límite definida para subir los forums."}
+                    ? t("cursoDetalle.material.deadlineForStudents", { fecha: new Date(curso.fechaLimiteEntrega).toLocaleDateString(INTL_LOCALES[locale]) })
+                    : t("cursoDetalle.material.noDeadlineYet")}
                 </div>
               </div>
             )
@@ -777,13 +782,13 @@ export default function CourseWorkspacePage() {
           {esDiplomado && rol === "ESTUDIANTE" && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="card-header">
-                <h3>Forum de la semana</h3>
+                <h3>{t("cursoDetalle.material.forum.heading")}</h3>
               </div>
               <div className="card-body">
                 <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--texto-tenue)" }}>
-                  Grabar su Forum, en un tiempo de 2 min a 3 min.
+                  {t("cursoDetalle.material.forum.description")}
                 </p>
-                {!myForumsLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+                {!myForumsLoaded && <p style={{ color: "var(--texto-tenue)" }}>{t("cursoDetalle.loading")}</p>}
                 {myForumsLoaded && (() => {
                   const status = myForum;
                   const yaSubio = (status?.archivosCount ?? 0) > 0;
@@ -795,24 +800,26 @@ export default function CourseWorkspacePage() {
                     <div>
                       <article className="session-card" style={{ flexWrap: "wrap", gap: 12 }}>
                         <div className="session-info" style={{ minWidth: 0 }}>
-                          <div className="session-title">Forum de la semana</div>
+                          <div className="session-title">{t("cursoDetalle.material.forum.heading")}</div>
                           {curso.fechaLimiteEntrega && (
                             <div style={{ fontSize: 12, color: vencido ? "var(--desaprobado-texto)" : "var(--texto-tenue)", marginTop: 2 }}>
-                              {vencido ? "Plazo vencido: " : "Cierra: "}
-                              {new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                              {vencido ? t("cursoDetalle.material.forum.deadlinePassedPrefix") : t("cursoDetalle.material.forum.closesPrefix")}
+                              {new Date(curso.fechaLimiteEntrega).toLocaleDateString(INTL_LOCALES[locale])}
                             </div>
                           )}
                           {yaSubio && (
                             <div style={{ fontSize: 12, color: "var(--aprobado-texto)", marginTop: 4 }}>
-                              {status!.archivosCount} archivo{status!.archivosCount !== 1 ? "s" : ""} subido{status!.archivosCount !== 1 ? "s" : ""}
-                              {status!.entregadoEn ? ` · ${new Date(status!.entregadoEn).toLocaleDateString("es-PE")}` : ""}
-                              {status!.revisado && <span style={{ marginLeft: 8, color: "var(--aprobado-texto)" }}>· Revisado ✓</span>}
+                              {status!.archivosCount !== 1
+                                ? t("cursoDetalle.material.forum.filesUploadedOther", { count: status!.archivosCount })
+                                : t("cursoDetalle.material.forum.filesUploadedOne", { count: status!.archivosCount })}
+                              {status!.entregadoEn ? ` · ${new Date(status!.entregadoEn).toLocaleDateString(INTL_LOCALES[locale])}` : ""}
+                              {status!.revisado && <span style={{ marginLeft: 8, color: "var(--aprobado-texto)" }}>{t("cursoDetalle.material.forum.reviewedSuffix")}</span>}
                             </div>
                           )}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
                           {vencido && !yaSubio ? (
-                            <span className="chip chip-resumen">Plazo vencido</span>
+                            <span className="chip chip-resumen">{t("cursoDetalle.material.forum.deadlinePassedChip")}</span>
                           ) : (
                             <>
                               <label style={{ fontSize: 13 }}>
@@ -841,36 +848,38 @@ export default function CourseWorkspacePage() {
                                       valid.push(file);
                                     }
                                     if (rechazados.length > 0) {
-                                      alert(`El video debe durar máximo 3 minutos y medio. No se agregó: ${rechazados.join(", ")}`);
+                                      alert(t("cursoDetalle.material.forum.videoTooLong", { archivos: rechazados.join(", ") }));
                                     }
                                     setForumUploadFiles((prev) => [...(prev ?? []), ...valid]);
                                   }}
                                 />
                                 <span className="btn btn-secondary" style={{ cursor: "pointer", fontSize: 13 }}>
-                                  {yaSubio ? "Reemplazar" : "Elegir archivos"}
+                                  {yaSubio ? t("cursoDetalle.material.forum.replace") : t("cursoDetalle.material.forum.chooseFiles")}
                                 </span>
                               </label>
                               {isAudioRecordingSupported() && recorderState === "inactivo" && !subiendo && (
                                 <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={startAudioRecording}>
-                                  🎙️ Grabar audio
+                                  {t("cursoDetalle.material.forum.recordAudio")}
                                 </button>
                               )}
                               {count > 0 && (
                                 <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                                  {count} archivo{count !== 1 ? "s" : ""} listo{count !== 1 ? "s" : ""} para subir
+                                  {count !== 1
+                                    ? t("cursoDetalle.material.forum.filesReadyOther", { count })
+                                    : t("cursoDetalle.material.forum.filesReadyOne", { count })}
                                 </span>
                               )}
                               {count > 0 && !subiendo && !recorderBusy && (
                                 <button className="btn btn-primary" onClick={uploadForum} style={{ fontSize: 13 }}>
-                                  Subir
+                                  {t("cursoDetalle.material.forum.upload")}
                                 </button>
                               )}
                               {subiendo && (
                                 <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 130 }}>
                                   <span style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
                                     {forumUploadPhase === "subiendo"
-                                      ? `Subiendo… ${forumUploadProgress}%`
-                                      : "Subiendo…"}
+                                      ? t("cursoDetalle.material.forum.uploadingPct", { pct: forumUploadProgress })
+                                      : t("cursoDetalle.material.forum.uploading")}
                                   </span>
                                   <div style={{ height: 6, borderRadius: 3, background: "#E5E5E0", overflow: "hidden" }}>
                                     {forumUploadPhase === "subiendo" ? (
@@ -890,7 +899,7 @@ export default function CourseWorkspacePage() {
                               )}
                               {yaSubio && count === 0 && (
                                 <>
-                                  <span className="chip chip-ok">Entregado ✓</span>
+                                  <span className="chip chip-ok">{t("cursoDetalle.material.forum.submittedChip")}</span>
                                   <button
                                     type="button"
                                     className="btn btn-secondary"
@@ -898,7 +907,7 @@ export default function CourseWorkspacePage() {
                                     onClick={deleteForum}
                                     style={{ fontSize: 13, color: "var(--desaprobado-texto)" }}
                                   >
-                                    {deletingForum ? "Borrando…" : "Borrar"}
+                                    {deletingForum ? t("cursoDetalle.material.forum.deleting") : t("cursoDetalle.material.forum.delete")}
                                   </button>
                                 </>
                               )}
@@ -933,7 +942,7 @@ export default function CourseWorkspacePage() {
                               }}
                             />
                             <span style={{ fontWeight: 700, fontSize: 13, color: recorderState === "pausado" ? "#8A6116" : "#B23B3B" }}>
-                              {recorderState === "pausado" ? "Pausado" : "Grabando audio"}
+                              {recorderState === "pausado" ? t("cursoDetalle.material.forum.recorder.paused") : t("cursoDetalle.material.forum.recorder.recording")}
                             </span>
                           </div>
                           <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 22, fontWeight: 700, letterSpacing: 0.5 }}>
@@ -942,29 +951,29 @@ export default function CourseWorkspacePage() {
                           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginLeft: "auto" }}>
                             {recorderState === "grabando" ? (
                               <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={pauseAudioRecording}>
-                                ⏸ Pausar
+                                {t("cursoDetalle.material.forum.recorder.pause")}
                               </button>
                             ) : (
                               <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={resumeAudioRecording}>
-                                ▶ Reanudar
+                                {t("cursoDetalle.material.forum.recorder.resume")}
                               </button>
                             )}
                             <button type="button" className="btn btn-primary" style={{ fontSize: 13 }} onClick={stopAudioRecording}>
-                              ⏹ Detener
+                              {t("cursoDetalle.material.forum.recorder.stop")}
                             </button>
                             <button
                               type="button"
                               onClick={cancelAudioRecording}
                               style={{ fontSize: 13, background: "none", border: "none", color: "var(--texto-tenue)", cursor: "pointer", padding: "4px 6px" }}
                             >
-                              Cancelar
+                              {t("cursoDetalle.material.forum.recorder.cancel")}
                             </button>
                           </div>
                         </div>
                       )}
 
                       {recorderState === "procesando" && (
-                        <div style={{ marginTop: 12, fontSize: 13, color: "var(--texto-tenue)" }}>Guardando grabación…</div>
+                        <div style={{ marginTop: 12, fontSize: 13, color: "var(--texto-tenue)" }}>{t("cursoDetalle.material.forum.recorder.processing")}</div>
                       )}
 
                       {recordLimitExceeded && (
@@ -981,12 +990,12 @@ export default function CourseWorkspacePage() {
                           }}
                         >
                           <span style={{ fontSize: 13, color: "#B23B3B", flex: 1 }}>
-                            ⚠️ Se superó el tiempo límite de grabación (3 min y medio). Cierra este aviso y vuelve a grabar.
+                            {t("cursoDetalle.material.forum.recorder.limitExceeded")}
                           </span>
                           <button
                             type="button"
                             onClick={() => setRecordLimitExceeded(false)}
-                            aria-label="Cerrar aviso"
+                            aria-label={t("cursoDetalle.material.forum.recorder.closeAlertAriaLabel")}
                             style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, lineHeight: 1, color: "#B23B3B", padding: 2 }}
                           >
                             ✕
@@ -1011,7 +1020,7 @@ export default function CourseWorkspacePage() {
                           <span style={{ fontSize: 24 }}>🎧</span>
                           <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220, flex: 1 }}>
                             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--aprobado-texto)" }}>
-                              Audio grabado · {formatRecordTime(recordSeconds)}
+                              {t("cursoDetalle.material.forum.recorder.recorded", { tiempo: formatRecordTime(recordSeconds) })}
                             </span>
                             {recordedAudioUrl && (
                               // eslint-disable-next-line jsx-a11y/media-has-caption
@@ -1020,14 +1029,14 @@ export default function CourseWorkspacePage() {
                           </div>
                           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                             <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={startAudioRecording}>
-                              🔁 Grabar de nuevo
+                              {t("cursoDetalle.material.forum.recorder.recordAgain")}
                             </button>
                             <button
                               type="button"
                               onClick={discardRecordedAudio}
                               style={{ fontSize: 13, background: "none", border: "none", color: "var(--desaprobado-texto)", cursor: "pointer", padding: "4px 6px" }}
                             >
-                              🗑 Eliminar
+                              {t("cursoDetalle.material.forum.recorder.remove")}
                             </button>
                           </div>
                         </div>
@@ -1039,13 +1048,13 @@ export default function CourseWorkspacePage() {
             </div>
           )}
 
-          {materialesLoading && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+          {materialesLoading && <p style={{ color: "var(--texto-tenue)" }}>{t("cursoDetalle.loading")}</p>}
           {!materialesLoading && materiales !== null && materiales.length === 0 && (
             <div className="card">
               <div className="empty-state">
                 <div className="empty-state-icon">📁</div>
-                <p className="empty-state-title">Sin material aún</p>
-                <p>{(rol === "ADMIN" || rol === "PROFESOR") ? "Sube el primer archivo con el botón de arriba." : "El profesor aún no ha subido material."}</p>
+                <p className="empty-state-title">{t("cursoDetalle.material.emptyTitle")}</p>
+                <p>{(rol === "ADMIN" || rol === "PROFESOR") ? t("cursoDetalle.material.emptyAdmin") : t("cursoDetalle.material.emptyOther")}</p>
               </div>
             </div>
           )}
@@ -1057,14 +1066,14 @@ export default function CourseWorkspacePage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 500, fontSize: 14 }}>{m.nombre}</div>
                     {m.descripcion && <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{m.descripcion}</div>}
-                    <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{new Date(m.creadoEn).toLocaleDateString("es-PE")}</div>
+                    <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{new Date(m.creadoEn).toLocaleDateString(INTL_LOCALES[locale])}</div>
                   </div>
                   <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                     <a href={`/api/backend/content/${m.id}/download`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: 13 }}>
-                      Ver
+                      {t("cursoDetalle.material.view")}
                     </a>
                     <a href={`/api/backend/content/${m.id}/download?attachment=1`} className="btn btn-secondary" style={{ fontSize: 13 }}>
-                      Descargar
+                      {t("cursoDetalle.material.download")}
                     </a>
                   </div>
                 </div>
@@ -1077,20 +1086,20 @@ export default function CourseWorkspacePage() {
       {tab === "examenes" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Exámenes del curso</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{t("cursoDetalle.examenes.heading")}</h2>
             {(rol === "ADMIN" || rol === "PROFESOR") && (
               <Link href={`/exams/create?cursoId=${id}`} className="btn btn-primary">
-                + Crear examen
+                {t("cursoDetalle.examenes.create")}
               </Link>
             )}
           </div>
-          {examsLoading && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+          {examsLoading && <p style={{ color: "var(--texto-tenue)" }}>{t("cursoDetalle.loading")}</p>}
           {!examsLoading && exams !== null && exams.length === 0 && (
             <div className="card">
               <div className="empty-state">
                 <div className="empty-state-icon">📝</div>
-                <p className="empty-state-title">Sin exámenes</p>
-                <p>{(rol === "ADMIN" || rol === "PROFESOR") ? "Crea el primer examen para este curso." : "No hay exámenes disponibles aún."}</p>
+                <p className="empty-state-title">{t("cursoDetalle.examenes.emptyTitle")}</p>
+                <p>{(rol === "ADMIN" || rol === "PROFESOR") ? t("cursoDetalle.examenes.emptyAdmin") : t("cursoDetalle.examenes.emptyOther")}</p>
               </div>
             </div>
           )}
@@ -1104,39 +1113,40 @@ export default function CourseWorkspacePage() {
                 const disponible = exam.publicadoEn && desde && desde <= now && cierre && cierre > now;
                 const enVentanaIngreso = disponible && ingresoHasta && ingresoHasta > now;
                 const vencido = cierre && cierre < now;
-                const estado = !exam.publicadoEn ? "Borrador" : vencido ? "Vencido" : disponible ? "En curso" : "Pendiente";
+                const estadoKey = !exam.publicadoEn ? "borrador" : vencido ? "vencido" : disponible ? "enCurso" : "pendiente";
+                const estado = t(`cursoDetalle.examenes.estado.${estadoKey}`);
                 return (
                   <article key={exam.id} className="session-card">
                     <div className="session-info">
                       <div className="session-title">{exam.titulo}</div>
                       <div style={{ fontSize: 13, color: "var(--texto-tenue)", marginTop: 4 }}>
-                        {exam.duracionMinutos} min · {exam._count.preguntas} preguntas
-                        {desde && ` · Inicio ${desde.toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
-                        {cierre && ` · Cierre ${cierre.toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
+                        {t("cursoDetalle.examenes.durationQuestions", { min: exam.duracionMinutos, preguntas: exam._count.preguntas })}
+                        {desde && t("cursoDetalle.examenes.startSuffix", { fecha: desde.toLocaleString(INTL_LOCALES[locale], { timeZone: "America/Lima" }) })}
+                        {cierre && t("cursoDetalle.examenes.closeSuffix", { fecha: cierre.toLocaleString(INTL_LOCALES[locale], { timeZone: "America/Lima" }) })}
                       </div>
                       <div className="session-chips" style={{ marginTop: 6 }}>
-                        <span className={`chip ${estado === "En curso" ? "chip-ok" : estado === "Vencido" ? "chip-resumen" : "chip-capturas"}`}>
+                        <span className={`chip ${estadoKey === "enCurso" ? "chip-ok" : estadoKey === "vencido" ? "chip-resumen" : "chip-capturas"}`}>
                           {estado}
                         </span>
                         {exam._count.envios > 0 && (
-                          <span className="chip chip-grabacion">{exam._count.envios} envío(s)</span>
+                          <span className="chip chip-grabacion">{t("cursoDetalle.examenes.submissions", { count: exam._count.envios })}</span>
                         )}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                       {rol === "ESTUDIANTE" && enVentanaIngreso && (
                         <Link className="btn btn-primary" href={`/exams/${exam.id}`}>
-                          Dar examen
+                          {t("cursoDetalle.examenes.takeExam")}
                         </Link>
                       )}
                       {(rol === "ADMIN" || rol === "PROFESOR") && (
                         <Link className="btn btn-secondary" href={`/exams/${exam.id}`}>
-                          Ver
+                          {t("cursoDetalle.examenes.view")}
                         </Link>
                       )}
                       {(rol === "ADMIN" || rol === "PROFESOR" || exam._count.envios > 0) && (
                         <Link className="btn btn-secondary" href={`/exams/${exam.id}/results`}>
-                          Resultados
+                          {t("cursoDetalle.examenes.results")}
                         </Link>
                       )}
                     </div>
@@ -1151,12 +1161,12 @@ export default function CourseWorkspacePage() {
       {tab === "notas" && rol === "ADMIN" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Calificaciones</h2>
-            <Link href={`/cursos/${id}/notas`} className="btn btn-primary">Abrir grilla de notas</Link>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{t("cursoDetalle.notas.adminHeading")}</h2>
+            <Link href={`/cursos/${id}/notas`} className="btn btn-primary">{t("cursoDetalle.notas.openSheet")}</Link>
           </div>
           <div className="card">
             <div className="card-body" style={{ color: "var(--texto-tenue)", fontSize: 13 }}>
-              Edita celdas de cámara, NT y publica notas desde la grilla completa.
+              {t("cursoDetalle.notas.adminDescription")}
             </div>
           </div>
         </div>
@@ -1164,14 +1174,14 @@ export default function CourseWorkspacePage() {
 
       {tab === "notas" && rol === "PROFESOR" && (
         <div>
-          <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>Calificaciones publicadas</h2>
-          {!profNotasLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+          <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>{t("cursoDetalle.notas.profesorHeading")}</h2>
+          {!profNotasLoaded && <p style={{ color: "var(--texto-tenue)" }}>{t("cursoDetalle.loading")}</p>}
           {profNotasLoaded && (!profNotas || !profNotas.publicadas) && (
             <div className="card">
               <div className="empty-state">
                 <div className="empty-state-icon">📊</div>
-                <p className="empty-state-title">Notas aún no publicadas</p>
-                <p>El administrador aún no ha publicado las notas de este curso.</p>
+                <p className="empty-state-title">{t("cursoDetalle.notas.notPublishedTitle")}</p>
+                <p>{t("cursoDetalle.notas.notPublishedDesc")}</p>
               </div>
             </div>
           )}
@@ -1179,14 +1189,14 @@ export default function CourseWorkspacePage() {
             <div className="card">
               {profNotas.notasPublicadasEn && (
                 <p style={{ fontSize: 12, color: "var(--texto-tenue)", margin: "0 0 0", padding: "12px 16px 0" }}>
-                  Publicadas el {new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Lima" }).format(new Date(profNotas.notasPublicadasEn))}
+                  {t("cursoDetalle.notas.publishedOn", { fecha: new Intl.DateTimeFormat(INTL_LOCALES[locale], { dateStyle: "medium", timeStyle: "short", timeZone: "America/Lima" }).format(new Date(profNotas.notasPublicadasEn)) })}
                 </p>
               )}
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--verde-sidebar)", color: "#fff" }}>
-                    <th style={{ padding: "8px 16px", textAlign: "left", fontWeight: 600 }}>Apellidos y Nombres</th>
-                    <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 600 }}>Nota Final</th>
+                    <th style={{ padding: "8px 16px", textAlign: "left", fontWeight: 600 }}>{t("cursoDetalle.notas.tableApellidosNombres")}</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 600 }}>{t("cursoDetalle.notas.tableNotaFinal")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1213,14 +1223,14 @@ export default function CourseWorkspacePage() {
       {tab === "alumnos" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Alumnos matriculados</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{t("cursoDetalle.alumnos.heading")}</h2>
           </div>
           {alumnos.length === 0 && (
             <div className="card">
               <div className="empty-state">
                 <div className="empty-state-icon">🎓</div>
-                <p className="empty-state-title">Sin alumnos matriculados</p>
-                {rol === "ADMIN" && <p>Matricula alumnos desde la sección Cursos.</p>}
+                <p className="empty-state-title">{t("cursoDetalle.alumnos.emptyTitle")}</p>
+                {rol === "ADMIN" && <p>{t("cursoDetalle.alumnos.emptyAdmin")}</p>}
               </div>
             </div>
           )}
@@ -1229,7 +1239,7 @@ export default function CourseWorkspacePage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--borde)", background: "#FAFAF8" }}>
-                    {["Cód.", "Apellidos", "Nombres", "Email"].map((h) => (
+                    {[t("cursoDetalle.alumnos.tableCodigo"), t("cursoDetalle.alumnos.tableApellidos"), t("cursoDetalle.alumnos.tableNombres"), t("cursoDetalle.alumnos.tableEmail")].map((h) => (
                       <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "var(--texto-secundario)" }}>
                         {h}
                       </th>
@@ -1255,19 +1265,19 @@ export default function CourseWorkspacePage() {
       {tab === "transcripcion" && rol === "ESTUDIANTE" && (
         <div>
           <div style={{ marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Subir mi transcripción</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{t("cursoDetalle.transcripcion.heading")}</h2>
             <p style={{ marginTop: 6, fontSize: 13, color: "var(--texto-tenue)" }}>
-              Elige el día que faltaste, selecciona uno o varios archivos (PDF, Word, imágenes) y presiona Subir. El admin revisará y colocará tu nota.
+              {t("cursoDetalle.transcripcion.description")}
             </p>
           </div>
-          {!summariesLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+          {!summariesLoaded && <p style={{ color: "var(--texto-tenue)" }}>{t("cursoDetalle.loading")}</p>}
           {summariesLoaded && sesiones.length === 0 && (
-            <div className="card"><div className="empty-state"><p>No hay sesiones publicadas aún.</p></div></div>
+            <div className="card"><div className="empty-state"><p>{t("cursoDetalle.transcripcion.noSessions")}</p></div></div>
           )}
           {summariesLoaded && sesiones.length > 0 && (
             <div className="session-list">
               {sesiones.slice(0, 3).map((sesion, idx) => {
-                const dayLabel = `Día ${idx + 1} — ${sesion.titulo}`;
+                const dayLabel = t("cursoDetalle.transcripcion.dayLabel", { numero: idx + 1, titulo: sesion.titulo });
                 const summary = mySummaries[sesion.id];
                 const fileCount = summary?.urlR2 ? (() => { try { const a = JSON.parse(summary.urlR2); return Array.isArray(a) ? a.length : 1; } catch { return 1; } })() : 0;
                 const yaSubio = fileCount > 0;
@@ -1281,20 +1291,23 @@ export default function CourseWorkspacePage() {
                       <div className="session-title">{dayLabel}</div>
                       {curso?.fechaLimiteEntrega && (
                         <div style={{ fontSize: 12, color: vencido ? "var(--desaprobado-texto)" : "var(--texto-tenue)", marginTop: 2 }}>
-                          {vencido ? "Plazo vencido: " : "Cierra: "}
-                          {new Date(curso.fechaLimiteEntrega).toLocaleDateString("es-PE")}
+                          {vencido ? t("cursoDetalle.transcripcion.deadlinePassedPrefix") : t("cursoDetalle.transcripcion.closesPrefix")}
+                          {new Date(curso.fechaLimiteEntrega).toLocaleDateString(INTL_LOCALES[locale])}
                         </div>
                       )}
                       {yaSubio && (
                         <div style={{ fontSize: 12, color: "var(--aprobado-texto)", marginTop: 4 }}>
-                          {fileCount} archivo{fileCount !== 1 ? "s" : ""} subido{fileCount !== 1 ? "s" : ""}{summary.entregadoEn ? ` · ${new Date(summary.entregadoEn).toLocaleDateString("es-PE")}` : ""}
-                          {summary.notaTranscripcion !== null && <span style={{ marginLeft: 8 }}>· NT: <strong>{summary.notaTranscripcion}</strong></span>}
+                          {fileCount !== 1
+                            ? t("cursoDetalle.transcripcion.filesUploadedOther", { count: fileCount })
+                            : t("cursoDetalle.transcripcion.filesUploadedOne", { count: fileCount })}
+                          {summary.entregadoEn ? ` · ${new Date(summary.entregadoEn).toLocaleDateString(INTL_LOCALES[locale])}` : ""}
+                          {summary.notaTranscripcion !== null && <span style={{ marginLeft: 8 }}>{t("cursoDetalle.transcripcion.ntLabel")} <strong>{summary.notaTranscripcion}</strong></span>}
                         </div>
                       )}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
                       {vencido && !yaSubio ? (
-                        <span className="chip chip-resumen">Plazo vencido</span>
+                        <span className="chip chip-resumen">{t("cursoDetalle.transcripcion.deadlinePassedChip")}</span>
                       ) : (
                         <>
                           <label style={{ fontSize: 13 }}>
@@ -1308,15 +1321,19 @@ export default function CourseWorkspacePage() {
                               }}
                             />
                             <span className="btn btn-secondary" style={{ cursor: "pointer", fontSize: 13 }}>
-                              {count > 0 ? `${count} archivo${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}` : yaSubio ? "Reemplazar" : "Elegir archivos"}
+                              {count > 0
+                                ? (count !== 1
+                                  ? t("cursoDetalle.transcripcion.filesSelectedOther", { count })
+                                  : t("cursoDetalle.transcripcion.filesSelectedOne", { count }))
+                                : yaSubio ? t("cursoDetalle.transcripcion.replace") : t("cursoDetalle.transcripcion.chooseFiles")}
                             </span>
                           </label>
                           {count > 0 && (
                             <button className="btn btn-primary" disabled={subiendo} onClick={() => uploadTranscripcion(sesion.id)} style={{ fontSize: 13 }}>
-                              {subiendo ? "Subiendo…" : "Subir"}
+                              {subiendo ? t("cursoDetalle.transcripcion.uploading") : t("cursoDetalle.transcripcion.upload")}
                             </button>
                           )}
-                          {yaSubio && count === 0 && <span className="chip chip-ok">Entregada ✓</span>}
+                          {yaSubio && count === 0 && <span className="chip chip-ok">{t("cursoDetalle.transcripcion.submittedChip")}</span>}
                         </>
                       )}
                     </div>
@@ -1332,14 +1349,14 @@ export default function CourseWorkspacePage() {
         <div>
           {!selectedForumStudent ? (
             <div>
-              <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>Corregir forums</h2>
-              {!forumSubmittersLoaded && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+              <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>{t("cursoDetalle.forums.heading")}</h2>
+              {!forumSubmittersLoaded && <p style={{ color: "var(--texto-tenue)" }}>{t("cursoDetalle.loading")}</p>}
               {forumSubmittersLoaded && forumSubmitters && forumSubmitters.length === 0 && (
                 <div className="card">
                   <div className="empty-state">
                     <div className="empty-state-icon">📄</div>
-                    <p className="empty-state-title">Sin entregas aún</p>
-                    <p>Aparecerán aquí los alumnos que suban al menos un forum.</p>
+                    <p className="empty-state-title">{t("cursoDetalle.forums.emptyTitle")}</p>
+                    <p>{t("cursoDetalle.forums.emptyDesc")}</p>
                   </div>
                 </div>
               )}
@@ -1350,11 +1367,11 @@ export default function CourseWorkspacePage() {
                       <div className="session-info">
                         <div className="session-title">{s.estudiante.nombre} {s.estudiante.apellido}</div>
                         <div className="session-chips" style={{ marginTop: 6 }}>
-                          {s.dias.length > 0 && <span className="chip chip-capturas">Forum entregado</span>}
+                          {s.dias.length > 0 && <span className="chip chip-capturas">{t("cursoDetalle.forums.submittedChip")}</span>}
                         </div>
                       </div>
                       <button className="btn btn-primary" onClick={() => openForumStudent(s.estudiante)}>
-                        Revisar
+                        {t("cursoDetalle.forums.review")}
                       </button>
                     </article>
                   ))}
@@ -1368,12 +1385,12 @@ export default function CourseWorkspacePage() {
                 onClick={() => { setSelectedForumStudent(null); setStudentForumSubmissions(null); }}
                 style={{ fontSize: 13, color: "var(--texto-tenue)", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 12 }}
               >
-                ← Volver a la lista
+                {t("cursoDetalle.forums.backToList")}
               </button>
               <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>
                 {selectedForumStudent.nombre} {selectedForumStudent.apellido}
               </h2>
-              {studentForumSubmissions === null && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+              {studentForumSubmissions === null && <p style={{ color: "var(--texto-tenue)" }}>{t("cursoDetalle.loading")}</p>}
               {studentForumSubmissions !== null && (
                 <div style={{ display: "grid", gap: 10 }}>
                   {studentForumSubmissions.map((s) => (
@@ -1382,13 +1399,15 @@ export default function CourseWorkspacePage() {
                       style={{ padding: "12px 16px", border: "0.5px solid var(--borde)", borderRadius: 8, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
                     >
                       <div style={{ flex: 1, minWidth: 160 }}>
-                        <div style={{ fontWeight: 600, marginBottom: 2 }}>Forum de la semana</div>
+                        <div style={{ fontWeight: 600, marginBottom: 2 }}>{t("cursoDetalle.forums.itemHeading")}</div>
                         <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
-                          {s.archivosCount} archivo{s.archivosCount !== 1 ? "s" : ""} · {new Date(s.entregadoEn).toLocaleDateString("es-PE")}
+                          {s.archivosCount !== 1
+                            ? t("cursoDetalle.forums.filesCountOther", { count: s.archivosCount })
+                            : t("cursoDetalle.forums.filesCountOne", { count: s.archivosCount })} · {new Date(s.entregadoEn).toLocaleDateString(INTL_LOCALES[locale])}
                         </div>
                       </div>
                       <button type="button" className="btn btn-secondary" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => viewForumFiles(s.id)}>
-                        Ver archivos ({s.archivosCount})
+                        {t("cursoDetalle.forums.viewFiles", { count: s.archivosCount })}
                       </button>
                       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                         <input
@@ -1396,7 +1415,7 @@ export default function CourseWorkspacePage() {
                           min={0}
                           max={20}
                           step={0.5}
-                          placeholder="Nota (0-20)"
+                          placeholder={t("cursoDetalle.forums.gradePlaceholder")}
                           value={forumGradeDrafts[s.id] ?? (s.nota ?? "")}
                           onChange={(e) => setForumGradeDrafts((p) => ({ ...p, [s.id]: e.target.value }))}
                           style={{ width: 90, border: "0.5px solid var(--borde)", borderRadius: 6, padding: "4px 8px", fontSize: 12 }}
@@ -1407,7 +1426,7 @@ export default function CourseWorkspacePage() {
                           disabled={savingForumGrade === s.id}
                           onClick={() => saveForumGrade(s.id)}
                         >
-                          {savingForumGrade === s.id ? "…" : "Guardar nota"}
+                          {savingForumGrade === s.id ? t("cursoDetalle.forums.savingShort") : t("cursoDetalle.forums.saveGrade")}
                         </button>
                       </div>
                     </div>

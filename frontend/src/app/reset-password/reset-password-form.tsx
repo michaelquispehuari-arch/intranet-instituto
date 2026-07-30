@@ -1,12 +1,14 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 type ResetPasswordFormProps = {
   token: string;
 };
 
 export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
+  const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +23,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
     if (password !== confirmPassword) {
-      setError("Las contrasenas no coinciden");
+      setError(t("auth.resetPassword.mismatchError"));
       return;
     }
 
@@ -36,18 +38,18 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     setIsLoading(false);
 
     if (!response.ok) {
-      setError(data.message ?? "No se pudo actualizar la contrasena");
+      setError(data.message ?? t("auth.resetPassword.genericError"));
       return;
     }
 
-    setMessage(data.message ?? "Contrasena actualizada");
+    setMessage(data.message ?? t("auth.resetPassword.updateButton"));
     event.currentTarget.reset();
   }
 
   return (
     <form className="form" onSubmit={handleSubmit}>
       <div className="field">
-        <label htmlFor="password">Nueva contrasena</label>
+        <label htmlFor="password">{t("auth.resetPassword.newPasswordLabel")}</label>
         <input
           id="password"
           name="password"
@@ -58,7 +60,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         />
       </div>
       <div className="field">
-        <label htmlFor="confirmPassword">Confirmar contrasena</label>
+        <label htmlFor="confirmPassword">{t("auth.resetPassword.confirmPasswordLabel")}</label>
         <input
           id="confirmPassword"
           name="confirmPassword"
@@ -71,7 +73,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       {error ? <p className="error">{error}</p> : null}
       {message ? <p className="success-text">{message}</p> : null}
       <button className="button" type="submit" disabled={isLoading}>
-        {isLoading ? "Guardando..." : "Actualizar contrasena"}
+        {isLoading ? t("auth.resetPassword.updating") : t("auth.resetPassword.updateButton")}
       </button>
     </form>
   );

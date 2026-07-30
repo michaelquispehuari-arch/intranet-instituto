@@ -1,0 +1,38 @@
+import type { cursos as cursosEs } from "../es/cursos";
+
+export const cursos: typeof cursosEs = {
+  title: "과정",
+  newCourse: "+ 새 과정",
+  emptyAdmin: "아직 과정이 없습니다. 과정 관리에서 첫 과정을 만드세요.",
+  emptyProfesor: "이번 주에 배정된 과정이 없습니다.",
+  emptyEstudiante: "진행 중인 과정에 등록되어 있지 않습니다.",
+  emptyTitle: "과정 없음",
+  createForm: {
+    heading: "새 과정",
+    nameLabel: "과정 이름",
+    profesorLabel: "교수",
+    selectPlaceholder: "선택…",
+    typeLabel: "과정 유형",
+    typeRegular: "정규 (시험 있음)",
+    typeDiplomado: "디플로마 (시험 없음, 매일 과제 제출)",
+    cycleLabel: "차수",
+    yearLabel: "연도",
+    descriptionLabel: "설명 (선택 사항)",
+    submit: "과정 생성",
+    submitting: "생성 중…",
+    genericError: "과정 생성 오류",
+  },
+  tipo: {
+    REGULAR: "정규",
+    ENTRENAMIENTO: "연수",
+    ESPECIAL: "특별",
+    DIPLOMADO: "디플로마",
+  },
+  inactive: "비활성",
+  teacherCycle: "{{nombre}} {{apellido}} 교수 · {{ciclo}}차 / {{anio}}",
+  deleteCourse: "과정 삭제",
+  confirmDelete: "'{{nombre}}' 과정을 삭제하시겠습니까? 비활성 상태가 되며 기록은 삭제되지 않습니다.",
+  deleted: "과정이 삭제되었습니다.",
+  deleteError: "삭제 오류: {{motivo}}",
+  serverError: "서버 오류",
+};

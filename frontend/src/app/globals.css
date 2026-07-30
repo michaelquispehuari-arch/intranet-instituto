@@ -184,6 +184,10 @@ button, input, select, textarea { font: inherit; }
   font: italic 500 1.05rem/1 var(--font-display);
   letter-spacing: .01em;
 }
+.login__lang { margin-left: auto; }
+.login__lang .lang-switcher {
+  background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.3);
+}
 
 /* Área donde flota la tarjeta — fondo oscuro con SVG */
 .login__stage {
@@ -300,7 +304,14 @@ button, input, select, textarea { font: inherit; }
 .rail__footer {
   position: absolute; left: 0; bottom: 0; z-index: 3;
   padding: 16px 18px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
 }
+.lang-switcher {
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
+  color: #fff; border-radius: 6px; padding: 4px 8px;
+  font: 400 .78rem/1 var(--font-body); cursor: pointer;
+}
+.lang-switcher option { color: #111; }
 .rail__logout {
   display: inline-flex; align-items: center; gap: 6px;
   background: none; border: none; cursor: pointer;

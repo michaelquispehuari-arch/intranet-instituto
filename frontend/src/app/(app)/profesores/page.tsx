@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { applyPhonePrefix, matchHeader, normalizeCsvHeader, parseCsv, readCsvFile, toTitleCase } from "@/lib/csv";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 function ordenarPorApellido<T extends { apellido: string; nombre: string }>(filas: T[]): T[] {
   return [...filas].sort((a, b) =>
@@ -33,6 +34,7 @@ type EditData = {
 };
 
 export default function ProfesoresPage() {
+  const { t } = useTranslation();
   const [profesores, setProfesores] = useState<Profesor[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -92,11 +94,11 @@ export default function ProfesoresPage() {
     if (r.ok) {
       setShowCreate(false);
       setNewProfesor({});
-      setStatus("Profesor creado. La contraseña inicial es su DNI.");
+      setStatus(t("profesores.createdTeacher"));
       load();
     } else {
       const d = await r.json().catch(() => ({})) as { error?: string };
-      setCreateError(d.error ?? "Error al crear profesor");
+      setCreateError(d.error ?? t("profesores.createErrorFallback"));
     }
   }
 
@@ -126,27 +128,27 @@ export default function ProfesoresPage() {
     setSaving(false);
     if (r.ok) {
       setEditId(null);
-      setStatus("Profesor guardado.");
+      setStatus(t("profesores.savedTeacher"));
       load();
     } else {
       const d = await r.json().catch(() => ({})) as { error?: string };
-      setStatus(`Error al guardar: ${d.error ?? "Error del servidor"}`);
+      setStatus(t("profesores.saveError", { error: d.error ?? t("profesores.serverErrorFallback") }));
     }
   }
 
   async function handleDelete(p: Profesor) {
-    const ok = window.confirm(`Eliminar profesor ${p.nombre} ${p.apellido}? La cuenta quedará inactiva.`);
+    const ok = window.confirm(t("profesores.confirmDelete", { nombre: p.nombre, apellido: p.apellido }));
     if (!ok) return;
     const r = await fetch(`/api/backend/users/${p.id}`, { method: "DELETE" });
     const d = await r.json().catch(() => ({})) as { error?: string };
-    setStatus(r.ok ? "Profesor eliminado." : d.error ?? "Error al eliminar");
+    setStatus(r.ok ? t("profesores.deletedTeacher") : d.error ?? t("profesores.deleteErrorFallback"));
     if (r.ok) load();
   }
 
   async function handleImportCsv(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setStatus("Procesando…");
+    setStatus(t("profesores.import.processing"));
     const text = await readCsvFile(file);
     const csvRows = parseCsv(text);
     const headers = (csvRows[0] ?? []).map(normalizeCsvHeader);
@@ -165,7 +167,7 @@ export default function ProfesoresPage() {
 
     const invalid = rows.filter((r) => !r.email || !r.nombre || !r.apellido);
     if (invalid.length > 0) {
-      setStatus(`Error: ${invalid.length} fila(s) sin CORREO, NOMBRES o APELLIDOS.`);
+      setStatus(t("profesores.import.invalidRows", { count: invalid.length }));
       if (csvRef.current) csvRef.current.value = "";
       return;
     }
@@ -179,7 +181,7 @@ export default function ProfesoresPage() {
       });
       if (r.ok) created++; else failed++;
     }
-    setStatus(`Importados: ${created} · Errores: ${failed}`);
+    setStatus(t("profesores.import.result", { created, failed }));
     if (csvRef.current) csvRef.current.value = "";
     load();
   }
@@ -199,17 +201,17 @@ export default function ProfesoresPage() {
     <div>
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <span className="page-eyebrow">Administración</span>
-          <h1 className="page-title">Registro de profesores</h1>
-          <p className="page-subtitle">Alta, edición y estado de los docentes</p>
+          <span className="page-eyebrow">{t("profesores.eyebrow")}</span>
+          <h1 className="page-title">{t("profesores.title")}</h1>
+          <p className="page-subtitle">{t("profesores.subtitle")}</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn btn-secondary" onClick={() => csvRef.current?.click()} style={{ fontSize: 13 }}>
-            Importar CSV
+            {t("profesores.importCsv")}
           </button>
           <input ref={csvRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleImportCsv} />
           <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)} style={{ fontSize: 13 }}>
-            {showCreate ? "Cancelar" : "+ Nuevo profesor"}
+            {showCreate ? t("profesores.cancel") : t("profesores.newTeacher")}
           </button>
         </div>
       </div>
@@ -221,13 +223,13 @@ export default function ProfesoresPage() {
       {/* Formulario de nuevo profesor */}
       {showCreate && (
         <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card-header"><h3>Nuevo profesor</h3></div>
+          <div className="card-header"><h3>{t("profesores.newTeacherCard.title")}</h3></div>
           <div className="card-body">
             <form onSubmit={handleCreate} style={{ display: "grid", gap: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px,1fr))", gap: 12 }}>
                 {(["email", "nombre", "apellido", "codigo", "dni", "telefono"] as const).map((f) => (
                   <div key={f} className="field">
-                    <label>{f.charAt(0).toUpperCase() + f.slice(1)}</label>
+                    <label>{t(`profesores.fields.${f}`)}</label>
                     <input
                       value={String(newProfesor[f] ?? "")}
                       onChange={(e) => setNewProfesor((d) => ({ ...d, [f]: e.target.value }))}
@@ -237,14 +239,14 @@ export default function ProfesoresPage() {
                 ))}
               </div>
               <p style={{ margin: 0, fontSize: 12, color: "var(--texto-tenue)" }}>
-                La contraseña inicial del profesor será su DNI.
+                {t("profesores.newTeacherCard.passwordNote")}
               </p>
               {createError && (
                 <p style={{ margin: 0, fontSize: 13, color: "var(--desaprobado-texto)" }}>{createError}</p>
               )}
               <div>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Creando…" : "Crear profesor"}
+                  {saving ? t("profesores.newTeacherCard.submitting") : t("profesores.newTeacherCard.submit")}
                 </button>
               </div>
             </form>
@@ -257,20 +259,20 @@ export default function ProfesoresPage() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar por código, nombre, correo o DNI…"
+          placeholder={t("profesores.searchPlaceholder")}
           style={{ flex: 1, border: "0.5px solid var(--borde)", borderRadius: 8, padding: "8px 12px", fontSize: 14 }}
         />
-        <button type="submit" className="btn btn-secondary">Buscar</button>
+        <button type="submit" className="btn btn-secondary">{t("profesores.search")}</button>
       </form>
 
-      {loading && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+      {loading && <p style={{ color: "var(--texto-tenue)" }}>{t("profesores.loading")}</p>}
 
       {!loading && profesores.length === 0 && (
         <div className="card">
           <div className="empty-state">
             <div className="empty-state-icon">👨‍🏫</div>
-            <p className="empty-state-title">Sin profesores{query ? " con esa búsqueda" : ""}</p>
-            <p>{query ? "Prueba con otro término." : "Crea el primer profesor o importa un CSV."}</p>
+            <p className="empty-state-title">{query ? t("profesores.emptyTitleFiltered") : t("profesores.emptyTitle")}</p>
+            <p>{query ? t("profesores.emptySearchHint") : t("profesores.emptyCreateHint")}</p>
           </div>
         </div>
       )}
@@ -281,7 +283,7 @@ export default function ProfesoresPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--borde)", background: "#FAFAF8" }}>
-                {["Cód.", "Apellidos", "Nombres", "Email", "DNI", "Teléfono", "Estado", ""].map((h) => (
+                {[t("profesores.table.codigo"), t("profesores.table.apellidos"), t("profesores.table.nombres"), t("profesores.table.email"), t("profesores.table.dni"), t("profesores.table.telefono"), t("profesores.table.estado"), ""].map((h) => (
                   <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap", color: "var(--texto-secundario)" }}>
                     {h}
                   </th>
@@ -295,29 +297,29 @@ export default function ProfesoresPage() {
                     <td colSpan={8} style={{ padding: 16 }}>
                       <form onSubmit={handleSaveEdit}>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: 10, marginBottom: 12 }}>
-                          {fi("codigo", "Código")}
-                          {fi("apellido", "Apellidos")}
-                          {fi("nombre", "Nombres")}
-                          {fi("email", "Email")}
-                          {fi("dni", "DNI")}
-                          {fi("telefono", "Teléfono")}
+                          {fi("codigo", t("profesores.editFields.codigo"))}
+                          {fi("apellido", t("profesores.editFields.apellido"))}
+                          {fi("nombre", t("profesores.editFields.nombre"))}
+                          {fi("email", t("profesores.editFields.email"))}
+                          {fi("dni", t("profesores.editFields.dni"))}
+                          {fi("telefono", t("profesores.editFields.telefono"))}
                           <div className="field">
-                            <label>Estado</label>
+                            <label>{t("profesores.editFields.estado")}</label>
                             <select
                               value={editData.activo ? "true" : "false"}
                               onChange={(e) => setEditData((d) => ({ ...d, activo: e.target.value === "true" }))}
                             >
-                              <option value="true">Activo (A)</option>
-                              <option value="false">Inactivo (I)</option>
+                              <option value="true">{t("profesores.statusActive")}</option>
+                              <option value="false">{t("profesores.statusInactive")}</option>
                             </select>
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
                           <button type="submit" className="btn btn-primary" style={{ fontSize: 13 }} disabled={saving}>
-                            {saving ? "Guardando…" : "Guardar"}
+                            {saving ? t("profesores.saving") : t("profesores.save")}
                           </button>
                           <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={() => setEditId(null)}>
-                            Cancelar
+                            {t("profesores.cancel")}
                           </button>
                         </div>
                       </form>
@@ -332,12 +334,12 @@ export default function ProfesoresPage() {
                     <td style={{ padding: "7px 10px", color: "var(--texto-tenue)" }}>{p.dni ?? "—"}</td>
                     <td style={{ padding: "7px 10px", color: "var(--texto-tenue)" }}>{p.telefono ?? "—"}</td>
                     <td style={{ padding: "7px 10px" }}>
-                      <span className={`chip ${p.activo ? "chip-ok" : "chip-resumen"}`}>{p.activo ? "A" : "I"}</span>
+                      <span className={`chip ${p.activo ? "chip-ok" : "chip-resumen"}`}>{p.activo ? t("profesores.chipActive") : t("profesores.chipInactive")}</span>
                     </td>
                     <td style={{ padding: "7px 6px" }}>
                       <div style={{ display: "flex", gap: 6 }}>
                         <button className="btn btn-secondary" style={{ fontSize: 12, padding: "3px 8px" }} onClick={() => startEdit(p)}>
-                          Editar
+                          {t("profesores.edit")}
                         </button>
                         {p.activo && (
                           <button
@@ -345,7 +347,7 @@ export default function ProfesoresPage() {
                             style={{ fontSize: 12, padding: "3px 8px", color: "var(--desaprobado-texto)", borderColor: "var(--desaprobado-texto)" }}
                             onClick={() => handleDelete(p)}
                           >
-                            Eliminar
+                            {t("profesores.delete")}
                           </button>
                         )}
                       </div>
@@ -359,7 +361,7 @@ export default function ProfesoresPage() {
       )}
 
       <div style={{ marginTop: 16, fontSize: 12, color: "var(--texto-tenue)" }}>
-        CSV esperado: el orden de columnas no importa, se reconoce el encabezado por palabra clave. Encabezados reconocidos: CODIGO, NOMBRES, APELLIDOS, CORREO, DNI (opcional), TELEFONO, PAIS (solo para anteponer el prefijo telefónico, no se guarda). Solo CORREO, NOMBRES y APELLIDOS son obligatorios. Si hay DNI, es la contraseña inicial; si no, la cuenta queda con una contraseña provisional y el profesor puede definir la suya con &quot;olvidé mi contraseña&quot;. Nombres y apellidos se guardan con la Primera Letra En Mayúscula.
+        {t("profesores.csvHelp")}
       </div>
     </div>
   );

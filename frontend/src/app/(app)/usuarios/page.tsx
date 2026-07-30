@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 type Rol = "ADMIN" | "PROFESOR" | "ESTUDIANTE";
 
@@ -24,11 +25,7 @@ type UserDraft = Pick<UserItem, "email" | "nombre" | "apellido" | "rol" | "activ
   password: string;
 };
 
-const ROL_LABEL: Record<Rol, string> = {
-  ADMIN: "Admin",
-  PROFESOR: "Profesor",
-  ESTUDIANTE: "Estudiante",
-};
+const ROLES: Rol[] = ["ADMIN", "PROFESOR", "ESTUDIANTE"];
 
 const EMPTY_NEW_USER: UserDraft = {
   email: "",
@@ -43,6 +40,7 @@ const EMPTY_NEW_USER: UserDraft = {
 };
 
 export default function UsuariosPage() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [query, setQuery] = useState("");
   const [drafts, setDrafts] = useState<Record<string, UserDraft>>({});
@@ -63,7 +61,7 @@ export default function UsuariosPage() {
       setDrafts(Object.fromEntries(loaded.map((u) => [u.id, toDraft(u)])));
     } else {
       const data = await response.json().catch(() => ({})) as { error?: string };
-      setStatus(data.error ?? "Error al cargar usuarios");
+      setStatus(data.error ?? t("usuarios.loadErrorFallback"));
     }
     setLoading(false);
   }
@@ -99,7 +97,7 @@ export default function UsuariosPage() {
     }
 
     const data = await response.json().catch(() => ({})) as { error?: string; message?: string };
-    setCreateError(data.error ?? data.message ?? "Error al crear usuario");
+    setCreateError(data.error ?? data.message ?? t("usuarios.createErrorFallback"));
   }
 
   function updateDraft(id: string, field: keyof UserDraft, value: string | boolean) {
@@ -112,7 +110,7 @@ export default function UsuariosPage() {
   async function saveUser(id: string) {
     const draft = drafts[id];
     if (!draft) return;
-    setStatus("Guardando...");
+    setStatus(t("usuarios.saving"));
 
     const body: Record<string, unknown> = {
       email: draft.email,
@@ -132,7 +130,7 @@ export default function UsuariosPage() {
       body: JSON.stringify(body),
     });
     const data = await response.json().catch(() => ({})) as { error?: string };
-    setStatus(response.ok ? "Usuario guardado." : data.error ?? "Error al guardar usuario");
+    setStatus(response.ok ? t("usuarios.savedUser") : data.error ?? t("usuarios.saveErrorFallback"));
     if (response.ok) load();
   }
 
@@ -147,54 +145,54 @@ export default function UsuariosPage() {
     <div>
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <span className="page-eyebrow">Administracion</span>
-          <h1 className="page-title">Usuarios</h1>
-          <p className="page-subtitle">Cuentas del sistema en formato de edicion lineal</p>
+          <span className="page-eyebrow">{t("usuarios.eyebrow")}</span>
+          <h1 className="page-title">{t("usuarios.title")}</h1>
+          <p className="page-subtitle">{t("usuarios.subtitle")}</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
-          {showCreate ? "Cancelar" : "+ Nuevo usuario"}
+          {showCreate ? t("usuarios.cancel") : t("usuarios.newUser")}
         </button>
       </div>
 
       {showCreate && (
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header">
-            <h3 style={{ margin: 0 }}>Nuevo usuario</h3>
+            <h3 style={{ margin: 0 }}>{t("usuarios.newUserCard.title")}</h3>
           </div>
           <form className="card-body" onSubmit={createUser} style={{ display: "grid", gap: 14 }}>
             <div className="form-grid">
               <label className="field">
-                <span>Nombres</span>
+                <span>{t("usuarios.fields.nombre")}</span>
                 <input required minLength={2} maxLength={80} value={newUser.nombre} onChange={(e) => setNewUser((p) => ({ ...p, nombre: e.target.value }))} />
               </label>
               <label className="field">
-                <span>Apellidos</span>
+                <span>{t("usuarios.fields.apellido")}</span>
                 <input required minLength={2} maxLength={80} value={newUser.apellido} onChange={(e) => setNewUser((p) => ({ ...p, apellido: e.target.value }))} />
               </label>
               <label className="field">
-                <span>Email</span>
+                <span>{t("usuarios.fields.email")}</span>
                 <input required type="email" value={newUser.email} onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))} />
               </label>
               <label className="field">
-                <span>Contraseña</span>
+                <span>{t("usuarios.fields.password")}</span>
                 <input required type="password" minLength={8} maxLength={100} value={newUser.password} onChange={(e) => setNewUser((p) => ({ ...p, password: e.target.value }))} />
               </label>
               <label className="field">
-                <span>Rol</span>
+                <span>{t("usuarios.fields.rol")}</span>
                 <select value={newUser.rol} onChange={(e) => setNewUser((p) => ({ ...p, rol: e.target.value as Rol }))}>
-                  {(Object.keys(ROL_LABEL) as Rol[]).map((rol) => (
-                    <option key={rol} value={rol}>{ROL_LABEL[rol]}</option>
+                  {ROLES.map((rol) => (
+                    <option key={rol} value={rol}>{t(`common.role.${rol}`)}</option>
                   ))}
                 </select>
               </label>
               <label className="field">
-                <span>Código (opcional)</span>
+                <span>{t("usuarios.fields.codigo")}</span>
                 <input maxLength={30} value={newUser.codigo} onChange={(e) => setNewUser((p) => ({ ...p, codigo: e.target.value }))} />
               </label>
             </div>
             {createError && <p style={{ margin: 0, fontSize: 13, color: "var(--desaprobado-texto)" }}>{createError}</p>}
             <div className="card-actions">
-              <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? "Creando…" : "Crear usuario"}</button>
+              <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? t("usuarios.newUserCard.submitting") : t("usuarios.newUserCard.submit")}</button>
             </div>
           </form>
         </div>
@@ -204,19 +202,19 @@ export default function UsuariosPage() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar por codigo, nombre, email, rol o estado..."
+          placeholder={t("usuarios.searchPlaceholder")}
           style={{ flex: 1, border: "0.5px solid var(--borde)", borderRadius: 8, padding: "8px 12px", fontSize: 14 }}
         />
       </form>
 
       {status && <p style={{ fontSize: 13, color: "var(--texto-secundario)", marginBottom: 12 }}>{status}</p>}
-      {loading && <p style={{ color: "var(--texto-tenue)" }}>Cargando...</p>}
+      {loading && <p style={{ color: "var(--texto-tenue)" }}>{t("usuarios.loading")}</p>}
 
       {!loading && filtered.length === 0 && (
         <div className="card">
           <div className="empty-state">
-            <p className="empty-state-title">Sin usuarios</p>
-            <p>Registra estudiantes o profesores desde sus pestanas respectivas.</p>
+            <p className="empty-state-title">{t("usuarios.emptyTitle")}</p>
+            <p>{t("usuarios.emptyDesc")}</p>
           </div>
         </div>
       )}
@@ -226,7 +224,7 @@ export default function UsuariosPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--borde)", background: "#FAFAF8" }}>
-                {["Codigo", "Apellidos", "Nombres", "Email", "Rol", "DNI", "Telefono", "Estado", "Nueva clave", ""].map((h) => (
+                {[t("usuarios.table.codigo"), t("usuarios.table.apellidos"), t("usuarios.table.nombres"), t("usuarios.table.email"), t("usuarios.table.rol"), t("usuarios.table.dni"), t("usuarios.table.telefono"), t("usuarios.table.estado"), t("usuarios.table.newPassword"), ""].map((h) => (
                   <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap", color: "var(--texto-secundario)" }}>
                     {h}
                   </th>
@@ -244,8 +242,8 @@ export default function UsuariosPage() {
                     <CellInput value={draft.email} onChange={(v) => updateDraft(user.id, "email", v)} type="email" required />
                     <td style={{ padding: 6 }}>
                       <select value={draft.rol} onChange={(e) => updateDraft(user.id, "rol", e.target.value as Rol)} style={cellStyle}>
-                        {(Object.keys(ROL_LABEL) as Rol[]).map((rol) => (
-                          <option key={rol} value={rol}>{ROL_LABEL[rol]}</option>
+                        {ROLES.map((rol) => (
+                          <option key={rol} value={rol}>{t(`common.role.${rol}`)}</option>
                         ))}
                       </select>
                     </td>
@@ -253,14 +251,14 @@ export default function UsuariosPage() {
                     <CellInput value={draft.telefono} onChange={(v) => updateDraft(user.id, "telefono", v)} />
                     <td style={{ padding: 6 }}>
                       <select value={String(draft.activo)} onChange={(e) => updateDraft(user.id, "activo", e.target.value === "true")} style={cellStyle}>
-                        <option value="true">Activo</option>
-                        <option value="false">Inactivo</option>
+                        <option value="true">{t("usuarios.statusActive")}</option>
+                        <option value="false">{t("usuarios.statusInactive")}</option>
                       </select>
                     </td>
-                    <CellInput value={draft.password} onChange={(v) => updateDraft(user.id, "password", v)} type="password" placeholder="Sin cambio" />
+                    <CellInput value={draft.password} onChange={(v) => updateDraft(user.id, "password", v)} type="password" placeholder={t("usuarios.noPasswordChange")} />
                     <td style={{ padding: 6 }}>
                       <button className="btn btn-secondary" style={{ fontSize: 12, padding: "4px 8px" }} onClick={() => saveUser(user.id)}>
-                        Guardar
+                        {t("usuarios.save")}
                       </button>
                     </td>
                   </tr>

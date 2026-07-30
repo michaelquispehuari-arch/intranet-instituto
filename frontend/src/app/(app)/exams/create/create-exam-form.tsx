@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { readApiError } from "@/lib/api-error";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 import type { CourseOption } from "../types";
 
 type QuestionForm = {
@@ -27,6 +28,7 @@ const emptyQuestion = (): QuestionForm => ({
 
 export function CreateExamForm({ courses }: CreateExamFormProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [questions, setQuestions] = useState<QuestionForm[]>([emptyQuestion()]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -107,7 +109,7 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
     const ingresoHastaMin = Number(formData.get("ingresoHastaMin") ?? 10);
 
     if (ingresoHastaMin >= duracionMinutos) {
-      setError("El tiempo de ingreso debe ser menor que la duración total del examen.");
+      setError(t("exams.entryTimeError"));
       setIsSubmitting(false);
       return;
     }
@@ -137,7 +139,7 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
     setIsSubmitting(false);
 
     if (!response.ok) {
-      setError(await readApiError(response, "No se pudo crear el examen. Revisa los campos."));
+      setError(await readApiError(response, t("exams.createErrorFallback")));
       return;
     }
 
@@ -148,45 +150,45 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
   return (
     <div className="card">
       <div className="card-header">
-        <h3 style={{ margin: 0 }}>Datos del examen</h3>
+        <h3 style={{ margin: 0 }}>{t("exams.formHeader")}</h3>
       </div>
       <form className="card-body" onSubmit={handleSubmit} style={{ display: "grid", gap: 20 }}>
       <div className="form-grid">
         <label className="field">
-          <span>Titulo</span>
+          <span>{t("exams.titleLabel")}</span>
           <input name="titulo" required minLength={3} maxLength={150} />
         </label>
 
         <label className="field">
-          <span>Curso</span>
+          <span>{t("exams.courseLabel")}</span>
           <select name="cursoId" required>
-            <option value="">Selecciona un curso</option>
+            <option value="">{t("exams.selectCourse")}</option>
             {courses.map((course) => (
               <option key={course.id} value={course.id}>
-                {course.nombre} - ciclo {course.ciclo}, {course.anio}
+                {t("exams.courseOption", { nombre: course.nombre, ciclo: course.ciclo, anio: course.anio })}
               </option>
             ))}
           </select>
         </label>
 
         <label className="field">
-          <span>Duración total (min)</span>
+          <span>{t("exams.durationLabel")}</span>
           <input name="duracionMinutos" type="number" min={2} max={300} defaultValue={30} required />
         </label>
 
         <label className="field">
-          <span>Inicio de ingreso</span>
+          <span>{t("exams.startLabel")}</span>
           <input name="disponibleDesde" type="datetime-local" />
         </label>
 
         <label className="field">
-          <span>Ventana de ingreso (min)</span>
+          <span>{t("exams.entryWindowLabel")}</span>
           <input name="ingresoHastaMin" type="number" min={1} max={299} defaultValue={10} required
-            title="Minutos desde el inicio en que se puede entrar. Debe ser menor que la duración." />
+            title={t("exams.entryWindowHint")} />
         </label>
 
         <label className="field full-row">
-          <span>Descripcion</span>
+          <span>{t("exams.descriptionLabel")}</span>
           <textarea name="descripcion" maxLength={500} rows={3} />
         </label>
       </div>
@@ -196,47 +198,47 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
           <fieldset className="question-box google-question" key={questionIndex}>
             <div className="question-toolbar">
               <legend>
-                <span className="chip chip-capturas">Pregunta {questionIndex + 1}</span>
+                <span className="chip chip-capturas">{t("exams.questionNumber", { numero: questionIndex + 1 })}</span>
               </legend>
               <select
                 value={question.tipo}
                 onChange={(event) => changeQuestionType(questionIndex, event.target.value as QuestionForm["tipo"])}
               >
-                <option value="OPCION_MULTIPLE">Opcion multiple</option>
-                <option value="VERDADERO_FALSO">Verdadero/Falso</option>
-                <option value="ABIERTA">Respuesta abierta</option>
+                <option value="OPCION_MULTIPLE">{t("exams.typeMultipleChoice")}</option>
+                <option value="VERDADERO_FALSO">{t("exams.typeTrueFalse")}</option>
+                <option value="ABIERTA">{t("exams.typeOpenAnswer")}</option>
               </select>
             </div>
 
             <label className="field">
-              <span>Pregunta</span>
+              <span>{t("exams.questionLabel")}</span>
               <textarea
                 required
                 minLength={3}
                 maxLength={1000}
                 rows={2}
-                placeholder="Escribe la pregunta"
+                placeholder={t("exams.questionPlaceholder")}
                 value={question.texto}
                 onChange={(event) => updateQuestion(questionIndex, { texto: event.target.value })}
               />
             </label>
 
             {question.tipo === "ABIERTA" ? (
-              <div className="open-answer-preview">Respuesta escrita del estudiante</div>
+              <div className="open-answer-preview">{t("exams.openAnswerPreview")}</div>
             ) : (
               <div className="forms-option-list">
                 {question.opciones.map((option, optionIndex) => (
                   <div className="forms-option-row" key={optionIndex}>
                     <input
                       type="radio"
-                      aria-label={`Marcar opcion ${optionIndex + 1} como correcta`}
+                      aria-label={t("exams.markCorrectOption", { numero: optionIndex + 1 })}
                       checked={question.respuestaCorrecta === option && option.trim().length > 0}
                       onChange={() => updateQuestion(questionIndex, { respuestaCorrecta: option })}
                     />
                     <input
                       required
                       maxLength={300}
-                      placeholder={`Opcion ${optionIndex + 1}`}
+                      placeholder={t("exams.optionPlaceholder", { numero: optionIndex + 1 })}
                       value={option}
                       disabled={question.tipo === "VERDADERO_FALSO"}
                       onChange={(event) => updateOption(questionIndex, optionIndex, event.target.value)}
@@ -245,7 +247,7 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
                       <button
                         className="btn btn-secondary icon-button"
                         type="button"
-                        aria-label="Quitar opcion"
+                        aria-label={t("exams.removeOptionAria")}
                         onClick={() => removeOption(questionIndex, optionIndex)}
                       >
                         x
@@ -259,7 +261,7 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
                     type="button"
                     onClick={() => updateQuestion(questionIndex, { opciones: [...question.opciones, ""] })}
                   >
-                    Agregar opcion
+                    {t("exams.addOption")}
                   </button>
                 ) : null}
               </div>
@@ -267,7 +269,7 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
 
             <div className="question-footer">
               <label className="field points-field">
-                <span>Puntaje</span>
+                <span>{t("exams.points")}</span>
                 <input
                   type="number"
                   min={0.1}
@@ -284,7 +286,7 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
               </label>
               {questions.length > 1 ? (
                 <button className="btn btn-secondary" type="button" onClick={() => removeQuestion(questionIndex)}>
-                  Quitar pregunta
+                  {t("exams.removeQuestionButton")}
                 </button>
               ) : null}
             </div>
@@ -296,10 +298,10 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
 
       <div className="card-actions">
         <button className="btn btn-secondary" type="button" onClick={() => setQuestions([...questions, emptyQuestion()])}>
-          Agregar pregunta
+          {t("exams.addQuestion")}
         </button>
         <button className="btn btn-primary" type="submit" disabled={isSubmitting || courses.length === 0}>
-          {isSubmitting ? "Guardando..." : "Crear examen"}
+          {isSubmitting ? t("exams.saving") : t("exams.createExam")}
         </button>
       </div>
       </form>

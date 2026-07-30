@@ -4,9 +4,11 @@ import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 import { PrivacyModal } from "./PrivacyModal";
 
 export function LoginForm() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/inicio";
@@ -31,7 +33,7 @@ export function LoginForm() {
     setIsLoading(false);
 
     if (!result?.ok) {
-      setError("Correo o contraseña incorrectos.");
+      setError(t("auth.login.invalidCredentials"));
       return;
     }
 
@@ -43,7 +45,7 @@ export function LoginForm() {
     <>
       <form className="login__form stagger" onSubmit={handleSubmit} noValidate>
         <div className="field">
-          <label className="label" htmlFor="email">Correo</label>
+          <label className="label" htmlFor="email">{t("auth.login.emailLabel")}</label>
           <div className="input-wrap">
             <Mail className="lead-icon" aria-hidden />
             <input
@@ -51,7 +53,7 @@ export function LoginForm() {
               name="email"
               type="email"
               className="input"
-              placeholder="correo@gmail.com"
+              placeholder={t("auth.login.emailPlaceholder")}
               autoComplete="email"
               required
             />
@@ -59,7 +61,7 @@ export function LoginForm() {
         </div>
 
         <div className="field">
-          <label className="label" htmlFor="password">Contraseña</label>
+          <label className="label" htmlFor="password">{t("auth.login.passwordLabel")}</label>
           <div className="input-wrap">
             <Lock className="lead-icon" aria-hidden />
             <input
@@ -67,7 +69,7 @@ export function LoginForm() {
               name="password"
               type={showPassword ? "text" : "password"}
               className="input input--with-trail"
-              placeholder="Tu contraseña"
+              placeholder={t("auth.login.passwordPlaceholder")}
               autoComplete="current-password"
               required
             />
@@ -75,7 +77,7 @@ export function LoginForm() {
               type="button"
               className="trail-icon-btn"
               onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              aria-label={showPassword ? t("auth.login.hidePassword") : t("auth.login.showPassword")}
               tabIndex={-1}
             >
               {showPassword ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
@@ -97,10 +99,10 @@ export function LoginForm() {
           {isLoading ? (
             <span className="btn-loading">
               <span className="spinner-sm" aria-hidden="true" />
-              Ingresando…
+              {t("auth.login.signingIn")}
             </span>
           ) : (
-            "Ingresar"
+            t("auth.login.signIn")
           )}
         </button>
 
@@ -110,7 +112,7 @@ export function LoginForm() {
             className="login__legal"
             onClick={() => setShowPrivacy(true)}
           >
-            Política de privacidad
+            {t("auth.login.privacyPolicy")}
           </button>
         </div>
       </form>

@@ -1,0 +1,17 @@
+export const nav = {
+  inicio: "Inicio",
+  cursos: "Cursos",
+  miCurso: "Mi curso",
+  examenes: "Exámenes",
+  calificaciones: "Calificaciones",
+  misNotas: "Mis notas",
+  estudiantes: "Estudiantes",
+  profesores: "Profesores",
+  sustitutorios: "Sustitutorios",
+  configuracion: "Configuración",
+  navegacionPrincipal: "Navegación principal",
+  cerrarSesion: "Cerrar sesión",
+  abrirMenu: "Abrir menú",
+  cerrarMenu: "Cerrar menú",
+  idioma: "Idioma",
+};

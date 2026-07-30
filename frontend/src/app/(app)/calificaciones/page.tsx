@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 // ── Tipos para ADMIN/PROFESOR (timeline) ─────────────────────────────────
 type Semana = {
@@ -26,11 +27,12 @@ type MiNota = {
 };
 
 function NotaChip({ semana }: { semana: Semana }) {
+  const { t } = useTranslation();
   if (semana.estado === "en_curso" && semana.notaFinal === null) {
-    return <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>En curso</span>;
+    return <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>{t("calificaciones.chip.enCurso")}</span>;
   }
   if (semana.aprobado === null) {
-    return <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>Sin nota</span>;
+    return <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>{t("calificaciones.chip.sinNota")}</span>;
   }
   if (semana.aprobado) {
     return <span className="chip chip-ok" title={semana.notaFinal?.toFixed(2)}>{semana.notaFinal?.toFixed(1)} ✓</span>;
@@ -40,6 +42,7 @@ function NotaChip({ semana }: { semana: Semana }) {
 
 // ── Vista ESTUDIANTE ──────────────────────────────────────────────────────
 function EstudianteView() {
+  const { t } = useTranslation();
   const [notas, setNotas] = useState<MiNota[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,22 +55,22 @@ function EstudianteView() {
       });
   }, []);
 
-  if (loading) return <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>;
+  if (loading) return <p style={{ color: "var(--texto-tenue)" }}>{t("common.loading")}</p>;
 
   return (
     <div>
       <div className="page-header">
-        <span className="page-eyebrow">Mis resultados</span>
-        <h1 className="page-title">Mis calificaciones</h1>
-        <p className="page-subtitle">Notas publicadas por el administrador</p>
+        <span className="page-eyebrow">{t("calificaciones.estudiante.eyebrow")}</span>
+        <h1 className="page-title">{t("calificaciones.estudiante.title")}</h1>
+        <p className="page-subtitle">{t("calificaciones.estudiante.subtitle")}</p>
       </div>
 
       {notas.length === 0 ? (
         <div className="card">
           <div className="empty-state">
             <div className="empty-state-icon">📊</div>
-            <p className="empty-state-title">Sin inscripciones</p>
-            <p>No estás inscrito en ningún curso activo.</p>
+            <p className="empty-state-title">{t("calificaciones.estudiante.noEnrollmentsTitle")}</p>
+            <p>{t("calificaciones.estudiante.noEnrollmentsDesc")}</p>
           </div>
         </div>
       ) : (
@@ -76,8 +79,8 @@ function EstudianteView() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
                 <tr style={{ borderBottom: "0.5px solid var(--borde)" }}>
-                  <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600 }}>Curso</th>
-                  <th style={{ padding: "10px 16px", textAlign: "center", fontWeight: 600 }}>Nota Final</th>
+                  <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600 }}>{t("calificaciones.course")}</th>
+                  <th style={{ padding: "10px 16px", textAlign: "center", fontWeight: 600 }}>{t("calificaciones.finalGrade")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -87,12 +90,12 @@ function EstudianteView() {
                     <tr key={n.cursoId} style={{ borderBottom: "0.5px solid var(--borde)" }}>
                       <td style={{ padding: "10px 16px" }}>
                         <div style={{ fontWeight: 600 }}>{n.nombre}</div>
-                        <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>Ciclo {n.ciclo} — {n.anio}</div>
+                        <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{t("calificaciones.cycle", { ciclo: n.ciclo, anio: n.anio })}</div>
                       </td>
                       <td style={{ padding: "10px 16px", textAlign: "center" }}>
                         {!n.publicadas ? (
                           <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>
-                            Aún no publicadas
+                            {t("calificaciones.notPublished")}
                           </span>
                         ) : n.notaFinalPublicada === null ? (
                           <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>—</span>
@@ -116,6 +119,7 @@ function EstudianteView() {
 
 // ── Vista ADMIN / PROFESOR (timeline existente) ───────────────────────────
 function AdminView() {
+  const { t } = useTranslation();
   const [data, setData] = useState<Entrada[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -135,19 +139,19 @@ function AdminView() {
   return (
     <div>
       <div className="page-header">
-        <span className="page-eyebrow">Académico</span>
-        <h1 className="page-title">Cronograma de calificaciones</h1>
-        <p className="page-subtitle">Vista global: aprobados y desaprobados por alumno</p>
+        <span className="page-eyebrow">{t("calificaciones.admin.eyebrow")}</span>
+        <h1 className="page-title">{t("calificaciones.admin.title")}</h1>
+        <p className="page-subtitle">{t("calificaciones.admin.subtitle")}</p>
       </div>
 
-      {loading && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+      {loading && <p style={{ color: "var(--texto-tenue)" }}>{t("common.loading")}</p>}
 
       {!loading && data.length === 0 && (
         <div className="card">
           <div className="empty-state">
             <div className="empty-state-icon">📊</div>
-            <p className="empty-state-title">Sin datos de calificaciones</p>
-            <p>No hay cursos o inscripciones registradas aún.</p>
+            <p className="empty-state-title">{t("calificaciones.admin.noDataTitle")}</p>
+            <p>{t("calificaciones.admin.noDataDesc")}</p>
           </div>
         </div>
       )}
@@ -157,13 +161,13 @@ function AdminView() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ borderBottom: "0.5px solid var(--borde)" }}>
-                <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap" }}>Alumno</th>
+                <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap" }}>{t("calificaciones.admin.student")}</th>
                 {cursos.map((c) => (
                   <th key={c.id} style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, fontSize: 12, color: "var(--texto-secundario)", whiteSpace: "nowrap" }}>
                     {c.nombre}
                   </th>
                 ))}
-                <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, fontSize: 12, color: "var(--texto-secundario)" }}>Aprobados</th>
+                <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, fontSize: 12, color: "var(--texto-secundario)" }}>{t("calificaciones.admin.approvedCount")}</th>
               </tr>
             </thead>
             <tbody>
@@ -204,9 +208,9 @@ function AdminView() {
 
       {!loading && (
         <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <span className="chip chip-ok">Aprobado</span>
-          <span className="chip chip-resumen">Desaprobado</span>
-          <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>En curso / sin nota</span>
+          <span className="chip chip-ok">{t("calificaciones.chip.aprobado")}</span>
+          <span className="chip chip-resumen">{t("calificaciones.chip.desaprobado")}</span>
+          <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>{t("calificaciones.chip.enCursoSinNota")}</span>
         </div>
       )}
     </div>
@@ -216,9 +220,10 @@ function AdminView() {
 // ── Root ──────────────────────────────────────────────────────────────────
 export default function CalificacionesPage() {
   const { data: session } = useSession();
+  const { t } = useTranslation();
   const rol = session?.user?.rol;
 
-  if (!rol) return <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>;
+  if (!rol) return <p style={{ color: "var(--texto-tenue)" }}>{t("common.loading")}</p>;
   if (rol === "ESTUDIANTE") return <EstudianteView />;
   return <AdminView />;
 }

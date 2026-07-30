@@ -22,14 +22,15 @@ Esto es intencional (seguridad: el token de sesión del backend no debe llegar a
 
 ## Frontend (`frontend/src`)
 
-### Textos de cada pantalla
+### Textos de cada pantalla (multi-idioma: ES / EN / KO)
 
-Los textos están escritos directo en el JSX de cada `page.tsx`, no hay archivo de traducciones. Para cambiar un texto, busca la pantalla y edita el string directamente.
+Desde 2026-07-29 los textos de la interfaz NO están escritos directo en el JSX — viven en diccionarios por idioma en `frontend/src/lib/i18n/dictionaries/{es,en,ko}/<modulo>.ts`, y cada `page.tsx` los llama con `t("modulo.clave")` vía el hook `useTranslation()`. Ver la guía completa: [11-idiomas-i18n.md](./11-idiomas-i18n.md) — **léela antes de cambiar cualquier texto o agregar una pantalla nueva**, porque cada texto nuevo debe agregarse en los 3 idiomas en el mismo cambio.
 
 - Pantallas con menú lateral (la mayoría): `frontend/src/app/(app)/<nombre>/page.tsx`
-  - `inicio`, `cursos`, `cursos/[id]`, `cursos/[id]/notas`, `cursos/[id]/sesiones/[sesionId]`, `exams`, `calificaciones`, `estudiantes`, `profesores`, `sustitutorios`, `configuracion`, `material`, `material/subir`
-- Pantallas sin menú (login, recuperar contraseña): `frontend/src/app/login/page.tsx`, `forgot-password/page.tsx`, `reset-password/page.tsx`, `privacy/page.tsx`
-- El nombre "PeRTS" y el eslogan del panel están en `frontend/src/components/app-shell.tsx` y en `frontend/src/app/layout.tsx` (metadata del `<head>`).
+  - `inicio`, `cursos`, `cursos/[id]`, `cursos/[id]/notas`, `exams`, `calificaciones`, `estudiantes`, `profesores`, `sustitutorios`, `configuracion`, `material`, `material/subir`
+- Pantallas sin menú (login, recuperar contraseña): `frontend/src/app/login/page.tsx`, `forgot-password/page.tsx`, `reset-password/page.tsx`
+  - `privacy/page.tsx` es una pantalla huérfana (sin link de navegación) y quedó **fuera** del alcance de la traducción — el aviso de privacidad real y traducido está en `login/PrivacyModal.tsx`, accesible desde el link "Política de privacidad" del login.
+- El nombre "PeRTS" y el nombre de la institución ("Seminario Teológico de Remanentes") NO se traducen a propósito (son nombres propios) — están hardcodeados en `frontend/src/components/app-shell.tsx` y en `frontend/src/app/login/page.tsx`.
 
 ### Imágenes / logo / mascota
 

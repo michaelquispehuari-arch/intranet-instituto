@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { applyPhonePrefix, matchHeader, normalizeCsvHeader, parseCsv, parseFlexibleDate, readCsvFile, toTitleCase } from "@/lib/csv";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 type ModoEstudio = "SINCRONICO" | "ASINCRONICO" | "MIXTO";
 
@@ -23,17 +24,6 @@ type Estudiante = {
   coordinador: string | null;
 };
 
-const MODO_LABEL: Record<ModoEstudio, string> = {
-  SINCRONICO: "Sincrónico",
-  ASINCRONICO: "Asincrónico",
-  MIXTO: "Mixto",
-};
-
-function fmtFecha(iso: string | null) {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("es-PE");
-}
-
 function parseOptionalInt(value: unknown) {
   if (value === "" || value === null || value === undefined) return undefined;
   const parsed = Number.parseInt(String(value), 10);
@@ -49,6 +39,7 @@ function isValidEmail(value: string | undefined) {
 }
 
 export default function EstudiantesPage() {
+  const { t } = useTranslation();
   const [students, setStudents] = useState<Estudiante[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -96,7 +87,7 @@ export default function EstudiantesPage() {
       load();
     } else {
       const d = await r.json().catch(() => ({})) as { error?: string };
-      setCreateError(d.error ?? "Error al crear estudiante");
+      setCreateError(d.error ?? t("estudiantes.createErrorFallback"));
     }
   }
 
@@ -137,40 +128,40 @@ export default function EstudiantesPage() {
     setSaving(false);
     if (response.ok) {
       setEditId(null);
-      setImportStatus("Estudiante guardado.");
+      setImportStatus(t("estudiantes.savedStudent"));
       load();
     } else {
       const data = await response.json().catch(() => ({})) as { error?: string };
-      setImportStatus(`Error al guardar: ${data.error ?? "Error del servidor"}`);
+      setImportStatus(t("estudiantes.saveError", { error: data.error ?? t("estudiantes.serverErrorFallback") }));
     }
   }
 
   async function handleDeleteStudent(student: Estudiante) {
-    const ok = window.confirm(`Eliminar estudiante ${student.nombre} ${student.apellido}? La cuenta quedara inactiva.`);
+    const ok = window.confirm(t("estudiantes.confirmDelete", { nombre: student.nombre, apellido: student.apellido }));
     if (!ok) return;
 
     const response = await fetch(`/api/backend/students/${student.id}`, { method: "DELETE" });
     if (response.ok) {
-      setImportStatus("Estudiante eliminado.");
+      setImportStatus(t("estudiantes.deletedStudent"));
       load();
       return;
     }
 
     const data = await response.json().catch(() => ({})) as { error?: string };
-    setImportStatus(`Error al eliminar: ${data.error ?? "Error del servidor"}`);
+    setImportStatus(t("estudiantes.deleteError", { error: data.error ?? t("estudiantes.serverErrorFallback") }));
   }
 
   async function handleImportCsv(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImportStatus("Procesando…");
+    setImportStatus(t("estudiantes.import.processing"));
 
     const text = await readCsvFile(file);
     const csvRows = parseCsv(text);
     const headers = (csvRows[0] ?? []).map(normalizeCsvHeader);
 
     if (headers.length === 0) {
-      setImportStatus("Error al importar: el CSV no tiene encabezados.");
+      setImportStatus(t("estudiantes.import.noHeaders"));
       return;
     }
 
@@ -198,7 +189,7 @@ export default function EstudiantesPage() {
     }).filter((r) => r.email || r.nombre || r.apellido);
 
     if (rows.length === 0) {
-      setImportStatus(`Error al importar: no se detectaron filas de alumnos. Encabezados detectados: ${headers.join(" | ")}`);
+      setImportStatus(t("estudiantes.import.noRows", { headers: headers.join(" | ") }));
       return;
     }
 
@@ -206,7 +197,13 @@ export default function EstudiantesPage() {
     const invalid = rows.filter((r) => !isValidEmail(r.email) || !r.nombre || !r.apellido);
     if (validRows.length === 0 && invalid.length > 0) {
       const sample = invalid[0];
-      setImportStatus(`Error al importar: ${invalid.length} fila(s) sin CORREO valido, NOMBRES o APELLIDOS. Primera fila leida: correo=${sample.email || "-"}, nombres=${sample.nombre || "-"}, apellidos=${sample.apellido || "-"}. Encabezados detectados: ${headers.join(" | ")}`);
+      setImportStatus(t("estudiantes.import.invalidRows", {
+        count: invalid.length,
+        email: sample.email || "-",
+        nombre: sample.nombre || "-",
+        apellido: sample.apellido || "-",
+        headers: headers.join(" | "),
+      }));
       return;
     }
 
@@ -217,9 +214,12 @@ export default function EstudiantesPage() {
     });
     const result = await r.json() as { created?: number; skipped?: number; errors?: string[]; error?: string };
     if (!r.ok) {
-      setImportStatus(`Error al importar: ${result.error ?? "Error del servidor"}`);
+      setImportStatus(t("estudiantes.import.error", { error: result.error ?? t("estudiantes.serverErrorFallback") }));
     } else {
-      setImportStatus(`Importados: ${result.created ?? 0} · Saltados: ${(result.skipped ?? 0) + invalid.length}${invalid.length ? ` · Incompletos: ${invalid.length}` : ""}${result.errors?.length ? ` · Errores: ${result.errors.length}` : ""}`);
+      let msg = t("estudiantes.import.result", { created: result.created ?? 0, skipped: (result.skipped ?? 0) + invalid.length });
+      if (invalid.length) msg += t("estudiantes.import.incomplete", { count: invalid.length });
+      if (result.errors?.length) msg += t("estudiantes.import.errors", { count: result.errors.length });
+      setImportStatus(msg);
     }
     load();
     if (csvRef.current) csvRef.current.value = "";
@@ -240,17 +240,17 @@ export default function EstudiantesPage() {
     <div>
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <span className="page-eyebrow">Administración</span>
-          <h1 className="page-title">Registro de estudiantes</h1>
-          <p className="page-subtitle">Alta, edición y estado de los alumnos del seminario</p>
+          <span className="page-eyebrow">{t("estudiantes.eyebrow")}</span>
+          <h1 className="page-title">{t("estudiantes.title")}</h1>
+          <p className="page-subtitle">{t("estudiantes.subtitle")}</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn btn-secondary" onClick={() => csvRef.current?.click()} style={{ fontSize: 13 }}>
-            Importar CSV
+            {t("estudiantes.importCsv")}
           </button>
           <input ref={csvRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleImportCsv} />
           <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)} style={{ fontSize: 13 }}>
-            {showCreate ? "Cancelar" : "+ Nuevo estudiante"}
+            {showCreate ? t("estudiantes.cancel") : t("estudiantes.newStudent")}
           </button>
         </div>
       </div>
@@ -262,13 +262,13 @@ export default function EstudiantesPage() {
       {/* Formulario de nuevo estudiante */}
       {showCreate && (
         <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card-header"><h3>Nuevo estudiante</h3></div>
+          <div className="card-header"><h3>{t("estudiantes.newStudentCard.title")}</h3></div>
           <div className="card-body">
             <form onSubmit={handleCreate} style={{ display: "grid", gap: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px,1fr))", gap: 12 }}>
                 {(["email", "nombre", "apellido", "codigo", "dni", "telefono", "iglesia", "pais", "coordinador"] as const).map((f) => (
                   <div key={f} className="field">
-                    <label>{f.charAt(0).toUpperCase() + f.slice(1)}</label>
+                    <label>{t(`estudiantes.fields.${f}`)}</label>
                     <input
                       value={String(newStudent[f] ?? "")}
                       onChange={(e) => setNewStudent((d) => ({ ...d, [f]: e.target.value }))}
@@ -277,35 +277,35 @@ export default function EstudiantesPage() {
                   </div>
                 ))}
                 <div className="field">
-                  <label>Modo</label>
+                  <label>{t("estudiantes.fields.modo")}</label>
                   <select
                     value={newStudent.modo ?? "SINCRONICO"}
                     onChange={(e) => setNewStudent((d) => ({ ...d, modo: e.target.value as ModoEstudio }))}
                   >
-                    <option value="SINCRONICO">Sincrónico</option>
-                    <option value="ASINCRONICO">Asincrónico</option>
-                    <option value="MIXTO">Mixto</option>
+                    <option value="SINCRONICO">{t("estudiantes.modo.SINCRONICO")}</option>
+                    <option value="ASINCRONICO">{t("estudiantes.modo.ASINCRONICO")}</option>
+                    <option value="MIXTO">{t("estudiantes.modo.MIXTO")}</option>
                   </select>
                 </div>
                 <div className="field">
-                  <label>Semestre ingreso</label>
+                  <label>{t("estudiantes.fields.semestreIngreso")}</label>
                   <input type="number" min={1} max={2}
                     onChange={(e) => setNewStudent((d) => ({ ...d, semestreIngreso: parseInt(e.target.value) || undefined }))} />
                 </div>
                 <div className="field">
-                  <label>Año ingreso</label>
+                  <label>{t("estudiantes.fields.anioIngreso")}</label>
                   <input type="number" min={2000}
                     onChange={(e) => setNewStudent((d) => ({ ...d, anioIngreso: parseInt(e.target.value) || undefined }))} />
                 </div>
               </div>
               <p style={{ margin: 0, fontSize: 12, color: "var(--texto-tenue)" }}>
-                La contrasena inicial del estudiante sera su DNI.
+                {t("estudiantes.newStudentCard.passwordNote")}
               </p>
               {createError && (
                 <p style={{ margin: 0, fontSize: 13, color: "var(--desaprobado-texto)" }}>{createError}</p>
               )}
               <div>
-                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Creando…" : "Crear estudiante"}</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t("estudiantes.newStudentCard.submitting") : t("estudiantes.newStudentCard.submit")}</button>
               </div>
             </form>
           </div>
@@ -317,20 +317,20 @@ export default function EstudiantesPage() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar por código, nombre, email…"
+          placeholder={t("estudiantes.searchPlaceholder")}
           style={{ flex: 1, border: "0.5px solid var(--borde)", borderRadius: 8, padding: "8px 12px", fontSize: 14 }}
         />
-        <button type="submit" className="btn btn-secondary">Buscar</button>
+        <button type="submit" className="btn btn-secondary">{t("estudiantes.search")}</button>
       </form>
 
-      {loading && <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>}
+      {loading && <p style={{ color: "var(--texto-tenue)" }}>{t("estudiantes.loading")}</p>}
 
       {!loading && students.length === 0 && (
         <div className="card">
           <div className="empty-state">
             <div className="empty-state-icon">🎓</div>
-            <p className="empty-state-title">Sin estudiantes{query ? " con esa búsqueda" : ""}</p>
-            <p>{query ? "Prueba con otro término." : "Crea el primer estudiante o importa un CSV."}</p>
+            <p className="empty-state-title">{query ? t("estudiantes.emptyTitleFiltered") : t("estudiantes.emptyTitle")}</p>
+            <p>{query ? t("estudiantes.emptySearchHint") : t("estudiantes.emptyCreateHint")}</p>
           </div>
         </div>
       )}
@@ -341,7 +341,7 @@ export default function EstudiantesPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--borde)", background: "#FAFAF8" }}>
-                {["Cód.", "Apellidos", "Nombres", "Email", "Modo", "Iglesia", "País", "S/A", "DNI", "Teléfono", "Coordinador", "Estado", ""].map((h) => (
+                {[t("estudiantes.table.codigo"), t("estudiantes.table.apellidos"), t("estudiantes.table.nombres"), t("estudiantes.table.email"), t("estudiantes.table.modo"), t("estudiantes.table.iglesia"), t("estudiantes.table.pais"), t("estudiantes.table.semestreAnio"), t("estudiantes.table.dni"), t("estudiantes.table.telefono"), t("estudiantes.table.coordinador"), t("estudiantes.table.estado"), ""].map((h) => (
                   <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap", color: "var(--texto-secundario)" }}>
                     {h}
                   </th>
@@ -355,36 +355,36 @@ export default function EstudiantesPage() {
                     <td colSpan={13} style={{ padding: 16 }}>
                       <form onSubmit={handleSaveEdit}>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: 10, marginBottom: 12 }}>
-                          {fi("codigo", "Código")}
-                          {fi("apellido", "Apellidos")}
-                          {fi("nombre", "Nombres")}
-                          {fi("email", "Email")}
+                          {fi("codigo", t("estudiantes.editFields.codigo"))}
+                          {fi("apellido", t("estudiantes.editFields.apellido"))}
+                          {fi("nombre", t("estudiantes.editFields.nombre"))}
+                          {fi("email", t("estudiantes.editFields.email"))}
                           <div className="field">
-                            <label>Modo</label>
+                            <label>{t("estudiantes.editFields.modo")}</label>
                             <select value={editData.modo ?? "SINCRONICO"} onChange={(e) => setEditData((d) => ({ ...d, modo: e.target.value as ModoEstudio }))}>
-                              <option value="SINCRONICO">Sincrónico</option>
-                              <option value="ASINCRONICO">Asincrónico</option>
-                              <option value="MIXTO">Mixto</option>
+                              <option value="SINCRONICO">{t("estudiantes.modo.SINCRONICO")}</option>
+                              <option value="ASINCRONICO">{t("estudiantes.modo.ASINCRONICO")}</option>
+                              <option value="MIXTO">{t("estudiantes.modo.MIXTO")}</option>
                             </select>
                           </div>
-                          {fi("iglesia", "Iglesia")}
-                          {fi("pais", "País")}
-                          {fi("semestreIngreso", "Sem.")}
-                          {fi("anioIngreso", "Año")}
-                          {fi("dni", "DNI")}
-                          {fi("telefono", "Teléfono")}
-                          {fi("coordinador", "Coordinador")}
+                          {fi("iglesia", t("estudiantes.editFields.iglesia"))}
+                          {fi("pais", t("estudiantes.editFields.pais"))}
+                          {fi("semestreIngreso", t("estudiantes.editFields.semestre"))}
+                          {fi("anioIngreso", t("estudiantes.editFields.anio"))}
+                          {fi("dni", t("estudiantes.editFields.dni"))}
+                          {fi("telefono", t("estudiantes.editFields.telefono"))}
+                          {fi("coordinador", t("estudiantes.editFields.coordinador"))}
                           <div className="field">
-                            <label>Estado</label>
+                            <label>{t("estudiantes.editFields.estado")}</label>
                             <select value={editData.activo ? "true" : "false"} onChange={(e) => setEditData((d) => ({ ...d, activo: e.target.value === "true" }))}>
-                              <option value="true">Activo (A)</option>
-                              <option value="false">Inactivo (I)</option>
+                              <option value="true">{t("estudiantes.statusActive")}</option>
+                              <option value="false">{t("estudiantes.statusInactive")}</option>
                             </select>
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
-                          <button type="submit" className="btn btn-primary" style={{ fontSize: 13 }} disabled={saving}>{saving ? "Guardando…" : "Guardar"}</button>
-                          <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={() => setEditId(null)}>Cancelar</button>
+                          <button type="submit" className="btn btn-primary" style={{ fontSize: 13 }} disabled={saving}>{saving ? t("estudiantes.saving") : t("estudiantes.save")}</button>
+                          <button type="button" className="btn btn-secondary" style={{ fontSize: 13 }} onClick={() => setEditId(null)}>{t("estudiantes.cancel")}</button>
                         </div>
                       </form>
                     </td>
@@ -395,7 +395,7 @@ export default function EstudiantesPage() {
                     <td style={{ padding: "7px 10px", fontWeight: 500 }}>{s.apellido}</td>
                     <td style={{ padding: "7px 10px" }}>{s.nombre}</td>
                     <td style={{ padding: "7px 10px", color: "var(--texto-tenue)" }}>{s.email}</td>
-                    <td style={{ padding: "7px 10px" }}>{MODO_LABEL[s.modo]}</td>
+                    <td style={{ padding: "7px 10px" }}>{t(`estudiantes.modo.${s.modo}`)}</td>
                     <td style={{ padding: "7px 10px", color: "var(--texto-tenue)" }}>{s.iglesia ?? "—"}</td>
                     <td style={{ padding: "7px 10px", color: "var(--texto-tenue)" }}>{s.pais ?? "—"}</td>
                     <td style={{ padding: "7px 10px", color: "var(--texto-tenue)" }}>{s.semestreIngreso ?? "—"}/{s.anioIngreso ?? "—"}</td>
@@ -403,18 +403,18 @@ export default function EstudiantesPage() {
                     <td style={{ padding: "7px 10px", color: "var(--texto-tenue)" }}>{s.telefono ?? "—"}</td>
                     <td style={{ padding: "7px 10px", color: "var(--texto-tenue)" }}>{s.coordinador ?? "—"}</td>
                     <td style={{ padding: "7px 10px" }}>
-                      <span className={`chip ${s.activo ? "chip-ok" : "chip-resumen"}`}>{s.activo ? "A" : "I"}</span>
+                      <span className={`chip ${s.activo ? "chip-ok" : "chip-resumen"}`}>{s.activo ? t("estudiantes.chipActive") : t("estudiantes.chipInactive")}</span>
                     </td>
                     <td style={{ padding: "7px 6px" }}>
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button className="btn btn-secondary" style={{ fontSize: 12, padding: "3px 8px" }} onClick={() => startEdit(s)}>Editar</button>
+                        <button className="btn btn-secondary" style={{ fontSize: 12, padding: "3px 8px" }} onClick={() => startEdit(s)}>{t("estudiantes.edit")}</button>
                         {s.activo && (
                           <button
                             className="btn btn-secondary"
                             style={{ fontSize: 12, padding: "3px 8px", color: "var(--desaprobado-texto)", borderColor: "var(--desaprobado-texto)" }}
                             onClick={() => handleDeleteStudent(s)}
                           >
-                            Eliminar
+                            {t("estudiantes.delete")}
                           </button>
                         )}
                       </div>
@@ -428,8 +428,8 @@ export default function EstudiantesPage() {
       )}
 
       <div style={{ marginTop: 16, fontSize: 12, color: "var(--texto-tenue)" }}>
-        CSV esperado: el orden de las columnas no importa, la app reconoce el encabezado por palabra clave (ej. &quot;Dirección de correo electrónico&quot; se detecta igual que &quot;Correo&quot;). Encabezados reconocidos: CODIGO, NOMBRES (o &quot;Nombre Completo&quot; si los apellidos van en otra columna), APELLIDOS, MODO (opcional, S/A/M), IGLESIA, PAIS, SEMESTRE, AÑO, DNI (opcional), TELEFONO, FECHA DE NACIMIENTO, CORREO, COORDINADOR.
-        Solo CORREO, NOMBRES y APELLIDOS son obligatorios &mdash; el DNI ya no es obligatorio: si falta, la cuenta se crea con una contraseña provisional y el alumno puede definir la suya con &quot;olvidé mi contraseña&quot;. Nombres, apellidos, iglesia, país y coordinador se guardan con la Primera Letra En Mayúscula automáticamente, y el teléfono recibe el prefijo del país si no lo tiene.
+        {t("estudiantes.csvHelp1")}
+        {t("estudiantes.csvHelp2")}
       </div>
     </div>
   );

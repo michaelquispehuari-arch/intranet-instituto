@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { ExamListItem, ExamResults } from "../exams/types";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
+import { INTL_LOCALES } from "@/lib/i18n/types";
 
 type EligibleStudent = {
   estudianteId: string;
@@ -21,6 +23,7 @@ function allAnswersGraded(submission: ExamResults["submissions"][0]) {
 }
 
 export default function SustitutoriosPage() {
+  const { t, locale } = useTranslation();
   const [tab, setTab] = useState<"examenes" | "alumnos">("examenes");
   const [exams, setExams] = useState<ExamListItem[]>([]);
   const [eligible, setEligible] = useState<EligibleStudent[]>([]);
@@ -96,11 +99,11 @@ export default function SustitutoriosPage() {
     setSavingGrades((p) => ({ ...p, [submissionId]: false }));
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: "Error al guardar" }));
-      setFeedback((p) => ({ ...p, [submissionId]: err.message ?? "Error al guardar" }));
+      const err = await res.json().catch(() => ({ message: t("sustitutorios.errors.saveGrade") }));
+      setFeedback((p) => ({ ...p, [submissionId]: err.message ?? t("sustitutorios.errors.saveGrade") }));
       return;
     }
-    setFeedback((p) => ({ ...p, [submissionId]: "Calificación guardada ✓" }));
+    setFeedback((p) => ({ ...p, [submissionId]: t("sustitutorios.gradeSaved") }));
     // Refresh results
     await openExam(selectedExam);
   }
@@ -114,17 +117,17 @@ export default function SustitutoriosPage() {
     );
     setReviewingId(null);
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: "Error" }));
+      const err = await res.json().catch(() => ({ message: t("sustitutorios.errors.markReviewed") }));
       setFeedback((p) => ({
         ...p,
-        [submissionId]: err.message ?? "Error al marcar como revisado",
+        [submissionId]: err.message ?? t("sustitutorios.errors.markReviewed"),
       }));
       return;
     }
     const data = await res.json();
     setFeedback((p) => ({
       ...p,
-      [submissionId]: `Revisado ✓ — Nota sustitutorio: ${data.notaExamenRecup}`,
+      [submissionId]: t("sustitutorios.reviewedSuccess", { nota: data.notaExamenRecup }),
     }));
     await openExam(selectedExam);
   }
@@ -143,18 +146,18 @@ export default function SustitutoriosPage() {
   return (
     <div>
       <div className="page-header">
-        <span className="page-eyebrow">Administración</span>
-        <h1 className="page-title">Exámenes Sustitutorios</h1>
-        <p className="page-subtitle">Gestiona exámenes de recuperación y califica los envíos.</p>
+        <span className="page-eyebrow">{t("sustitutorios.eyebrow")}</span>
+        <h1 className="page-title">{t("sustitutorios.title")}</h1>
+        <p className="page-subtitle">{t("sustitutorios.subtitle")}</p>
       </div>
 
       {/* Tabs */}
       <div style={{ display: "flex", borderBottom: "0.5px solid var(--borde)", marginBottom: 24 }}>
         <button style={tabStyle(tab === "examenes")} onClick={() => setTab("examenes")}>
-          Exámenes
+          {t("sustitutorios.tabs.exams")}
         </button>
         <button style={tabStyle(tab === "alumnos")} onClick={() => setTab("alumnos")}>
-          Alumnos elegibles
+          {t("sustitutorios.tabs.eligibleStudents")}
         </button>
       </div>
 
@@ -165,18 +168,18 @@ export default function SustitutoriosPage() {
           <div style={{ flex: "0 0 320px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-                {loading ? "Cargando…" : `${exams.length} examen(es) sustitutorio(s)`}
+                {loading ? t("sustitutorios.loading") : t("sustitutorios.examCount", { count: exams.length })}
               </h2>
               <Link href="/exams/create" className="btn btn-secondary" style={{ fontSize: 12 }}>
-                + Crear
+                {t("sustitutorios.createButton")}
               </Link>
             </div>
 
             {!loading && exams.length === 0 && (
               <div className="card empty-state" style={{ padding: "20px 16px" }}>
-                <p className="empty-state-title">Sin exámenes sustitutorios</p>
+                <p className="empty-state-title">{t("sustitutorios.noExams.title")}</p>
                 <p style={{ fontSize: 13 }}>
-                  Crea un examen marcando la opción "Es sustitutorio".
+                  {t("sustitutorios.noExams.description")}
                 </p>
               </div>
             )}
@@ -204,7 +207,7 @@ export default function SustitutoriosPage() {
                     {exam.curso.nombre} · {exam._count.envios} envío(s)
                   </div>
                   {!exam.publicadoEn && (
-                    <span style={{ fontSize: 11, color: "var(--amber-action, #BE7A12)" }}>No publicado</span>
+                    <span style={{ fontSize: 11, color: "var(--amber-action, #BE7A12)" }}>{t("sustitutorios.notPublished")}</span>
                   )}
                 </button>
               ))}
@@ -215,26 +218,26 @@ export default function SustitutoriosPage() {
           <div style={{ flex: 1 }}>
             {!selectedExam && (
               <div className="card empty-state">
-                <p className="empty-state-title">Selecciona un examen</p>
-                <p style={{ fontSize: 13 }}>Haz clic en un examen para ver los envíos y calificarlos.</p>
+                <p className="empty-state-title">{t("sustitutorios.selectExam.title")}</p>
+                <p style={{ fontSize: 13 }}>{t("sustitutorios.selectExam.description")}</p>
               </div>
             )}
 
             {selectedExam && loadingResults && (
               <div className="card" style={{ padding: 24, textAlign: "center" }}>
-                <p style={{ color: "var(--texto-tenue)" }}>Cargando envíos…</p>
+                <p style={{ color: "var(--texto-tenue)" }}>{t("sustitutorios.loadingSubmissions")}</p>
               </div>
             )}
 
             {selectedExam && !loadingResults && results && (
               <div>
                 <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 16, fontWeight: 600 }}>
-                  {selectedExam.titulo} — {results.submissions.length} envío(s)
+                  {selectedExam.titulo} {t("sustitutorios.submissionsCount", { count: results.submissions.length })}
                 </h2>
 
                 {results.submissions.length === 0 && (
                   <div className="card empty-state">
-                    <p>Ningún alumno ha enviado este examen aún.</p>
+                    <p>{t("sustitutorios.noSubmissions")}</p>
                   </div>
                 )}
 
@@ -262,8 +265,8 @@ export default function SustitutoriosPage() {
                             </div>
                             {sub.enviadoEn && (
                               <div style={{ fontSize: 12, color: "var(--texto-tenue)", marginTop: 2 }}>
-                                Enviado:{" "}
-                                {new Intl.DateTimeFormat("es-PE", {
+                                {t("sustitutorios.submittedAt")}{" "}
+                                {new Intl.DateTimeFormat(INTL_LOCALES[locale], {
                                   dateStyle: "medium",
                                   timeStyle: "short",
                                   timeZone: "America/Lima",
@@ -274,11 +277,11 @@ export default function SustitutoriosPage() {
                           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                             {allGraded && (
                               <span style={{ fontSize: 12, color: "var(--estado-aprobado-texto, #2C6A48)" }}>
-                                ✓ Todo calificado
+                                {t("sustitutorios.allGraded")}
                               </span>
                             )}
                             <span className="badge">
-                              {formatNote(sub.puntajeTotal)} pts
+                              {t("sustitutorios.pointsLabel", { value: formatNote(sub.puntajeTotal) })}
                             </span>
                           </div>
                         </div>
@@ -312,7 +315,7 @@ export default function SustitutoriosPage() {
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                 <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-                                  Nota (0–{answer.pregunta.puntaje}):
+                                  {t("sustitutorios.gradeLabel", { max: answer.pregunta.puntaje })}
                                   <input
                                     type="number"
                                     min={0}
@@ -331,7 +334,7 @@ export default function SustitutoriosPage() {
                                 </label>
                                 {answer.estadoCalificacion === "CALIFICADA" && (
                                   <span style={{ fontSize: 12, color: "var(--estado-aprobado-texto, #2C6A48)" }}>
-                                    Guardado: {answer.puntajeObtenido}
+                                    {t("sustitutorios.savedLabel", { value: answer.puntajeObtenido })}
                                   </span>
                                 )}
                               </div>
@@ -346,15 +349,15 @@ export default function SustitutoriosPage() {
                             onClick={() => saveGrades(sub.id)}
                             disabled={savingGrades[sub.id]}
                           >
-                            {savingGrades[sub.id] ? "Guardando…" : "Guardar calificación"}
+                            {savingGrades[sub.id] ? t("sustitutorios.saving") : t("sustitutorios.saveGrade")}
                           </button>
                           <button
                             className="btn btn-primary"
                             onClick={() => markReviewed(sub.id)}
                             disabled={!allGraded || reviewingId === sub.id}
-                            title={!allGraded ? "Califica todas las respuestas primero" : ""}
+                            title={!allGraded ? t("sustitutorios.gradeAllFirst") : ""}
                           >
-                            {reviewingId === sub.id ? "Procesando…" : "Marcar como revisado"}
+                            {reviewingId === sub.id ? t("sustitutorios.reviewing") : t("sustitutorios.markReviewed")}
                           </button>
                           {subFeedback && (
                             <span
@@ -384,17 +387,17 @@ export default function SustitutoriosPage() {
         <div className="card">
           <div className="card-header">
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-              Alumnos elegibles ({loading ? "…" : eligible.length})
+              {t("sustitutorios.eligibleStudentsHeading", { count: loading ? "…" : eligible.length })}
             </h2>
           </div>
           <div className="card-body">
-            {loading && <p style={{ color: "var(--texto-tenue)", margin: 0 }}>Cargando…</p>}
+            {loading && <p style={{ color: "var(--texto-tenue)", margin: 0 }}>{t("sustitutorios.loading")}</p>}
 
             {!loading && eligible.length === 0 && (
               <div className="empty-state" style={{ padding: "20px 0" }}>
                 <div className="empty-state-icon">✅</div>
-                <p className="empty-state-title">Sin alumnos elegibles</p>
-                <p>Ningún alumno tiene entre 1 y 3 cursos desaprobados con notas completas.</p>
+                <p className="empty-state-title">{t("sustitutorios.noEligible.title")}</p>
+                <p>{t("sustitutorios.noEligible.description")}</p>
               </div>
             )}
 
@@ -418,15 +421,16 @@ export default function SustitutoriosPage() {
                   </div>
                 </div>
                 <span className="badge-desaprobado">
-                  {item.count} {item.count === 1 ? "curso jalado" : "cursos jalados"}
+                  {t(item.count === 1 ? "sustitutorios.courseFailedSingular" : "sustitutorios.courseFailedPlural", { count: item.count })}
                 </span>
               </div>
             ))}
 
             {!loading && eligible.length > 0 && (
               <p style={{ margin: "16px 0 0", fontSize: 13, color: "var(--texto-tenue)" }}>
-                Para habilitar manualmente a un alumno que ya rindió el examen general, usa{" "}
-                <code>POST /api/substitutions</code> con <code>estudianteId</code> y <code>cursoId</code>.
+                {t("sustitutorios.manualEnableIntro")}{" "}
+                <code>POST /api/substitutions</code> {t("sustitutorios.manualEnableWith")} <code>estudianteId</code>{" "}
+                {t("sustitutorios.manualEnableAnd")} <code>cursoId</code>.
               </p>
             )}
           </div>

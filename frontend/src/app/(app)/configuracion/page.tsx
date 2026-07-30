@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 type ServiceStatus = {
   status: "ok" | "missing" | "error";
@@ -13,10 +14,12 @@ type ReadinessStatus = {
 };
 
 export default function ConfiguracionPage() {
+  const { t } = useTranslation();
   const [enlaceZoom, setEnlaceZoom] = useState("");
   const [readiness, setReadiness] = useState<ReadinessStatus | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,6 +41,7 @@ export default function ConfiguracionPage() {
     e.preventDefault();
     setSaving(true);
     setMessage("");
+    setIsError(false);
     const res = await fetch("/api/backend/config/zoom", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -45,25 +49,26 @@ export default function ConfiguracionPage() {
     });
     setSaving(false);
     if (res.ok) {
-      setMessage("Enlace guardado correctamente.");
+      setMessage(t("configuracion.zoomLink.saveSuccess"));
     } else {
-      setMessage("Error al guardar. Verifica el enlace.");
+      setIsError(true);
+      setMessage(t("configuracion.zoomLink.saveError"));
     }
   }
 
   return (
     <div>
       <div className="page-header">
-        <span className="page-eyebrow">Administración</span>
-        <h1 className="page-title">Configuración</h1>
-        <p className="page-subtitle">Ajustes globales del ciclo académico</p>
+        <span className="page-eyebrow">{t("configuracion.eyebrow")}</span>
+        <h1 className="page-title">{t("configuracion.title")}</h1>
+        <p className="page-subtitle">{t("configuracion.subtitle")}</p>
       </div>
 
       <div className="card" style={{ maxWidth: 720, marginBottom: 16 }}>
         <div className="card-header" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Estado de servicios</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{t("configuracion.servicesStatus.title")}</h2>
           <span className={`status-pill ${readiness?.status === "ready" ? "ok" : "warning"}`}>
-            {readiness?.status === "ready" ? "Listo" : "Pendiente"}
+            {readiness?.status === "ready" ? t("configuracion.servicesStatus.ready") : t("configuracion.servicesStatus.pending")}
           </span>
         </div>
         <div className="card-body">
@@ -81,7 +86,7 @@ export default function ConfiguracionPage() {
             </dl>
           ) : (
             <p style={{ margin: 0, color: "var(--texto-tenue)" }}>
-              No se pudo consultar el diagnóstico del backend.
+              {t("configuracion.servicesStatus.unavailable")}
             </p>
           )}
         </div>
@@ -89,18 +94,18 @@ export default function ConfiguracionPage() {
 
       <div className="card" style={{ maxWidth: 520 }}>
         <div className="card-header">
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Enlace Zoom del ciclo</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{t("configuracion.zoomLink.title")}</h2>
         </div>
         <div className="card-body">
           <p style={{ margin: "0 0 16px", fontSize: 14, color: "var(--texto-secundario)" }}>
-            Este enlace es único para todo el ciclo. Todos los roles lo ven en la pantalla del curso.
+            {t("configuracion.zoomLink.description")}
           </p>
           {loading ? (
-            <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>
+            <p style={{ color: "var(--texto-tenue)" }}>{t("configuracion.loading")}</p>
           ) : (
             <form onSubmit={handleSave} style={{ display: "grid", gap: 12 }}>
               <div className="field">
-                <label htmlFor="zoom-url">URL de la reunión Zoom</label>
+                <label htmlFor="zoom-url">{t("configuracion.zoomLink.urlLabel")}</label>
                 <input
                   id="zoom-url"
                   type="url"
@@ -114,18 +119,18 @@ export default function ConfiguracionPage() {
                 <p style={{
                   margin: 0,
                   fontSize: 14,
-                  color: message.startsWith("Error") ? "var(--desaprobado-texto)" : "var(--aprobado-texto)",
+                  color: isError ? "var(--desaprobado-texto)" : "var(--aprobado-texto)",
                 }}>
                   {message}
                 </p>
               )}
               <div style={{ display: "flex", gap: 10 }}>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Guardando…" : "Guardar enlace"}
+                  {saving ? t("configuracion.zoomLink.saving") : t("configuracion.zoomLink.saveButton")}
                 </button>
                 {enlaceZoom && (
                   <a href={enlaceZoom} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
-                    Probar enlace
+                    {t("configuracion.zoomLink.testLink")}
                   </a>
                 )}
               </div>

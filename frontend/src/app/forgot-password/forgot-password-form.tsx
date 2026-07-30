@@ -1,8 +1,10 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 
 export function ForgotPasswordForm() {
+  const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -24,23 +26,23 @@ export function ForgotPasswordForm() {
     setIsLoading(false);
 
     if (!response.ok) {
-      setError(data.message ?? "No se pudo procesar la solicitud");
+      setError(data.message ?? t("auth.forgotPassword.genericError"));
       return;
     }
 
-    setMessage(data.message ?? "Solicitud procesada");
+    setMessage(data.message ?? t("auth.forgotPassword.requestProcessed"));
   }
 
   return (
     <form className="form" onSubmit={handleSubmit}>
       <div className="field">
-        <label htmlFor="email">Correo institucional</label>
+        <label htmlFor="email">{t("auth.forgotPassword.emailLabel")}</label>
         <input id="email" name="email" type="email" autoComplete="email" required />
       </div>
       {error ? <p className="error">{error}</p> : null}
       {message ? <p className="success-text">{message}</p> : null}
       <button className="button" type="submit" disabled={isLoading}>
-        {isLoading ? "Enviando..." : "Enviar enlace"}
+        {isLoading ? t("auth.forgotPassword.sending") : t("auth.forgotPassword.sendLink")}
       </button>
     </form>
   );

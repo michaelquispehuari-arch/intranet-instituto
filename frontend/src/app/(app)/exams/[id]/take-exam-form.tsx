@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { readApiError } from "@/lib/api-error";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
 import type { ExamDetail } from "../types";
 
 type TakeExamFormProps = {
@@ -12,6 +13,7 @@ type TakeExamFormProps = {
 
 export function TakeExamForm({ exam }: TakeExamFormProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,7 +37,7 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
     setError(null);
 
     if (remainingSeconds === 0) {
-      setError("El tiempo del examen ha terminado.");
+      setError(t("exams.timeUp"));
       return;
     }
 
@@ -45,7 +47,7 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
     }));
 
     if (respuestas.some((answer) => answer.respuesta.length === 0)) {
-      setError("Debes responder todas las preguntas.");
+      setError(t("exams.answerAllRequired"));
       return;
     }
 
@@ -61,7 +63,7 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
       setError(
         await readApiError(
           response,
-          "No se pudo enviar el examen. Verifica si ya fue enviado o si sigue disponible.",
+          t("exams.submitErrorFallback"),
         ),
       );
       return;
@@ -81,11 +83,11 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
       <div className="card">
         <div className="empty-state">
           <div className="empty-state-icon">✅</div>
-          <p className="empty-state-title">Examen finalizado</p>
-          <p>Tu respuesta fue registrada. El administrador revisará y publicará la nota correspondiente.</p>
+          <p className="empty-state-title">{t("exams.finishedTitle")}</p>
+          <p>{t("exams.substitutoryFinishedDesc")}</p>
           <div className="card-actions" style={{ justifyContent: "center", marginTop: 16 }}>
             <Link href="/exams" className="btn btn-secondary">
-              Volver a exámenes
+              {t("exams.backToExamsButton")}
             </Link>
           </div>
         </div>
@@ -102,9 +104,9 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
     <div className="card">
       {remainingLabel ? (
         <div className="card-header">
-          <h3 style={{ margin: 0 }}>Rindiendo examen</h3>
+          <h3 style={{ margin: 0 }}>{t("exams.takingExam")}</h3>
           <span className={`chip ${remainingSeconds !== null && remainingSeconds < 60 ? "chip-resumen" : "chip-capturas"}`}>
-            Tiempo restante: {remainingLabel}
+            {t("exams.timeRemaining", { tiempo: remainingLabel })}
           </span>
         </div>
       ) : null}
@@ -114,13 +116,13 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
         {exam.preguntas.map((question) => (
           <fieldset className="question-box" key={question.id}>
             <legend>
-              <span className="chip chip-capturas">Pregunta {question.orden}</span>
+              <span className="chip chip-capturas">{t("exams.questionNumber", { numero: question.orden })}</span>
             </legend>
             <h2>{question.texto}</h2>
-            <p className="muted">Puntaje: {question.puntaje}</p>
+            <p className="muted">{t("exams.pointsValue", { puntaje: question.puntaje })}</p>
             {question.tipo === "ABIERTA" ? (
               <label className="field">
-                <span>Respuesta</span>
+                <span>{t("exams.answerLabel")}</span>
                 <textarea
                   rows={5}
                   maxLength={2000}
@@ -153,7 +155,7 @@ export function TakeExamForm({ exam }: TakeExamFormProps) {
 
       <div className="card-actions">
         <button className="btn btn-primary" type="submit" disabled={isSubmitting || remainingSeconds === 0}>
-          {isSubmitting ? "Enviando..." : "Enviar examen"}
+          {isSubmitting ? t("exams.submitting") : t("exams.submitExam")}
         </button>
       </div>
       </form>

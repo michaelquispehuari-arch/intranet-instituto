@@ -1,0 +1,52 @@
+import type { sustitutorios as sustitutoriosEs } from "../es/sustitutorios";
+
+export const sustitutorios: typeof sustitutoriosEs = {
+  eyebrow: "Administration",
+  title: "Makeup Exams",
+  subtitle: "Manage makeup exams and grade submissions.",
+  tabs: {
+    exams: "Exams",
+    eligibleStudents: "Eligible students",
+  },
+  loading: "Loading…",
+  examCount: "{{count}} makeup exam(s)",
+  createButton: "+ Create",
+  noExams: {
+    title: "No makeup exams",
+    description: 'Create an exam by checking the "Is makeup exam" option.',
+  },
+  notPublished: "Not published",
+  selectExam: {
+    title: "Select an exam",
+    description: "Click an exam to view and grade its submissions.",
+  },
+  loadingSubmissions: "Loading submissions…",
+  submissionsCount: "— {{count}} submission(s)",
+  noSubmissions: "No student has submitted this exam yet.",
+  submittedAt: "Submitted:",
+  allGraded: "✓ All graded",
+  pointsLabel: "{{value}} pts",
+  gradeLabel: "Grade (0–{{max}}):",
+  savedLabel: "Saved: {{value}}",
+  saveGrade: "Save grade",
+  saving: "Saving…",
+  markReviewed: "Mark as reviewed",
+  reviewing: "Processing…",
+  gradeAllFirst: "Grade all answers first",
+  errors: {
+    saveGrade: "Error saving",
+    markReviewed: "Error marking as reviewed",
+  },
+  gradeSaved: "Grade saved ✓",
+  reviewedSuccess: "Reviewed ✓ — Makeup exam grade: {{nota}}",
+  eligibleStudentsHeading: "Eligible students ({{count}})",
+  noEligible: {
+    title: "No eligible students",
+    description: "No student has between 1 and 3 failed courses with complete grades.",
+  },
+  courseFailedSingular: "{{count}} failed course",
+  courseFailedPlural: "{{count}} failed courses",
+  manualEnableIntro: "To manually enable a student who already took the general exam, use",
+  manualEnableWith: "with",
+  manualEnableAnd: "and",
+};

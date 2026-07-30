@@ -6,6 +6,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { notaAsistencia13 } from "@/lib/nota-asistencia";
 import { parseGradesCsv } from "@/lib/grades-csv";
+import { useTranslation } from "@/lib/i18n/LanguageContext";
+import { INTL_LOCALES } from "@/lib/i18n/types";
 
 type ModoEstudio = "SINCRONICO" | "ASINCRONICO" | "MIXTO";
 
@@ -86,6 +88,7 @@ function calcularPreview(
 
 export default function NotasSheetPage() {
   const { id: cursoId } = useParams<{ id: string }>();
+  const { t, locale } = useTranslation();
   const { data: session } = useSession();
   const rol = session?.user?.rol;
 
@@ -185,7 +188,7 @@ export default function NotasSheetPage() {
     setSaving(true);
     const guardadoOk = await saveAllRows();
     if (!guardadoOk) {
-      alert("Hubo un error guardando alguna fila. Revisa la grilla e intenta de nuevo.");
+      alert(t("cursoNotas.admin.saveRowError"));
     } else {
       setSavedAt(new Date().toISOString());
     }
@@ -196,7 +199,7 @@ export default function NotasSheetPage() {
     setPublishing(true);
     const guardadoOk = await saveAllRows();
     if (!guardadoOk) {
-      alert("Hubo un error guardando alguna fila. Revisa la grilla e intenta de nuevo.");
+      alert(t("cursoNotas.admin.saveRowError"));
       await load();
       setPublishing(false);
       return;
@@ -217,11 +220,11 @@ export default function NotasSheetPage() {
   async function handleImportCsv(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImportStatus("Procesando…");
+    setImportStatus(t("cursoNotas.admin.processing"));
 
     const parsed = await parseGradesCsv(file);
     if ("error" in parsed) {
-      setImportStatus(`Error al importar: ${parsed.error}`);
+      setImportStatus(t("cursoNotas.admin.importError", { motivo: parsed.error }));
       if (csvRef.current) csvRef.current.value = "";
       return;
     }
@@ -243,11 +246,11 @@ export default function NotasSheetPage() {
     });
     const result = await r.json() as { actualizados?: number; saltados?: number; errores?: string[]; error?: string };
     if (!r.ok) {
-      setImportStatus(`Error al importar: ${result.error ?? "Error del servidor"}`);
+      setImportStatus(t("cursoNotas.admin.importError", { motivo: result.error ?? t("cursoNotas.admin.serverError") }));
     } else {
       setImportStatus(
-        `Importadas: ${result.actualizados ?? 0} · Saltadas: ${result.saltados ?? 0}` +
-        (result.errores?.length ? ` · Avisos: ${result.errores.join("; ")}` : "")
+        t("cursoNotas.admin.importResult", { actualizados: result.actualizados ?? 0, saltados: result.saltados ?? 0 }) +
+        (result.errores?.length ? t("cursoNotas.admin.importWarnings", { avisos: result.errores.join("; ") }) : "")
       );
     }
     await load();
@@ -258,42 +261,42 @@ export default function NotasSheetPage() {
     if (csvRef.current) csvRef.current.value = "";
   }
 
-  if (loading) return <p style={{ color: "var(--texto-tenue)" }}>Cargando…</p>;
+  if (loading) return <p style={{ color: "var(--texto-tenue)" }}>{t("cursoNotas.loading")}</p>;
 
   // ── PROFESOR view ─────────────────────────────────────────────────────────
   if (rol === "PROFESOR") {
     return (
       <div>
         <Link href={`/cursos/${cursoId}`} style={{ fontSize: 13, color: "var(--texto-tenue)", display: "inline-block", marginBottom: 12 }}>
-          ← Volver al curso
+          {t("cursoNotas.backToCourse")}
         </Link>
         <div className="page-header">
-          <span className="page-eyebrow">Notas del curso</span>
-          <h1 className="page-title">Calificaciones publicadas</h1>
+          <span className="page-eyebrow">{t("cursoNotas.profesor.eyebrow")}</span>
+          <h1 className="page-title">{t("cursoNotas.profesor.title")}</h1>
         </div>
 
         {!pubData || !pubData.publicadas ? (
           <div className="card">
             <div className="empty-state">
               <div className="empty-state-icon">📊</div>
-              <p className="empty-state-title">Notas aún no publicadas</p>
-              <p>El administrador aún no ha publicado las notas de este curso.</p>
+              <p className="empty-state-title">{t("cursoNotas.notPublishedTitle")}</p>
+              <p>{t("cursoNotas.notPublishedDesc")}</p>
             </div>
           </div>
         ) : (
           <div className="card">
             {pubData.notasPublicadasEn && (
               <p style={{ fontSize: 12, color: "var(--texto-tenue)", margin: "0 0 12px" }}>
-                Publicadas el {new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Lima" }).format(new Date(pubData.notasPublicadasEn))}
+                {t("cursoNotas.publishedOn", { fecha: new Intl.DateTimeFormat(INTL_LOCALES[locale], { dateStyle: "medium", timeStyle: "short", timeZone: "America/Lima" }).format(new Date(pubData.notasPublicadasEn)) })}
               </p>
             )}
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--verde-sidebar)", color: "#fff" }}>
-                    <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600 }}>Cód.</th>
-                    <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600 }}>Apellidos y Nombres</th>
-                    <th style={{ padding: "8px 10px", textAlign: "center", fontWeight: 600 }}>Nota Final</th>
+                    <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600 }}>{t("cursoNotas.table.codigo")}</th>
+                    <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600 }}>{t("cursoNotas.table.apellidosNombres")}</th>
+                    <th style={{ padding: "8px 10px", textAlign: "center", fontWeight: 600 }}>{t("cursoNotas.table.notaFinal")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -325,13 +328,13 @@ export default function NotasSheetPage() {
     return (
       <div>
         <Link href={`/cursos/${cursoId}`} style={{ fontSize: 13, color: "var(--texto-tenue)", display: "inline-block", marginBottom: 12 }}>
-          ← Volver al curso
+          {t("cursoNotas.backToCourse")}
         </Link>
         <div className="card">
           <div className="empty-state">
             <div className="empty-state-icon">📊</div>
-            <p className="empty-state-title">Sin alumnos inscritos</p>
-            <p>Inscribe estudiantes al curso para ver la grilla de notas.</p>
+            <p className="empty-state-title">{t("cursoNotas.admin.emptyTitle")}</p>
+            <p>{t("cursoNotas.admin.emptyDesc")}</p>
           </div>
         </div>
       </div>
@@ -344,18 +347,18 @@ export default function NotasSheetPage() {
     <div>
       <div style={{ marginBottom: 12 }}>
         <Link href={`/cursos/${cursoId}`} style={{ fontSize: 13, color: "var(--texto-tenue)" }}>
-          ← Volver al curso
+          {t("cursoNotas.backToCourse")}
         </Link>
       </div>
 
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <span className="page-eyebrow">Notas semanales</span>
-          <h1 className="page-title">Grilla de calificaciones</h1>
+          <span className="page-eyebrow">{t("cursoNotas.admin.eyebrow")}</span>
+          <h1 className="page-title">{t("cursoNotas.admin.title")}</h1>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <label style={{ fontSize: 13, fontWeight: 600 }}>Días de clase:</label>
+            <label style={{ fontSize: 13, fontWeight: 600 }}>{t("cursoNotas.admin.diasClase")}</label>
             {([1, 2, 3] as const).map((n) => (
               <button
                 key={n}
@@ -376,7 +379,7 @@ export default function NotasSheetPage() {
                 onClick={() => csvRef.current?.click()}
                 disabled={saving || publishing}
               >
-                Importar CSV
+                {t("cursoNotas.admin.importCsv")}
               </button>
               <button
                 className="btn btn-secondary"
@@ -384,7 +387,7 @@ export default function NotasSheetPage() {
                 onClick={handleSave}
                 disabled={saving || publishing}
               >
-                {saving ? "Guardando…" : "Guardar notas"}
+                {saving ? t("cursoNotas.admin.saving") : t("cursoNotas.admin.saveGrades")}
               </button>
               <button
                 className="btn btn-primary"
@@ -392,16 +395,16 @@ export default function NotasSheetPage() {
                 onClick={handlePublish}
                 disabled={publishing || saving}
               >
-                {publishing ? "Guardando y publicando…" : "Mandar notas"}
+                {publishing ? t("cursoNotas.admin.publishing") : t("cursoNotas.admin.sendGrades")}
               </button>
             </div>
             <span style={{ fontSize: 11, color: "var(--texto-tenue)" }}>
               {importStatus
                 ? importStatus
                 : publishedAt
-                  ? `Publicadas ${new Intl.DateTimeFormat("es-PE", { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(publishedAt))}`
+                  ? t("cursoNotas.admin.published", { hora: new Intl.DateTimeFormat(INTL_LOCALES[locale], { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(publishedAt)) })
                   : savedAt
-                    ? `Guardadas (sin publicar) ${new Intl.DateTimeFormat("es-PE", { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(savedAt))}`
+                    ? t("cursoNotas.admin.savedNotPublished", { hora: new Intl.DateTimeFormat(INTL_LOCALES[locale], { timeStyle: "short", timeZone: "America/Lima" }).format(new Date(savedAt)) })
                     : ""}
             </span>
           </div>
@@ -414,24 +417,24 @@ export default function NotasSheetPage() {
           <tbody>
             <tr>
               <td style={{ padding: "3px 8px 3px 0", fontWeight: 700, whiteSpace: "nowrap" }}>F</td>
-              <td style={{ padding: "3px 16px 3px 0" }}>Falta y/o ausencia resta 6.7</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>{t("cursoNotas.admin.legend.falta")}</td>
               <td style={{ padding: "3px 8px 3px 0", fontWeight: 700, whiteSpace: "nowrap" }}>C</td>
-              <td style={{ padding: "3px 16px 3px 0" }}>Código mal digitado -2 pts</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>{t("cursoNotas.admin.legend.codigo")}</td>
               <td rowSpan={3} style={{ padding: "3px 0 3px 16px", borderLeft: "0.5px solid var(--borde)", verticalAlign: "top", color: "var(--texto-secundario)" }}>
-                <strong>Nota:</strong> Si hay una J delante, justificará realmente cuando tenga NT. La justificación es de forma proporcional a la NT.
+                <strong>{t("cursoNotas.admin.legend.nota")}</strong> {t("cursoNotas.admin.legend.notaJustificacion")}
               </td>
             </tr>
             <tr>
               <td style={{ padding: "3px 8px 3px 0", fontWeight: 700 }}>A</td>
-              <td style={{ padding: "3px 16px 3px 0" }}>Cámara apagada -5 pts</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>{t("cursoNotas.admin.legend.camaraApagada")}</td>
               <td style={{ padding: "3px 8px 3px 0", fontWeight: 700 }}>T</td>
-              <td style={{ padding: "3px 16px 3px 0" }}>Tardanza -2 pts</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>{t("cursoNotas.admin.legend.tardanza")}</td>
             </tr>
             <tr>
               <td style={{ padding: "3px 8px 3px 0", fontWeight: 700 }}>M</td>
-              <td style={{ padding: "3px 16px 3px 0" }}>Cámara mal enfocada -4 pts</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>{t("cursoNotas.admin.legend.camaraMalEnfocada")}</td>
               <td style={{ padding: "3px 8px 3px 0", fontWeight: 700 }}>NT</td>
-              <td style={{ padding: "3px 16px 3px 0" }}>Nota de Transcripción (Max. 18)</td>
+              <td style={{ padding: "3px 16px 3px 0" }}>{t("cursoNotas.admin.legend.ntDescripcion")}</td>
             </tr>
           </tbody>
         </table>
@@ -445,30 +448,30 @@ export default function NotasSheetPage() {
                 className="notas-col-fija notas-col-fija--header"
                 style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap", left: 0, width: COL_CODIGO_W, minWidth: COL_CODIGO_W }}
               >
-                Cód.
+                {t("cursoNotas.table.codigo")}
               </th>
               <th
                 className="notas-col-fija notas-col-fija--header"
                 style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap", left: COL_CODIGO_W, width: COL_NOMBRE_W, minWidth: COL_NOMBRE_W, boxShadow: "2px 0 4px -2px rgba(0,0,0,0.35)" }}
               >
-                Apellidos y Nombres
+                {t("cursoNotas.table.apellidosNombres")}
               </th>
-              <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Modo</th>
+              <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>{t("cursoNotas.table.modo")}</th>
               {dias.map((_, di) => (
                 <>
                   <th key={`d${di+1}h`} colSpan={3} style={{ padding: "6px 4px", textAlign: "center", fontWeight: 600, borderLeft: "1px solid rgba(255,255,255,0.2)" }}>
-                    Día {di + 1}
+                    {t("cursoNotas.table.dia", { numero: di + 1 })}
                   </th>
-                  <th key={`d${di+1}nt`} style={{ padding: "6px 4px", textAlign: "center", fontWeight: 400, fontSize: 11 }}>NT</th>
+                  <th key={`d${di+1}nt`} style={{ padding: "6px 4px", textAlign: "center", fontWeight: 400, fontSize: 11 }}>{t("cursoNotas.table.nt")}</th>
                 </>
               ))}
-              <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Asist.</th>
+              <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>{t("cursoNotas.table.asistencia")}</th>
               {data.tipo === "DIPLOMADO" ? (
-                <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, borderLeft: "1px solid rgba(255,255,255,0.2)", whiteSpace: "nowrap" }}>Nota de Forum</th>
+                <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600, borderLeft: "1px solid rgba(255,255,255,0.2)", whiteSpace: "nowrap" }}>{t("cursoNotas.table.notaForum")}</th>
               ) : (
-                <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Exam.</th>
+                <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>{t("cursoNotas.table.examen")}</th>
               )}
-              <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>Final</th>
+              <th style={{ padding: "8px 6px", textAlign: "center", fontWeight: 600 }}>{t("cursoNotas.table.final")}</th>
             </tr>
           </thead>
           <tbody>
@@ -554,7 +557,7 @@ export default function NotasSheetPage() {
                           min={0}
                           max={20}
                           step={0.5}
-                          placeholder="Sin forum"
+                          placeholder={t("cursoNotas.admin.forumPlaceholder")}
                           value={forumGradeEdits[fila.estudianteId] ?? ""}
                           onChange={(e) => setForumGradeEdits((p) => ({ ...p, [fila.estudianteId]: e.target.value }))}
                           style={{ width: 64, textAlign: "center", border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 4px", fontSize: 12 }}
@@ -570,8 +573,8 @@ export default function NotasSheetPage() {
                           max={20}
                           step={0.5}
                           disabled={fila.examenNormAuto}
-                          placeholder="Norm"
-                          title={fila.examenNormAuto ? "Nota automática del módulo de exámenes" : "Sin envío real: nota manual (CSV o a mano)"}
+                          placeholder={t("cursoNotas.admin.normPlaceholder")}
+                          title={fila.examenNormAuto ? t("cursoNotas.admin.examAutoTitle") : t("cursoNotas.admin.examManualTitle")}
                           value={fila.examenNormAuto ? (fila.notaExamenNorm !== null ? String(fila.notaExamenNorm) : "") : (examenManualEdits[fila.estudianteId]?.norm ?? "")}
                           onChange={(e) => setExamenManualEdits((p) => ({ ...p, [fila.estudianteId]: { ...p[fila.estudianteId], norm: e.target.value } }))}
                           style={{ width: 42, textAlign: "center", border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 2px", fontSize: 11, background: fila.examenNormAuto ? "#F6F7F5" : "#fff" }}
@@ -582,8 +585,8 @@ export default function NotasSheetPage() {
                           max={20}
                           step={0.5}
                           disabled={fila.examenRecupAuto}
-                          placeholder="Rec"
-                          title={fila.examenRecupAuto ? "Nota automática del módulo de exámenes" : "Sin envío real: nota manual (CSV o a mano)"}
+                          placeholder={t("cursoNotas.admin.recPlaceholder")}
+                          title={fila.examenRecupAuto ? t("cursoNotas.admin.examAutoTitle") : t("cursoNotas.admin.examManualTitle")}
                           value={fila.examenRecupAuto ? (fila.notaExamenRecup !== null ? String(fila.notaExamenRecup) : "") : (examenManualEdits[fila.estudianteId]?.recup ?? "")}
                           onChange={(e) => setExamenManualEdits((p) => ({ ...p, [fila.estudianteId]: { ...p[fila.estudianteId], recup: e.target.value } }))}
                           style={{ width: 42, textAlign: "center", border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 2px", fontSize: 11, background: fila.examenRecupAuto ? "#F6F7F5" : "#fff" }}
@@ -613,9 +616,9 @@ export default function NotasSheetPage() {
 
       <div style={{ marginTop: 12, fontSize: 12, color: "var(--texto-tenue)" }}>
         {data.tipo === "DIPLOMADO"
-          ? "Nota de Forum = nota puesta al revisar el Forum de la semana en Corregir forums, reemplaza a la nota de examen (si el alumno ya subió su forum, solo se edita ahí). Si no subió nada, se puede poner la nota directo aquí · Final = ⌊(Asist + Nota de Forum) / 2⌋"
-          : "NT = nota de transcripción (puesta por revisor) · Exam. = nota del examen del módulo · Final = ⌊(Asist + Exam) / 2⌋"}
-        {" · "}&quot;Guardar notas&quot; guarda la grilla en la base de datos sin publicarla (el profesor no la ve todavía) · &quot;Mandar notas&quot; guarda y además publica las notas para el profesor.
+          ? t("cursoNotas.admin.footerDiplomado")
+          : t("cursoNotas.admin.footerRegular")}
+        {" · "}{t("cursoNotas.admin.footerActions")}
       </div>
     </div>
   );
