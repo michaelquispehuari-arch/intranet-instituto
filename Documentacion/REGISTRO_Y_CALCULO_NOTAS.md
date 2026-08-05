@@ -280,6 +280,26 @@ Reglas:
   NO es promedio de NORM y RECUP, aunque una hoja del cliente pueda sugerirlo — RECUP reemplaza a NORM.)
 ```
 
+### 5.1 NOTA DE FORUM (cursos tipo DIPLOMADO — reemplaza la nota de examen)
+
+```text
+- Diplomado no tiene módulo de exámenes: en su lugar hay un Forum semanal único (día 1, `EntregaForum`)
+  donde el alumno sube archivos y un revisor le pone una nota de 0 a 20 (`EntregaForum.nota`).
+- La nota de Forum se puede editar desde DOS lugares, y ambos escriben al mismo campo
+  `EntregaForum.nota` (no hay conflicto, gana el último guardado):
+    1. Pestaña "Forums" del curso (ADMIN → revisar archivos subidos → poner nota → Guardar),
+       `reviewForum` en `backend/src/services/forum.service.ts`.
+    2. Directo en la celda "Examen/Forum" de la grilla de notas (`/cursos/[id]/notas`),
+       `notaForumManual` -> `upsertGradeRow` en `backend/src/services/grades-sheet.service.ts`.
+- La celda de la grilla es SIEMPRE editable, haya o no archivos subidos por el alumno
+  (antes de este fix se bloqueaba como solo-lectura si el alumno ya había subido archivos,
+  mostrando "0.0" hasta que alguien la calificara desde la pestaña Forums — confuso para el ADMIN,
+  que no podía corregirla directo desde la grilla).
+- Si todavía no hay nota puesta (`EntregaForum.nota` es `null`), se usa 0 como valor por defecto para
+  el cálculo de la nota final (igual que "examen vacío = 0" en la sección 6), NO significa que el
+  alumno sacó 0 en el Forum.
+```
+
 ---
 
 ## 6. NOTA FINAL (siempre entera)

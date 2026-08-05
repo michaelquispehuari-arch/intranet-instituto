@@ -80,9 +80,9 @@ async function fetchNTForCourse(estudianteId: string, cursoId: string) {
   return ntMap; // { 1: 15, 2: null, 3: 12, ... }
 }
 
-// Diplomado tiene un unico Forum semanal (dia 1). Si el alumno subio
-// archivos, su nota solo se edita desde "Corregir forums". Si no subio nada,
-// el admin puede colocar una nota manual directamente en la grilla.
+// Diplomado tiene un unico Forum semanal (dia 1). La nota se puede colocar
+// tanto desde "Corregir forums" (revisando los archivos subidos) como
+// directamente en la grilla de notas, haya o no archivos subidos.
 async function fetchForumEntrega(estudianteId: string, cursoId: string) {
   const entrega = await prisma.entregaForum.findUnique({
     where: { cursoId_estudianteId_dia: { cursoId, estudianteId, dia: 1 } },
@@ -332,10 +332,6 @@ export async function upsertGradeRow(
     : (input.notaExamenRecupManual !== undefined ? input.notaExamenRecupManual : registroExistente?.notaExamenRecupManual ?? null);
 
   if (esDiplomado && input.notaForumManual !== undefined) {
-    const actual = await fetchForumEntrega(input.estudianteId, courseId);
-    if (actual.entregado) {
-      throw new ValidationError("El alumno ya subió su Forum: la nota solo se edita desde Corregir forums.");
-    }
     if (input.notaForumManual !== null && (input.notaForumManual < 0 || input.notaForumManual > 20)) {
       throw new ValidationError("La nota debe estar entre 0 y 20.");
     }

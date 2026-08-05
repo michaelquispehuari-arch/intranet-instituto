@@ -127,7 +127,7 @@ export default function NotasSheetPage() {
         d.filas.forEach((f) => {
           initEdits[f.estudianteId] = { ...f.celdasCamara };
           initModos[f.estudianteId] = f.modo;
-          if (!f.forumEntregado) initForumGrades[f.estudianteId] = f.notaExamenNorm !== null ? String(f.notaExamenNorm) : "";
+          if (d.tipo === "DIPLOMADO") initForumGrades[f.estudianteId] = f.notaExamenNorm !== null ? String(f.notaExamenNorm) : "";
           if (d.tipo !== "DIPLOMADO") {
             initExamenManual[f.estudianteId] = {
               norm: !f.examenNormAuto && f.notaExamenNorm !== null ? String(f.notaExamenNorm) : "",
@@ -159,7 +159,7 @@ export default function NotasSheetPage() {
     if (!data) return true;
     const resultados = await Promise.all(
       data.filas.map(async (fila) => {
-        const incluirNotaForum = data.tipo === "DIPLOMADO" && !fila.forumEntregado;
+        const incluirNotaForum = data.tipo === "DIPLOMADO";
         const raw = forumGradeEdits[fila.estudianteId];
         const examenManual = examenManualEdits[fila.estudianteId] ?? {};
         const toNumOrNull = (v: string | undefined) => (v !== undefined && v !== "" ? Number(v) : null);
@@ -484,9 +484,7 @@ export default function NotasSheetPage() {
               const numOrNull = (v: string | undefined) => (v !== undefined && v !== "" && !isNaN(Number(v)) ? Number(v) : null);
               const notaExamenEfectivo =
                 data.tipo === "DIPLOMADO"
-                  ? (!fila.forumEntregado
-                    ? (forumRaw !== undefined && forumRaw !== "" && !isNaN(Number(forumRaw)) ? Number(forumRaw) : 0)
-                    : fila.notaExamenRecup ?? fila.notaExamenNorm ?? 0)
+                  ? (forumRaw !== undefined && forumRaw !== "" && !isNaN(Number(forumRaw)) ? Number(forumRaw) : 0)
                   : (fila.examenRecupAuto ? fila.notaExamenRecup : numOrNull(examenManual.recup))
                     ?? (fila.examenNormAuto ? fila.notaExamenNorm : numOrNull(examenManual.norm))
                     ?? 0;
@@ -549,20 +547,16 @@ export default function NotasSheetPage() {
                   </td>
                   {data.tipo === "DIPLOMADO" ? (
                     <td style={{ padding: "4px 6px", textAlign: "center", fontWeight: 600 }}>
-                      {fila.forumEntregado ? (
-                        (fila.notaExamenRecup ?? fila.notaExamenNorm)?.toFixed(1) ?? "—"
-                      ) : (
-                        <input
-                          type="number"
-                          min={0}
-                          max={20}
-                          step={0.5}
-                          placeholder={t("cursoNotas.admin.forumPlaceholder")}
-                          value={forumGradeEdits[fila.estudianteId] ?? ""}
-                          onChange={(e) => setForumGradeEdits((p) => ({ ...p, [fila.estudianteId]: e.target.value }))}
-                          style={{ width: 64, textAlign: "center", border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 4px", fontSize: 12 }}
-                        />
-                      )}
+                      <input
+                        type="number"
+                        min={0}
+                        max={20}
+                        step={0.5}
+                        placeholder={t("cursoNotas.admin.forumPlaceholder")}
+                        value={forumGradeEdits[fila.estudianteId] ?? ""}
+                        onChange={(e) => setForumGradeEdits((p) => ({ ...p, [fila.estudianteId]: e.target.value }))}
+                        style={{ width: 64, textAlign: "center", border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 4px", fontSize: 12 }}
+                      />
                     </td>
                   ) : (
                     <td style={{ padding: "4px 6px", textAlign: "center" }}>
