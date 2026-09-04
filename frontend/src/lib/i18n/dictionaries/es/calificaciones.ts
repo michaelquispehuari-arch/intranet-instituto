@@ -15,6 +15,7 @@ export const calificaciones = {
     student: "Alumno",
     approvedCount: "Aprobados",
   },
+  promedioDiplomado: "Promedio del diplomado",
   course: "Curso",
   finalGrade: "Nota Final",
   cycle: "Ciclo {{ciclo}} — {{anio}}",

@@ -17,6 +17,7 @@ export const calificaciones: Dictionary["calificaciones"] = {
     student: "학생",
     approvedCount: "합격",
   },
+  promedioDiplomado: "디플로마 평균",
   course: "과정",
   finalGrade: "최종 성적",
   cycle: "{{ciclo}}차 — {{anio}}",

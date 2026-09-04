@@ -75,6 +75,19 @@ function EstudianteView() {
         </div>
       ) : (
         <div className="card">
+          {(() => {
+            // TEMPORAL: promedio simple de los cursos con nota publicada, asumiendo que el diplomado
+            // tiene solo estos cursos. Cuando haya más ciclos/cursos hay que rediseñar esto (ponderar, etc).
+            const publicadas = notas.filter((n) => n.notaFinalPublicada !== null);
+            if (publicadas.length === 0) return null;
+            const promedio = publicadas.reduce((acc, n) => acc + (n.notaFinalPublicada as number), 0) / publicadas.length;
+            return (
+              <div style={{ padding: "16px", borderBottom: "0.5px solid var(--borde)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600 }}>{t("calificaciones.promedioDiplomado")}</span>
+                <span className={promedio >= 11 ? "chip chip-ok" : "chip chip-resumen"} style={{ fontSize: 16 }}>{promedio.toFixed(2)}</span>
+              </div>
+            );
+          })()}
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>

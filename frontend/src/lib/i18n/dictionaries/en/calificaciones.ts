@@ -17,6 +17,7 @@ export const calificaciones: Dictionary["calificaciones"] = {
     student: "Student",
     approvedCount: "Passed",
   },
+  promedioDiplomado: "Diploma average",
   course: "Course",
   finalGrade: "Final grade",
   cycle: "Cycle {{ciclo}} — {{anio}}",
