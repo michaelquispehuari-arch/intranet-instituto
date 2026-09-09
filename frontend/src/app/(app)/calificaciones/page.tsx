@@ -75,6 +75,7 @@ function EstudianteView() {
         </div>
       ) : (
         <div className="card">
+          {/* DESACTIVADO (2026-09-09): promedio temporal del diplomado, hack para 3 cursos. Comentado en vez de borrado por si se reactiva.
           {(() => {
             // TEMPORAL: promedio simple de los cursos con nota publicada, asumiendo que el diplomado
             // tiene solo estos cursos. Cuando haya más ciclos/cursos hay que rediseñar esto (ponderar, etc).
@@ -88,6 +89,7 @@ function EstudianteView() {
               </div>
             );
           })()}
+          */}
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
