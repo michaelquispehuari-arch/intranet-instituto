@@ -139,6 +139,11 @@ export const cursoDetalle = {
     tableApellidos: "Apellidos",
     tableNombres: "Nombres",
     tableEmail: "Email",
+    addButton: "+ Agregar alumno",
+    selectPlaceholder: "Seleccionar alumno…",
+    adding: "Agregando…",
+    addError: "Error al agregar al alumno",
+    noCandidates: "No hay alumnos activos disponibles para agregar (ya están todos matriculados, o no hay alumnos activos).",
   },
   transcripcion: {
     heading: "Subir mi transcripción",

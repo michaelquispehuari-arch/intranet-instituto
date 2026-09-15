@@ -141,6 +141,11 @@ export const cursoDetalle: typeof cursoDetalleEs = {
     tableApellidos: "성",
     tableNombres: "이름",
     tableEmail: "이메일",
+    addButton: "+ 학생 추가",
+    selectPlaceholder: "학생 선택…",
+    adding: "추가 중…",
+    addError: "학생 추가 오류",
+    noCandidates: "추가할 수 있는 활성 학생이 없습니다 (이미 모두 등록되었거나 활성 학생이 없습니다).",
   },
   transcripcion: {
     heading: "녹취록 업로드",
