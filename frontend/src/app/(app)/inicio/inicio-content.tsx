@@ -16,8 +16,17 @@ type Curso = {
   descripcion: string | null;
   tipo: string;
   activo: boolean;
+  destacado: boolean;
   profesor: { nombre: string; apellido: string };
 };
+
+// Si el ADMIN destaco uno o mas cursos (boton "Destacar en Inicio" en /cursos), se muestran
+// todos esos; si no marco ninguno, se cae al comportamiento anterior (el primero de la lista).
+function cursosParaMostrar(cursosActivos: Curso[]): Curso[] {
+  const destacados = cursosActivos.filter((c) => c.destacado);
+  if (destacados.length > 0) return destacados;
+  return cursosActivos[0] ? [cursosActivos[0]] : [];
+}
 
 const adminItems = [
   { href: "/cursos",         navKey: "nav.cursos",         descKey: "inicio.admin.itemDesc.cursos",         Icon: BookOpen },
@@ -91,7 +100,7 @@ export function InicioContent({
   }
 
   if (rol === "PROFESOR") {
-    const miCurso = cursosActivos[0] ?? null;
+    const cursosAMostrar = cursosParaMostrar(cursosActivos);
     return (
       <div>
         <SectionHead
@@ -112,22 +121,24 @@ export function InicioContent({
           </a>
         )}
 
-        {miCurso ? (
+        {cursosAMostrar.length > 0 ? (
           <>
-            <Link href={`/cursos/${miCurso.id}`} className="card card--link" style={{ display: "block", marginBottom: "var(--s-4)" }}>
-              <span className="chip chip--ok" style={{ marginBottom: "var(--s-3)", display: "inline-flex" }}>
-                <CheckCircle2 size={13} aria-hidden /> {t("inicio.activeCourseChip")}
-              </span>
-              <h2 className="h2" style={{ margin: "0 0 var(--s-2)" }}>{miCurso.nombre}</h2>
-              <p className="small" style={{ margin: "0 0 var(--s-3)" }}>
-                {miCurso.descripcion ?? t("inicio.defaultCourseDesc")}
-              </p>
-              <span className="small">
-                {t("inicio.profTag", { nombre: miCurso.profesor.nombre, apellido: miCurso.profesor.apellido })}
-              </span>
-            </Link>
+            {cursosAMostrar.map((curso) => (
+              <Link key={curso.id} href={`/cursos/${curso.id}`} className="card card--link" style={{ display: "block", marginBottom: "var(--s-4)" }}>
+                <span className="chip chip--ok" style={{ marginBottom: "var(--s-3)", display: "inline-flex" }}>
+                  <CheckCircle2 size={13} aria-hidden /> {t("inicio.activeCourseChip")}
+                </span>
+                <h2 className="h2" style={{ margin: "0 0 var(--s-2)" }}>{curso.nombre}</h2>
+                <p className="small" style={{ margin: "0 0 var(--s-3)" }}>
+                  {curso.descripcion ?? t("inicio.defaultCourseDesc")}
+                </p>
+                <span className="small">
+                  {t("inicio.profTag", { nombre: curso.profesor.nombre, apellido: curso.profesor.apellido })}
+                </span>
+              </Link>
+            ))}
 
-            {cursosActivos.length > 1 && (
+            {cursosActivos.length > cursosAMostrar.length && (
               <Link href="/cursos" className="btn btn--ghost btn--sm" style={{ display: "inline-flex", marginBottom: "var(--s-6)" }}>
                 {t("inicio.viewMyCourses", { count: cursosActivos.length })} <ArrowRight size={16} aria-hidden />
               </Link>
@@ -146,7 +157,7 @@ export function InicioContent({
     );
   }
 
-  const miCurso = cursosActivos[0] ?? null;
+  const cursosAMostrar = cursosParaMostrar(cursosActivos);
 
   return (
     <div>
@@ -168,20 +179,28 @@ export function InicioContent({
         </a>
       )}
 
-      {miCurso ? (
+      {cursosAMostrar.length > 0 ? (
         <>
-          <Link href={`/cursos/${miCurso.id}`} className="card card--link" style={{ display: "block", marginBottom: "var(--s-6)" }}>
-            <span className="chip chip--ok" style={{ marginBottom: "var(--s-3)", display: "inline-flex" }}>
-              <CheckCircle2 size={13} aria-hidden /> {t("inicio.activeCourseChip")}
-            </span>
-            <h2 className="h2" style={{ margin: "0 0 var(--s-2)" }}>{miCurso.nombre}</h2>
-            <p className="small" style={{ margin: "0 0 var(--s-3)" }}>
-              {miCurso.descripcion ?? "—"}
-            </p>
-            <span className="small">
-              {t("inicio.profTag", { nombre: miCurso.profesor.nombre, apellido: miCurso.profesor.apellido })}
-            </span>
-          </Link>
+          {cursosAMostrar.map((curso) => (
+            <Link key={curso.id} href={`/cursos/${curso.id}`} className="card card--link" style={{ display: "block", marginBottom: "var(--s-4)" }}>
+              <span className="chip chip--ok" style={{ marginBottom: "var(--s-3)", display: "inline-flex" }}>
+                <CheckCircle2 size={13} aria-hidden /> {t("inicio.activeCourseChip")}
+              </span>
+              <h2 className="h2" style={{ margin: "0 0 var(--s-2)" }}>{curso.nombre}</h2>
+              <p className="small" style={{ margin: "0 0 var(--s-3)" }}>
+                {curso.descripcion ?? "—"}
+              </p>
+              <span className="small">
+                {t("inicio.profTag", { nombre: curso.profesor.nombre, apellido: curso.profesor.apellido })}
+              </span>
+            </Link>
+          ))}
+
+          {cursosActivos.length > cursosAMostrar.length && (
+            <Link href="/cursos" className="btn btn--ghost btn--sm" style={{ display: "inline-flex", marginBottom: "var(--s-6)" }}>
+              {t("inicio.viewMyCourses", { count: cursosActivos.length })} <ArrowRight size={16} aria-hidden />
+            </Link>
+          )}
         </>
       ) : (
         <div className="card">
