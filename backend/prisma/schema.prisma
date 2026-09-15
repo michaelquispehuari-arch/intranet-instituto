@@ -97,6 +97,7 @@ model Usuario {
   entregasForum       EntregaForum[]
   habilitaciones      HabilitacionSustitutorio[]
   registrosSemanal    RegistroSemanal[]
+  promediosBloque     PromedioBloque[]
 }
 
 model Curso {
@@ -110,8 +111,10 @@ model Curso {
   tipo               TipoCurso @default(REGULAR)
   notasPublicadasEn  DateTime?
   fechaLimiteEntrega DateTime?
+  bloqueId           String?
 
   profesor         Usuario                    @relation("ProfesorCurso", fields: [profesorId], references: [id])
+  bloque           Bloque?                    @relation(fields: [bloqueId], references: [id])
   inscripciones    Inscripcion[]
   examenes         Examen[]
   materiales       Material[]
@@ -324,6 +327,29 @@ model ConfigCurso {
   numDias         Int    @default(3)
 
   curso Curso @relation(fields: [cursoId], references: [id])
+}
+
+model Bloque {
+  id           String    @id @default(cuid())
+  nombre       String
+  creadoEn     DateTime  @default(now())
+  finalizadoEn DateTime?
+
+  cursos    Curso[]
+  promedios PromedioBloque[]
+}
+
+model PromedioBloque {
+  id           String   @id @default(cuid())
+  bloqueId     String
+  estudianteId String
+  promedio     Float
+  publicadoEn  DateTime @default(now())
+
+  bloque     Bloque  @relation(fields: [bloqueId], references: [id])
+  estudiante Usuario @relation(fields: [estudianteId], references: [id])
+
+  @@unique([bloqueId, estudianteId])
 }
 
 model RegistroSemanal {

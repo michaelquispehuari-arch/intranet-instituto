@@ -16,6 +16,7 @@ import { courseForumRoutes, forumRoutes } from "./routes/forum.routes.js";
 import { configRoutes } from "./routes/config.routes.js";
 import { substitutionRoutes } from "./routes/substitution.routes.js";
 import { studentRoutes } from "./routes/student.routes.js";
+import { bloqueRoutes } from "./routes/bloque.routes.js";
 import { getReadinessStatus } from "./services/health.service.js";
 
 export const app = express();
@@ -59,6 +60,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/substitutions", substitutionRoutes);
 app.use("/api/students", studentRoutes);
+app.use("/api/bloques", bloqueRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

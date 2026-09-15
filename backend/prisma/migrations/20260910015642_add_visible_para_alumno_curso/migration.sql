@@ -1,0 +1,1 @@
+ALTER TABLE "Curso" ADD COLUMN "visibleParaAlumno" BOOLEAN NOT NULL DEFAULT true;

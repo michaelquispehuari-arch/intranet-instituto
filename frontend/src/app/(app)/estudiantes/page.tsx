@@ -53,6 +53,8 @@ export default function EstudiantesPage() {
   const [importStatus, setImportStatus] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const csvRef = useRef<HTMLInputElement>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   async function load(q = query) {
     setLoading(true);
@@ -149,6 +151,45 @@ export default function EstudiantesPage() {
 
     const data = await response.json().catch(() => ({})) as { error?: string };
     setImportStatus(t("estudiantes.deleteError", { error: data.error ?? t("estudiantes.serverErrorFallback") }));
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  const activeStudents = students.filter((s) => s.activo);
+  const allActiveSelected = activeStudents.length > 0 && activeStudents.every((s) => selected.has(s.id));
+
+  function toggleSelectAll() {
+    setSelected((prev) => {
+      if (allActiveSelected) return new Set();
+      return new Set(activeStudents.map((s) => s.id));
+    });
+  }
+
+  async function handleBulkDeactivate() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    const ok = window.confirm(t("estudiantes.bulk.confirmDeactivate", { count: ids.length }));
+    if (!ok) return;
+
+    setBulkSaving(true);
+    const results = await Promise.all(
+      ids.map((id) => fetch(`/api/backend/students/${id}`, { method: "DELETE" }).then((r) => r.ok)),
+    );
+    setBulkSaving(false);
+    const failed = results.filter((r) => !r).length;
+    setImportStatus(
+      failed === 0
+        ? t("estudiantes.bulk.done", { count: ids.length })
+        : t("estudiantes.bulk.doneWithErrors", { count: ids.length - failed, failed }),
+    );
+    setSelected(new Set());
+    load();
   }
 
   async function handleImportCsv(e: React.ChangeEvent<HTMLInputElement>) {
@@ -323,6 +364,25 @@ export default function EstudiantesPage() {
         <button type="submit" className="btn btn-secondary">{t("estudiantes.search")}</button>
       </form>
 
+      {selected.size > 0 && (
+        <div className="card" style={{ marginBottom: 12, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13 }}>{t("estudiantes.bulk.selectedCount", { count: selected.size })}</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize: 12, padding: "3px 8px", color: "var(--desaprobado-texto)", borderColor: "var(--desaprobado-texto)" }}
+              onClick={handleBulkDeactivate}
+              disabled={bulkSaving}
+            >
+              {bulkSaving ? t("estudiantes.bulk.saving") : t("estudiantes.bulk.deactivate")}
+            </button>
+            <button className="btn btn-secondary" style={{ fontSize: 12, padding: "3px 8px" }} onClick={() => setSelected(new Set())}>
+              {t("estudiantes.bulk.clearSelection")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {loading && <p style={{ color: "var(--texto-tenue)" }}>{t("estudiantes.loading")}</p>}
 
       {!loading && students.length === 0 && (
@@ -341,6 +401,9 @@ export default function EstudiantesPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--borde)", background: "#FAFAF8" }}>
+                <th style={{ padding: "8px 10px" }}>
+                  <input type="checkbox" checked={allActiveSelected} onChange={toggleSelectAll} title={t("estudiantes.bulk.selectAll")} />
+                </th>
                 {[t("estudiantes.table.codigo"), t("estudiantes.table.apellidos"), t("estudiantes.table.nombres"), t("estudiantes.table.email"), t("estudiantes.table.modo"), t("estudiantes.table.iglesia"), t("estudiantes.table.pais"), t("estudiantes.table.semestreAnio"), t("estudiantes.table.dni"), t("estudiantes.table.telefono"), t("estudiantes.table.coordinador"), t("estudiantes.table.estado"), ""].map((h) => (
                   <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap", color: "var(--texto-secundario)" }}>
                     {h}
@@ -352,7 +415,7 @@ export default function EstudiantesPage() {
               {students.map((s) => (
                 editId === s.id ? (
                   <tr key={s.id} style={{ background: "#FFFDF5", borderBottom: "1px solid var(--borde)" }}>
-                    <td colSpan={13} style={{ padding: 16 }}>
+                    <td colSpan={14} style={{ padding: 16 }}>
                       <form onSubmit={handleSaveEdit}>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: 10, marginBottom: 12 }}>
                           {fi("codigo", t("estudiantes.editFields.codigo"))}
@@ -391,6 +454,11 @@ export default function EstudiantesPage() {
                   </tr>
                 ) : (
                   <tr key={s.id} style={{ borderBottom: "0.5px solid var(--borde)" }}>
+                    <td style={{ padding: "7px 10px" }}>
+                      {s.activo && (
+                        <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggleSelect(s.id)} />
+                      )}
+                    </td>
                     <td style={{ padding: "7px 10px", color: "var(--texto-tenue)" }}>{s.codigo ?? "—"}</td>
                     <td style={{ padding: "7px 10px", fontWeight: 500 }}>{s.apellido}</td>
                     <td style={{ padding: "7px 10px" }}>{s.nombre}</td>

@@ -83,6 +83,16 @@ export const estudiantes: Dictionary["estudiantes"] = {
   },
   chipActive: "A",
   chipInactive: "I",
+  bulk: {
+    selectAll: "활성 학생 전체 선택",
+    selectedCount: "{{count}}명 선택됨",
+    deactivate: "비활성으로 표시",
+    saving: "저장 중…",
+    clearSelection: "선택 취소",
+    confirmDeactivate: "학생 {{count}}명을 비활성으로 표시하시겠습니까? 더 이상 로그인할 수 없고 새 과정에 등록되지 않습니다.",
+    done: "{{count}}명이 비활성으로 표시되었습니다.",
+    doneWithErrors: "{{count}}명 비활성 처리 완료, {{failed}}명 실패.",
+  },
   import: {
     processing: "처리 중…",
     noHeaders: "가져오기 오류: CSV에 헤더가 없습니다.",

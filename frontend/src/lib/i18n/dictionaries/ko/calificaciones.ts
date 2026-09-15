@@ -7,6 +7,8 @@ export const calificaciones: Dictionary["calificaciones"] = {
     subtitle: "관리자가 게시한 성적입니다",
     noEnrollmentsTitle: "등록된 과정 없음",
     noEnrollmentsDesc: "진행 중인 과정에 등록되어 있지 않습니다.",
+    sinBloque: "블록 없음",
+    promedioBloque: "블록 평균",
   },
   admin: {
     eyebrow: "학사",

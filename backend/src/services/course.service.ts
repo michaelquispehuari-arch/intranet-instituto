@@ -14,6 +14,10 @@ const courseSelect = {
   profesorId: true,
   activo: true,
   fechaLimiteEntrega: true,
+  bloqueId: true,
+  bloque: {
+    select: { id: true, nombre: true },
+  },
   profesor: {
     select: {
       id: true,
@@ -119,6 +123,7 @@ export async function createCourse(input: CreateCourseInput) {
         anio: input.anio,
         profesorId: input.profesorId,
         tipo: input.tipo,
+        bloqueId: input.bloqueId,
         config: { create: {} },
       },
       select: courseSelect,

@@ -7,6 +7,8 @@ export const calificaciones: Dictionary["calificaciones"] = {
     subtitle: "Grades published by the administrator",
     noEnrollmentsTitle: "No enrollments",
     noEnrollmentsDesc: "You are not enrolled in any active course.",
+    sinBloque: "No block",
+    promedioBloque: "Block average",
   },
   admin: {
     eyebrow: "Academics",
