@@ -13,6 +13,7 @@ const courseSelect = {
   anio: true,
   profesorId: true,
   activo: true,
+  destacado: true,
   fechaLimiteEntrega: true,
   bloqueId: true,
   bloque: {

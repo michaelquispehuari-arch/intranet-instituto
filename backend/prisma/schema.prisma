@@ -108,6 +108,7 @@ model Curso {
   anio               Int
   profesorId         String
   activo             Boolean   @default(true)
+  destacado          Boolean   @default(false)
   tipo               TipoCurso @default(REGULAR)
   notasPublicadasEn  DateTime?
   fechaLimiteEntrega DateTime?

@@ -13,6 +13,7 @@ type Curso = {
   anio: number;
   tipo: string;
   activo: boolean;
+  destacado: boolean;
   bloqueId: string | null;
   profesor: { id: string; nombre: string; apellido: string };
 };
@@ -163,6 +164,20 @@ export default function CursosPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ bloqueId: bloqueId || null }),
+    });
+    if (response.ok) {
+      loadCourses();
+      return;
+    }
+    const data = await response.json().catch(() => ({})) as { message?: string; error?: string };
+    setStatus(data.message ?? data.error ?? t("cursos.serverError"));
+  }
+
+  async function toggleDestacado(curso: Curso) {
+    const response = await fetch(`/api/backend/courses/${curso.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ destacado: !curso.destacado }),
     });
     if (response.ok) {
       loadCourses();
@@ -329,7 +344,10 @@ export default function CursosPage() {
                         <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ambar-accion)" }}>
                           {TIPO_LABEL[curso.tipo] ?? curso.tipo}
                         </span>
-                        {!curso.activo && <span className="badge-pendiente">{t("cursos.inactive")}</span>}
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {curso.destacado && <span className="chip chip-ok">{t("cursos.destacadoBadge")}</span>}
+                          {!curso.activo && <span className="badge-pendiente">{t("cursos.inactive")}</span>}
+                        </div>
                       </div>
                       <h2 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 600 }}>{curso.nombre}</h2>
                       <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--texto-secundario)" }}>
@@ -350,7 +368,18 @@ export default function CursosPage() {
                         </select>
                       </div>
                       {curso.activo && (
-                        <div style={{ marginTop: 8 }}>
+                        <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ fontSize: 12, padding: "4px 8px" }}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              toggleDestacado(curso);
+                            }}
+                          >
+                            {curso.destacado ? t("cursos.quitarDestacado") : t("cursos.destacarEnInicio")}
+                          </button>
                           <button
                             className="btn btn-secondary"
                             style={{ fontSize: 12, padding: "4px 8px", color: "var(--desaprobado-texto)", borderColor: "var(--desaprobado-texto)" }}

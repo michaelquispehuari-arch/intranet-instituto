@@ -35,6 +35,9 @@ export const cursos: typeof cursosEs = {
   deleted: "Course deleted.",
   deleteError: "Error deleting: {{motivo}}",
   serverError: "Server error",
+  destacadoBadge: "★ On Home",
+  destacarEnInicio: "★ Feature on Home",
+  quitarDestacado: "Remove from Home",
   bloque: {
     label: "Block",
     none: "No block",

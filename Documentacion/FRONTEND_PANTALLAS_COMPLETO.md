@@ -142,6 +142,16 @@ Texto estático con secciones: datos tratados, finalidad, acceso, seguridad, men
 - **Botón Zoom** (si configurado): "🎥 Unirse a la clase por Zoom" → enlace externo
 - Card del curso activo (badge "Curso activo", nombre, descripción, profesor)
 
+**¿Cuál curso es "el activo" cuando el alumno o profesor tiene varios? (agregado 2026-09-15):**
+`Curso.destacado` (boolean, default `false`) — el ADMIN lo marca a mano desde `/cursos` (botón "★
+Destacar en Inicio" en la tarjeta del curso). `inicio/page.tsx` toma los cursos activos de ese usuario
+(sus inscripciones si es ESTUDIANTE, sus cursos a cargo si es PROFESOR) y hace
+`.sort((a,b) => Number(b.destacado) - Number(a.destacado))` — sort ESTABLE, así que si el ADMIN no marcó
+nada la lista se ve igual que antes (orden por `anio desc, ciclo asc, nombre asc` que ya trae el backend).
+Es el mismo campo para ambos roles: si el ADMIN marca un curso, tanto sus alumnos inscritos como su
+profesor lo ven priorizado en su propio Inicio, sin ninguna otra configuración. Ningún curso viene
+destacado por default al crearlo — hay que marcarlo a mano cada vez.
+
 **Grid de accesos rápidos (si inscrito):**
 | Card | Icono | Destino |
 |------|-------|---------|
@@ -182,6 +192,7 @@ Cada card muestra: tipo de curso · nombre · descripción · profesor · ciclo/
 | Elemento | Roles | Acción |
 |----------|-------|--------|
 | Click en card | Todos | Navega a `/cursos/{id}` |
+| **"★ Destacar en Inicio" / "Quitar de Inicio"** | ADMIN, solo activos | PATCH `/api/backend/courses/{id}` `{ destacado }` — decide qué curso ven como "activo" sus alumnos y su profesor en `/inicio` (ver sección 5) |
 | **"Eliminar curso"** (rojo) | ADMIN, solo activos | DELETE `/api/backend/courses/{id}` |
 
 ---
