@@ -83,6 +83,16 @@ export const estudiantes: Dictionary["estudiantes"] = {
   },
   chipActive: "A",
   chipInactive: "I",
+  bulk: {
+    selectAll: "Select all active",
+    selectedCount: "{{count}} selected",
+    deactivate: "Mark inactive",
+    saving: "Saving…",
+    clearSelection: "Clear selection",
+    confirmDeactivate: "Mark {{count}} student(s) as inactive? They will no longer be able to log in or be enrolled in new courses.",
+    done: "{{count}} student(s) marked as inactive.",
+    doneWithErrors: "{{count}} marked as inactive, {{failed}} failed.",
+  },
   import: {
     processing: "Processing…",
     noHeaders: "Error importing: the CSV has no headers.",

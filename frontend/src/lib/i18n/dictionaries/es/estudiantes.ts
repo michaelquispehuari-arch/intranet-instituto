@@ -81,6 +81,16 @@ export const estudiantes = {
   },
   chipActive: "A",
   chipInactive: "I",
+  bulk: {
+    selectAll: "Seleccionar todos los activos",
+    selectedCount: "{{count}} seleccionado(s)",
+    deactivate: "Marcar inactivos",
+    saving: "Guardando…",
+    clearSelection: "Cancelar selección",
+    confirmDeactivate: "¿Marcar {{count}} estudiante(s) como inactivos? Ya no podrán ingresar ni se les matriculará en cursos nuevos.",
+    done: "{{count}} estudiante(s) marcados como inactivos.",
+    doneWithErrors: "{{count}} marcados como inactivos, {{failed}} con error.",
+  },
   import: {
     processing: "Procesando…",
     noHeaders: "Error al importar: el CSV no tiene encabezados.",
