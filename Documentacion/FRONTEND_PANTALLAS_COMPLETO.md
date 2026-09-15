@@ -288,6 +288,18 @@ Cada examen muestra: título · duración · preguntas · fechas inicio/cierre �
 
 Tabla: Cód. · Apellidos · Nombres · Email
 
+**Agregar alumno (solo ADMIN, agregado 2026-09-15):** botón "+ Agregar alumno" arriba de la tabla, solo
+visible si el curso está `activo` (matricular en un curso desactivado da 400 desde el backend). Al abrir
+carga la lista completa de estudiantes (`GET /api/backend/students`) y arma un `<select>` con los que
+están `activo: true` y NO ya inscritos en este curso, ordenados por apellido. Al confirmar llama
+`POST /api/backend/courses/{id}/enrollments` `{ estudianteId }` (`enrollStudent` en
+`backend/src/services/course.service.ts`) y recarga la lista de inscritos. Es el mismo caso de uso de
+"reactivé a un alumno y quiero que entre a un curso que ya existía": la reactivación
+(`Usuario.activo = true`) NUNCA vuelve a inscribirlo solo — eso pasa una sola vez, automático, al
+CREAR un curso nuevo (`enrollActiveStudentsInCourse`); para un curso ya existente hay que agregarlo a
+mano desde aquí, uno por uno. `Inscripcion.upsert` es idempotente (si ya estaba inscrito, no falla ni
+duplica), pero el `<select>` ya filtra a los inscritos así que no debería pasar desde la UI.
+
 ---
 
 ### Tab: TRANSCRIPCIÓN (solo ESTUDIANTE)

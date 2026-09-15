@@ -27,6 +27,7 @@ type Curso = {
   tipo: string;
   ciclo: number;
   anio: number;
+  activo: boolean;
   fechaLimiteEntrega: string | null;
   profesor: { id: string; nombre: string; apellido: string };
   inscripciones?: Array<{ estudiante: { id: string; nombre: string; apellido: string; email: string; codigo?: string | null } }>;
@@ -52,6 +53,14 @@ type AlumnoItem = {
   nombre: string;
   apellido: string;
   email: string;
+  codigo: string | null;
+};
+
+type EstudianteOption = {
+  id: string;
+  nombre: string;
+  apellido: string;
+  activo: boolean;
   codigo: string | null;
 };
 
@@ -95,6 +104,11 @@ export default function CourseWorkspacePage() {
   const [exams, setExams] = useState<ExamItem[] | null>(null);
   const [examsLoading, setExamsLoading] = useState(false);
   const [alumnos, setAlumnos] = useState<AlumnoItem[]>([]);
+  const [todosEstudiantes, setTodosEstudiantes] = useState<EstudianteOption[] | null>(null);
+  const [showAddAlumno, setShowAddAlumno] = useState(false);
+  const [selectedAlumnoId, setSelectedAlumnoId] = useState("");
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollError, setEnrollError] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [materiales, setMateriales] = useState<MaterialItem[] | null>(null);
   const [materialesLoading, setMaterialesLoading] = useState(false);
@@ -188,6 +202,47 @@ export default function CourseWorkspacePage() {
       setExams([]);
     }
     setExamsLoading(false);
+  }
+
+  async function reloadAlumnos() {
+    const r = await fetch(`/api/backend/courses/${id}`);
+    if (!r.ok) return;
+    const d = await r.json() as CourseResponse;
+    const inscripciones = d.course?.inscripciones ?? [];
+    const listaAlumnos = inscripciones.map((i) => ({ ...i.estudiante, codigo: i.estudiante.codigo ?? null }));
+    listaAlumnos.sort((a, b) =>
+      a.apellido.localeCompare(b.apellido, "es", { sensitivity: "base" }) ||
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
+    );
+    setAlumnos(listaAlumnos);
+  }
+
+  async function loadTodosEstudiantes() {
+    if (todosEstudiantes !== null) return;
+    const r = await fetch("/api/backend/students");
+    if (r.ok) {
+      const d = await r.json() as { students?: EstudianteOption[] };
+      setTodosEstudiantes(Array.isArray(d.students) ? d.students : []);
+    }
+  }
+
+  async function handleAddAlumno() {
+    if (!selectedAlumnoId) return;
+    setEnrolling(true);
+    setEnrollError(null);
+    const r = await fetch(`/api/backend/courses/${id}/enrollments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estudianteId: selectedAlumnoId }),
+    });
+    setEnrolling(false);
+    if (r.ok) {
+      setSelectedAlumnoId("");
+      await reloadAlumnos();
+      return;
+    }
+    const d = await r.json().catch(() => ({})) as { message?: string };
+    setEnrollError(d.message ?? t("cursoDetalle.alumnos.addError"));
   }
 
   async function loadProfNotas() {
@@ -1222,9 +1277,62 @@ export default function CourseWorkspacePage() {
 
       {tab === "alumnos" && (
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{t("cursoDetalle.alumnos.heading")}</h2>
+            {rol === "ADMIN" && curso?.activo && (
+              <button
+                className="btn btn-secondary"
+                style={{ fontSize: 13 }}
+                onClick={() => {
+                  setShowAddAlumno((v) => !v);
+                  setEnrollError(null);
+                  loadTodosEstudiantes();
+                }}
+              >
+                {showAddAlumno ? t("common.cancel") : t("cursoDetalle.alumnos.addButton")}
+              </button>
+            )}
           </div>
+
+          {showAddAlumno && rol === "ADMIN" && curso?.activo && (
+            <div className="card" style={{ marginBottom: 16, padding: 16 }}>
+              {todosEstudiantes === null ? (
+                <p style={{ color: "var(--texto-tenue)" }}>{t("common.loading")}</p>
+              ) : (() => {
+                const inscritos = new Set(alumnos.map((a) => a.id));
+                const candidatos = todosEstudiantes
+                  .filter((s) => s.activo && !inscritos.has(s.id))
+                  .sort((a, b) =>
+                    a.apellido.localeCompare(b.apellido, "es", { sensitivity: "base" }) ||
+                    a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
+                  );
+                if (candidatos.length === 0) {
+                  return <p style={{ margin: 0, fontSize: 13, color: "var(--texto-tenue)" }}>{t("cursoDetalle.alumnos.noCandidates")}</p>;
+                }
+                return (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <select
+                      value={selectedAlumnoId}
+                      onChange={(e) => setSelectedAlumnoId(e.target.value)}
+                      style={{ flex: 1, minWidth: 220, border: "0.5px solid var(--borde)", borderRadius: 8, padding: "8px 12px", fontSize: 14 }}
+                    >
+                      <option value="">{t("cursoDetalle.alumnos.selectPlaceholder")}</option>
+                      {candidatos.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.apellido}, {s.nombre}{s.codigo ? ` (${s.codigo})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button className="btn btn-primary" style={{ fontSize: 13 }} disabled={!selectedAlumnoId || enrolling} onClick={handleAddAlumno}>
+                      {enrolling ? t("cursoDetalle.alumnos.adding") : t("cursoDetalle.alumnos.addButton")}
+                    </button>
+                  </div>
+                );
+              })()}
+              {enrollError && <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--desaprobado-texto)" }}>{enrollError}</p>}
+            </div>
+          )}
+
           {alumnos.length === 0 && (
             <div className="card">
               <div className="empty-state">

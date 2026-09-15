@@ -75,6 +75,41 @@ node dist/src/scripts/delete-all-students.js --confirm-delete-students
 
 El flag `--confirm-delete-students` es obligatorio a propósito, igual que en la Opción A.
 
+## Opción D: borrar uno o varios cursos puntuales (conserva todo lo demás)
+
+Para cuando quieres eliminar de verdad (no solo desactivar con "Eliminar curso" en la pantalla `/cursos`,
+que solo pone `activo: false`) uno o varios cursos específicos y todo lo que depende de ellos: exámenes,
+preguntas, envíos, respuestas, materiales, sesiones, asistencias, resúmenes, entregas de Forum, notas
+manuales, habilitaciones de sustitutorio, registros semanales e inscripciones de ESE curso. **No toca**
+usuarios (ni siquiera a los alumnos que solo estaban inscritos ahí) ni otros cursos del mismo bloque.
+Script: `backend/src/scripts/delete-course.ts` (`npm run delete:course`).
+
+Trae DRY RUN por defecto: sin `--apply` solo imprime qué curso(s) encontró y cuántas filas de cada tabla
+se borrarían, sin tocar nada. Necesitas el/los `id` de curso exacto (columna `id` de `Curso`, visible en
+la URL `/cursos/<id>` o con Prisma Studio).
+
+Local:
+```
+cd backend
+npm run build
+npm run delete:course -- <cursoId1> <cursoId2>          # dry run, no borra nada
+npm run delete:course -- <cursoId1> <cursoId2> --apply   # borra de verdad
+```
+
+Railway (mismo patrón que las opciones anteriores — backup primero, exporta `DATABASE_URL` apuntando a
+`DATABASE_PUBLIC_URL` en la misma terminal, sin pegarlo en el chat):
+```
+cd backend
+npm run build
+$env:DATABASE_URL = "<DATABASE_PUBLIC_URL de Railway>"
+node dist/src/scripts/delete-course.js <cursoId1> <cursoId2>          # dry run primero, SIEMPRE
+node dist/src/scripts/delete-course.js <cursoId1> <cursoId2> --apply  # recien aqui borra
+```
+
+Corre siempre primero SIN `--apply` y revisa la tabla de conteos antes de repetir el comando con
+`--apply` — es la única confirmación que pide el script, no hay vuelta atrás una vez aplicado (aparte de
+restaurar desde el backup de Railway).
+
 ## Después del reset (cualquiera de las opciones)
 
 - Revisa las variables de entorno del backend en Railway (`CLOUDFLARE_R2_*`, `JWT_SECRET`, etc.) — el reset no las toca, pero conviene confirmar que apuntan al entorno correcto antes de empezar a subir archivos de prueba.

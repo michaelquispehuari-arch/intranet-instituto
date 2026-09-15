@@ -1,6 +1,6 @@
 import { Prisma, Rol } from "@prisma/client";
 import type { AuthUser } from "../types/auth.js";
-import { ForbiddenError, NotFoundError } from "../utils/http-error.js";
+import { ForbiddenError, HttpError, NotFoundError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
 import type { CreateCourseInput, EnrollStudentInput, UpdateCourseInput } from "../schemas/course.schema.js";
 
@@ -163,7 +163,10 @@ export async function deactivateCourse(courseId: string) {
 }
 
 export async function enrollStudent(courseId: string, input: EnrollStudentInput) {
-  await ensureCourseExists(courseId);
+  const course = await prisma.curso.findUnique({ where: { id: courseId }, select: { id: true, activo: true } });
+  if (!course) throw new NotFoundError("Curso no encontrado");
+  if (!course.activo) throw new HttpError(400, "No se puede matricular alumnos en un curso inactivo");
+
   await ensureActiveStudent(input.estudianteId);
 
   return prisma.$transaction(async (tx) => {

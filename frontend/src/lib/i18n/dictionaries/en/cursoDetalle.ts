@@ -141,6 +141,11 @@ export const cursoDetalle: typeof cursoDetalleEs = {
     tableApellidos: "Last Name",
     tableNombres: "First Name",
     tableEmail: "Email",
+    addButton: "+ Add student",
+    selectPlaceholder: "Select student…",
+    adding: "Adding…",
+    addError: "Error adding the student",
+    noCandidates: "No active students available to add (everyone is already enrolled, or there are no active students).",
   },
   transcripcion: {
     heading: "Upload my transcript",
