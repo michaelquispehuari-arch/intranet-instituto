@@ -10,6 +10,7 @@ type Curso = {
   descripcion: string | null;
   tipo: string;
   activo: boolean;
+  destacado: boolean;
   profesor: { nombre: string; apellido: string };
 };
 type ZoomConfig = { enlaceZoom?: string };
@@ -31,7 +32,11 @@ export default async function InicioPage() {
   ]);
 
   const todosLosCursos = cursos?.courses ?? [];
-  const cursosActivos  = todosLosCursos.filter((c) => c.activo);
+  // Los cursos que el ADMIN marco "Destacar en Inicio" van primero (sort estable: si nadie
+  // marco nada, se conserva el orden original anio desc / ciclo asc / nombre asc del backend).
+  const cursosActivos  = todosLosCursos
+    .filter((c) => c.activo)
+    .sort((a, b) => Number(b.destacado) - Number(a.destacado));
   const enlaceZoom     = zoom?.enlaceZoom ?? null;
 
   return (

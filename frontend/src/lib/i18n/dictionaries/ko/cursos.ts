@@ -35,6 +35,9 @@ export const cursos: typeof cursosEs = {
   deleted: "과정이 삭제되었습니다.",
   deleteError: "삭제 오류: {{motivo}}",
   serverError: "서버 오류",
+  destacadoBadge: "★ 홈에 표시",
+  destacarEnInicio: "★ 홈에 강조 표시",
+  quitarDestacado: "홈에서 제거",
   bloque: {
     label: "블록",
     none: "블록 없음",
