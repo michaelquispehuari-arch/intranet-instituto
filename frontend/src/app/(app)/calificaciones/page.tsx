@@ -22,9 +22,15 @@ type MiNota = {
   nombre: string;
   ciclo: number;
   anio: number;
+  bloqueId: string | null;
+  bloqueNombre: string | null;
   publicadas: boolean;
   notaFinalPublicada: number | null;
 };
+
+type PromedioBloque = { bloqueId: string; promedio: number };
+
+type MisNotasResponse = { cursos: MiNota[]; promediosBloque: PromedioBloque[] };
 
 function NotaChip({ semana }: { semana: Semana }) {
   const { t } = useTranslation();
@@ -44,18 +50,29 @@ function NotaChip({ semana }: { semana: Semana }) {
 function EstudianteView() {
   const { t } = useTranslation();
   const [notas, setNotas] = useState<MiNota[]>([]);
+  const [promedios, setPromedios] = useState<PromedioBloque[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/backend/grades/mine")
       .then((r) => r.json())
-      .then((d) => {
-        setNotas(Array.isArray(d) ? d : []);
+      .then((d: Partial<MisNotasResponse>) => {
+        setNotas(Array.isArray(d.cursos) ? d.cursos : []);
+        setPromedios(Array.isArray(d.promediosBloque) ? d.promediosBloque : []);
         setLoading(false);
       });
   }, []);
 
   if (loading) return <p style={{ color: "var(--texto-tenue)" }}>{t("common.loading")}</p>;
+
+  const bloqueOrder: Array<string | null> = [];
+  notas.forEach((n) => { if (!bloqueOrder.includes(n.bloqueId)) bloqueOrder.push(n.bloqueId); });
+  const grupos = bloqueOrder.map((bloqueId) => ({
+    bloqueId,
+    nombre: bloqueId === null ? t("calificaciones.estudiante.sinBloque") : (notas.find((n) => n.bloqueId === bloqueId)?.bloqueNombre ?? ""),
+    items: notas.filter((n) => n.bloqueId === bloqueId),
+    promedio: bloqueId === null ? undefined : promedios.find((p) => p.bloqueId === bloqueId)?.promedio,
+  }));
 
   return (
     <div>
@@ -74,44 +91,55 @@ function EstudianteView() {
           </div>
         </div>
       ) : (
-        <div className="card">
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: "0.5px solid var(--borde)" }}>
-                  <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600 }}>{t("calificaciones.course")}</th>
-                  <th style={{ padding: "10px 16px", textAlign: "center", fontWeight: 600 }}>{t("calificaciones.finalGrade")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {notas.map((n) => {
-                  const aprobado = n.notaFinalPublicada !== null ? n.notaFinalPublicada >= 11 : null;
-                  return (
-                    <tr key={n.cursoId} style={{ borderBottom: "0.5px solid var(--borde)" }}>
-                      <td style={{ padding: "10px 16px" }}>
-                        <div style={{ fontWeight: 600 }}>{n.nombre}</div>
-                        <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{t("calificaciones.cycle", { ciclo: n.ciclo, anio: n.anio })}</div>
-                      </td>
-                      <td style={{ padding: "10px 16px", textAlign: "center" }}>
-                        {!n.publicadas ? (
-                          <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>
-                            {t("calificaciones.notPublished")}
-                          </span>
-                        ) : n.notaFinalPublicada === null ? (
-                          <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>—</span>
-                        ) : aprobado ? (
-                          <span className="chip chip-ok">{n.notaFinalPublicada} ✓</span>
-                        ) : (
-                          <span className="chip chip-resumen">{n.notaFinalPublicada} ✗</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        grupos.map((grupo) => (
+          <div key={grupo.bloqueId ?? "sin-bloque"} className="card" style={{ marginBottom: 20 }}>
+            {grupo.bloqueId !== null && (
+              <div className="card-header"><h3 style={{ margin: 0, fontSize: 14 }}>{grupo.nombre}</h3></div>
+            )}
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <thead>
+                  <tr style={{ borderBottom: "0.5px solid var(--borde)" }}>
+                    <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600 }}>{t("calificaciones.course")}</th>
+                    <th style={{ padding: "10px 16px", textAlign: "center", fontWeight: 600 }}>{t("calificaciones.finalGrade")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grupo.items.map((n) => {
+                    const aprobado = n.notaFinalPublicada !== null ? n.notaFinalPublicada >= 11 : null;
+                    return (
+                      <tr key={n.cursoId} style={{ borderBottom: "0.5px solid var(--borde)" }}>
+                        <td style={{ padding: "10px 16px" }}>
+                          <div style={{ fontWeight: 600 }}>{n.nombre}</div>
+                          <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>{t("calificaciones.cycle", { ciclo: n.ciclo, anio: n.anio })}</div>
+                        </td>
+                        <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                          {!n.publicadas ? (
+                            <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>
+                              {t("calificaciones.notPublished")}
+                            </span>
+                          ) : n.notaFinalPublicada === null ? (
+                            <span className="chip" style={{ background: "#F6F7F5", color: "#8A8E89", border: "0.5px solid #E7E5DE" }}>—</span>
+                          ) : aprobado ? (
+                            <span className="chip chip-ok">{n.notaFinalPublicada} ✓</span>
+                          ) : (
+                            <span className="chip chip-resumen">{n.notaFinalPublicada} ✗</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {grupo.promedio !== undefined && (
+              <div style={{ padding: "12px 16px", borderTop: "0.5px solid var(--borde)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600 }}>{t("calificaciones.estudiante.promedioBloque")}</span>
+                <span className={grupo.promedio >= 11 ? "chip chip-ok" : "chip chip-resumen"} style={{ fontSize: 16 }}>{grupo.promedio.toFixed(2)}</span>
+              </div>
+            )}
           </div>
-        </div>
+        ))
       )}
     </div>
   );

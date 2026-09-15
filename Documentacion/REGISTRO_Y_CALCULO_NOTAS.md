@@ -447,3 +447,109 @@ MATCHING DE ALUMNOS (`importGradesSheet` en `backend/src/services/grades-sheet.s
 [x] Importación CSV de la grilla de notas (sección 9): matchea por código y, si falta, por nombre y
     apellido normalizado; nunca matricula a nadie nuevo; nunca pisa un examen con envío real en el módulo.
 ```
+
+---
+
+## 11. Bloques (agrupación de cursos por ciclo/programa) y promedio publicado
+
+```text
+Fecha: 2026-09-15
+Problema que resuelve: los cursos se acumulaban sueltos en `/cursos`; un alumno veía en "Mis
+calificaciones" las notas de TODOS los cursos en los que alguna vez estuvo inscrito, mezclando ciclos
+viejos con el actual, sin ninguna nota agregada por ciclo/programa.
+```
+
+### 11.1 Modelo de datos
+
+```prisma
+model Bloque {
+  id           String    @id @default(cuid())
+  nombre       String                          // ej. "DIPLOMADO" o "Ciclo 2026-2"
+  creadoEn     DateTime  @default(now())
+  finalizadoEn DateTime?                       // null = todavía en progreso
+
+  cursos    Curso[]
+  promedios PromedioBloque[]
+}
+
+model PromedioBloque {
+  id           String   @id @default(cuid())
+  bloqueId     String
+  estudianteId String
+  promedio     Float                           // promedio de notaFinalPublicada de los cursos del bloque
+  publicadoEn  DateTime @default(now())
+
+  @@unique([bloqueId, estudianteId])
+}
+
+model Curso {
+  // ...campos existentes...
+  bloqueId String?                             // opcional: cursos viejos pueden no tener bloque
+  bloque   Bloque? @relation(fields: [bloqueId], references: [id])
+}
+```
+
+```text
+- Un Bloque es una agrupación MANUAL definida por el ADMIN (no se infiere de ciclo/año/tipo).
+  Ej.: un bloque "DIPLOMADO" con sus 3 cursos del programa, y otro "Ciclo 2026-2" con los ~8 cursos
+  regulares de ese semestre. El ADMIN crea el bloque y luego asigna cada curso a uno desde un selector
+  (al crear el curso, o después desde la tarjeta del curso en `/cursos` — así se pueden meter a un bloque
+  cursos que ya existían de antes).
+- `bloqueId` es opcional a propósito: un curso sin bloque simplemente no participa de ningún promedio
+  agregado ni del candado de la sección 11.2; sigue funcionando exactamente igual que antes.
+```
+
+### 11.2 Candado global: un solo bloque "en progreso" a la vez
+
+```text
+Regla de negocio (decisión explícita del cliente, con el trade-off ya explicado y aceptado): mientras un
+bloque tenga AL MENOS un curso con notas ya enviadas (`Curso.notasPublicadasEn` no nulo) y todavía no esté
+finalizado, NO se puede enviar notas ("Mandar notas", sección 7-8) de ningún curso de OTRO bloque.
+
+Trade-off aceptado: si el instituto llega a correr un Diplomado y un ciclo Regular EN PARALELO, este
+candado bloquearía publicar notas del segundo hasta finalizar el primero. Si eso deja de ser aceptable,
+la regla vive en un solo lugar: `ensureNoOtherBloqueEnProgreso` en
+`backend/src/services/bloque.service.ts`, llamada desde `publishGrades`
+(`backend/src/services/grades-sheet.service.ts`).
+
+Cursos SIN bloque (bloqueId null) no entran a esta validación: siempre se pueden publicar.
+```
+
+### 11.3 "Finalizar ciclo" → cálculo del promedio
+
+```text
+POST /api/bloques/:id/finalize   (ADMIN)
+
+1. Valida que TODOS los cursos del bloque ya tengan notasPublicadasEn (si falta alguno, 400 con la
+   lista de nombres pendientes: "Faltan enviar notas de: X, Y").
+2. Para cada alumno inscrito en cualquier curso del bloque, promedia sus RegistroSemanal.notaFinalPublicada
+   de esos cursos (ignora cursos donde ese alumno no tenga nota publicada; si no tiene ninguna, no se le
+   genera PromedioBloque).
+3. Guarda/actualiza PromedioBloque (upsert por bloqueId+estudianteId) y marca Bloque.finalizadoEn = ahora.
+4. Una vez finalizado, el candado de 11.2 se libera para otros bloques, y este bloque ya no admite más
+   cambios (no hay endpoint para "reabrir" un bloque finalizado).
+
+Lógica completa en `finalizeBloque`, `backend/src/services/bloque.service.ts`.
+```
+
+### 11.4 Qué ve el alumno
+
+```text
+GET /api/grades/mine ahora devuelve { cursos, promediosBloque } (antes era un array plano de cursos).
+`calificaciones/page.tsx` (vista ESTUDIANTE) agrupa `cursos` por `bloqueId` (los sin bloque caen en un
+grupo "Sin bloque", sin promedio) y, si el bloque ya fue finalizado, muestra el promedio al pie de ese
+grupo — las notas de cada curso individual del bloque SIGUEN visibles arriba, el promedio no las reemplaza
+(decisión explícita: se pidió notas por curso + promedio al pie, no ocultar el detalle).
+```
+
+### 11.5 Historial: por qué NO existe un toggle "ocultar nota a alumnos" por curso
+
+```text
+Antes de los Bloques se probó un campo `Curso.visibleParaAlumno` (boolean por curso, con botón en
+`/cursos`) para tapar cursos de ciclos viejos en la vista del alumno. Se implementó, se probó y se
+ELIMINÓ por completo (columna, migración de DROP, código y traducciones) porque quedó redundante: el
+sistema de Bloques ya resuelve el mismo problema de forma más completa (agrupa Y calcula el promedio del
+ciclo, no solo esconde). Si en el futuro se necesita ocultar un curso puntual sin usar Bloques, hay que
+volver a crear ese campo desde cero — no quedó ningún resto de código muerto a propósito.
+```
+

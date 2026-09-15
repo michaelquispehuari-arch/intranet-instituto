@@ -2,6 +2,7 @@ import { ModoEstudio, Prisma, Rol, TipoCurso } from "@prisma/client";
 import { prisma } from "../utils/prisma.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/http-error.js";
 import { notaAsistencia13 } from "../utils/nota-asistencia.js";
+import { ensureNoOtherBloqueEnProgreso } from "./bloque.service.js";
 import type { AuthUser } from "../types/auth.js";
 
 type CeldasCamara = {
@@ -187,8 +188,12 @@ export async function getGradesSheet(courseId: string, user: AuthUser) {
 export async function publishGrades(courseId: string, user: AuthUser) {
   if (user.rol !== Rol.ADMIN) throw new ForbiddenError();
 
-  const curso = await prisma.curso.findUnique({ where: { id: courseId }, select: { id: true } });
+  const curso = await prisma.curso.findUnique({ where: { id: courseId }, select: { id: true, bloqueId: true } });
   if (!curso) throw new NotFoundError("Curso no encontrado");
+
+  if (curso.bloqueId) {
+    await ensureNoOtherBloqueEnProgreso(curso.bloqueId);
+  }
 
   // Prisma doesn't support field-to-field copy in updateMany, so we do it per-row
   const registros = await prisma.registroSemanal.findMany({
@@ -264,13 +269,16 @@ export async function getMyPublishedGrades(user: AuthUser) {
     where: { estudianteId: user.id },
     include: {
       curso: {
-        select: { id: true, nombre: true, ciclo: true, anio: true, notasPublicadasEn: true },
+        select: {
+          id: true, nombre: true, ciclo: true, anio: true, notasPublicadasEn: true,
+          bloqueId: true, bloque: { select: { id: true, nombre: true } },
+        },
       },
     },
     orderBy: { curso: { anio: "desc" } },
   });
 
-  return Promise.all(inscripciones.map(async (ins) => {
+  const cursos = await Promise.all(inscripciones.map(async (ins) => {
     const registro = await prisma.registroSemanal.findUnique({
       where: { estudianteId_cursoId: { estudianteId: user.id, cursoId: ins.cursoId } },
       select: { notaFinalPublicada: true },
@@ -280,11 +288,21 @@ export async function getMyPublishedGrades(user: AuthUser) {
       nombre: ins.curso.nombre,
       ciclo: ins.curso.ciclo,
       anio: ins.curso.anio,
+      bloqueId: ins.curso.bloqueId,
+      bloqueNombre: ins.curso.bloque?.nombre ?? null,
       publicadas: ins.curso.notasPublicadasEn !== null,
       notasPublicadasEn: ins.curso.notasPublicadasEn?.toISOString() ?? null,
       notaFinalPublicada: ins.curso.notasPublicadasEn ? (registro?.notaFinalPublicada ?? null) : null,
     };
   }));
+
+  const bloqueIds = [...new Set(cursos.map((c) => c.bloqueId).filter((id): id is string => id !== null))];
+  const promediosBloque = bloqueIds.length === 0 ? [] : await prisma.promedioBloque.findMany({
+    where: { estudianteId: user.id, bloqueId: { in: bloqueIds } },
+    select: { bloqueId: true, promedio: true, publicadoEn: true },
+  });
+
+  return { cursos, promediosBloque };
 }
 
 export async function upsertGradeRow(

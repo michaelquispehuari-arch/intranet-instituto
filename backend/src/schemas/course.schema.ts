@@ -21,6 +21,7 @@ export const createCourseSchema = z.object({
   anio: z.number().int().min(2020).max(2100),
   profesorId: z.string().min(1),
   tipo: z.nativeEnum(TipoCurso).optional(),
+  bloqueId: z.string().min(1).nullable().optional(),
 });
 
 export const updateCourseSchema = createCourseSchema.partial().extend({

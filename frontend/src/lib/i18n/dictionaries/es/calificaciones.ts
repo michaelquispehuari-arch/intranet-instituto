@@ -5,6 +5,8 @@ export const calificaciones = {
     subtitle: "Notas publicadas por el administrador",
     noEnrollmentsTitle: "Sin inscripciones",
     noEnrollmentsDesc: "No estás inscrito en ningún curso activo.",
+    sinBloque: "Sin bloque",
+    promedioBloque: "Promedio del bloque",
   },
   admin: {
     eyebrow: "Académico",
