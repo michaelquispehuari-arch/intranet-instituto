@@ -33,8 +33,7 @@ export const cursos = {
   deleted: "Curso eliminado.",
   deleteError: "Error al eliminar: {{motivo}}",
   serverError: "Error del servidor",
-  destacadoBadge: "★ En Inicio",
-  destacarEnInicio: "★ Destacar en Inicio",
+  destacarEnInicio: "Destacar en Inicio",
   quitarDestacado: "Quitar de Inicio",
   bloque: {
     label: "Bloque",

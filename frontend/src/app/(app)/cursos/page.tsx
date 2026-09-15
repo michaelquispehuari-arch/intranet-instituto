@@ -344,8 +344,27 @@ export default function CursosPage() {
                         <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ambar-accion)" }}>
                           {TIPO_LABEL[curso.tipo] ?? curso.tipo}
                         </span>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          {curso.destacado && <span className="chip chip-ok">{t("cursos.destacadoBadge")}</span>}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <button
+                            title={curso.destacado ? t("cursos.quitarDestacado") : t("cursos.destacarEnInicio")}
+                            aria-label={curso.destacado ? t("cursos.quitarDestacado") : t("cursos.destacarEnInicio")}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              toggleDestacado(curso);
+                            }}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              padding: 0,
+                              cursor: "pointer",
+                              fontSize: 20,
+                              lineHeight: 1,
+                              color: curso.destacado ? "var(--ambar-accion)" : "var(--texto-tenue)",
+                            }}
+                          >
+                            {curso.destacado ? "★" : "☆"}
+                          </button>
                           {!curso.activo && <span className="badge-pendiente">{t("cursos.inactive")}</span>}
                         </div>
                       </div>
@@ -369,17 +388,6 @@ export default function CursosPage() {
                       </div>
                       {curso.activo && (
                         <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button
-                            className="btn btn-secondary"
-                            style={{ fontSize: 12, padding: "4px 8px" }}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              toggleDestacado(curso);
-                            }}
-                          >
-                            {curso.destacado ? t("cursos.quitarDestacado") : t("cursos.destacarEnInicio")}
-                          </button>
                           <button
                             className="btn btn-secondary"
                             style={{ fontSize: 12, padding: "4px 8px", color: "var(--desaprobado-texto)", borderColor: "var(--desaprobado-texto)" }}
