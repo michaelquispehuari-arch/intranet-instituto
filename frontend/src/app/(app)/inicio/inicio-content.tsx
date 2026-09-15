@@ -181,8 +181,13 @@ export function InicioContent({
 
       {cursosAMostrar.length > 0 ? (
         <>
-          {cursosAMostrar.map((curso) => (
-            <Link key={curso.id} href={`/cursos/${curso.id}`} className="card card--link" style={{ display: "block", marginBottom: "var(--s-4)" }}>
+          {cursosAMostrar.map((curso, index) => (
+            <Link
+              key={curso.id}
+              href={`/cursos/${curso.id}`}
+              className="card card--link"
+              style={{ display: "block", marginBottom: index === cursosAMostrar.length - 1 ? "var(--s-6)" : "var(--s-4)" }}
+            >
               <span className="chip chip--ok" style={{ marginBottom: "var(--s-3)", display: "inline-flex" }}>
                 <CheckCircle2 size={13} aria-hidden /> {t("inicio.activeCourseChip")}
               </span>
@@ -195,12 +200,6 @@ export function InicioContent({
               </span>
             </Link>
           ))}
-
-          {cursosActivos.length > cursosAMostrar.length && (
-            <Link href="/cursos" className="btn btn--ghost btn--sm" style={{ display: "inline-flex", marginBottom: "var(--s-6)" }}>
-              {t("inicio.viewMyCourses", { count: cursosActivos.length })} <ArrowRight size={16} aria-hidden />
-            </Link>
-          )}
         </>
       ) : (
         <div className="card">
