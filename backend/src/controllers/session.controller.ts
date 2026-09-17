@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import * as sessionService from "../services/session.service.js";
 import {
   courseIdParamSchema,
+  courseStudentIdParamSchema,
   sessionIdParamSchema,
   createSessionSchema,
   updateSessionSchema,
@@ -158,6 +159,26 @@ export async function getMySummariesForCourse(req: Request, res: Response, next:
     const { id: courseId } = courseIdParamSchema.parse(req.params);
     const summaries = await sessionService.getMySummariesForCourse(courseId, req.user!);
     res.json(summaries);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listSummarySubmitters(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id: courseId } = courseIdParamSchema.parse(req.params);
+    const result = await sessionService.listSummarySubmitters(courseId, req.user!);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getStudentSummaries(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id: courseId, studentId } = courseStudentIdParamSchema.parse(req.params);
+    const result = await sessionService.getStudentSummaries(courseId, studentId, req.user!);
+    res.json(result);
   } catch (error) {
     next(error);
   }

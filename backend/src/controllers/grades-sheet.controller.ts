@@ -23,6 +23,9 @@ const upsertRowSchema = z.object({
   notaForumManual: z.number().min(0).max(20).nullable().optional(),
   notaExamenNormManual: z.number().min(0).max(20).nullable().optional(),
   notaExamenRecupManual: z.number().min(0).max(20).nullable().optional(),
+  ntDia1Manual: z.number().min(0).max(20).nullable().optional(),
+  ntDia2Manual: z.number().min(0).max(20).nullable().optional(),
+  ntDia3Manual: z.number().min(0).max(20).nullable().optional(),
 });
 
 const celdasCamaraSchema = z.object({

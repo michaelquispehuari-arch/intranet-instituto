@@ -236,11 +236,32 @@ de datos siempre lo calcula el backend al recibir el POST de `/grades-sheet`.
 FLUJO:
 1. El alumno sube su transcripción del día en su curso
    (es la EntregaResumen del documento de contexto; en el seminario se llama "transcripción").
-2. El revisor (ADMIN / quien revise) abre la transcripción y le pone una NOTA: la NT, de 0 a 18.
+2. El ADMIN (único rol con acceso; PROFESOR no revisa transcripciones ni entra a la grilla — decisión
+   2026-09-17) abre la pestaña "Transcripción" del curso, entra al panel "Revisar transcripciones",
+   ve los archivos que subió el alumno por día y le pone una NOTA: la NT, de 0 a 18.
 3. Esa NT NO es visible para el alumno (campo interno). El alumno solo ve que entregó / que fue revisado.
 4. La NT de cada día se trae AUTOMÁTICAMENTE a la columna NT de ese día en la grilla,
    y alimenta la fórmula de asistencia (asincrónico, mixto con día completo de F, y justificadas J).
 ```
+
+Igual que la nota de Forum (sección 5.1), la NT se puede editar desde DOS lugares y ambos escriben al
+MISMO campo `EntregaResumen.notaTranscripcion` de la sesión de ese día (gana el último guardado, sin
+conflicto):
+```text
+1. Panel "Revisar transcripciones" del curso (ADMIN → alumno → Día 1/2/3 → ver archivos → poner NT →
+   Guardar nota), `reviewSummary` en `backend/src/services/session.service.ts`
+   (`PATCH /api/summaries/:id/review`, requiere ADMIN).
+2. Directo en la celda NT del día correspondiente en la grilla de notas (`/cursos/[id]/notas`),
+   `ntDia1Manual/ntDia2Manual/ntDia3Manual` -> `upsertGradeRow` en
+   `backend/src/services/grades-sheet.service.ts`. Si la sesión de ese día todavía no tenía
+   EntregaResumen (el alumno no subió nada), se crea una con esa nota y sin archivos — igual que el
+   Forum manual sin archivos subidos.
+```
+Antes de este fix la celda NT de la grilla era de solo lectura (se traía sola pero no se podía corregir
+ni digitar directo ahí, a pesar de que la descripción de la pantalla ya decía "Edita celdas de cámara,
+NT y publica notas..."), y encima no existía ningún panel para que el ADMIN viera lo que el alumno
+subió y le pusiera la nota — el endpoint de revisión (`reviewSummary`) existía en el backend pero
+ningún componente del frontend lo llamaba.
 
 Cambio de modelo (sobre EntregaResumen del documento de contexto):
 
@@ -253,9 +274,10 @@ model EntregaResumen {
 
 ```text
 Reglas:
-- notaTranscripcion solo la edita ADMIN/revisor; el endpoint que sirve datos al ESTUDIANTE la omite.
+- notaTranscripcion solo la edita ADMIN (ni PROFESOR ni ESTUDIANTE); el endpoint que sirve datos al
+  ESTUDIANTE la omite.
 - El día del registro semanal toma su NT del notaTranscripcion de la transcripción de ese día.
-- NT válida: 0 a 18.
+- NT válida: 0 a 18, validado en el backend en AMBOS caminos de edición (revisión y celda de la grilla).
 ```
 
 ---
@@ -319,8 +341,11 @@ Verificado contra la hoja del cliente: los .5 caen hacia abajo (16.5 -> 16, 13.5
 ```text
 - Una grilla por curso, una fila por estudiante inscrito (igual que la hoja del cliente):
     Código | Apellidos y Nombres | Modo | Día1 (1h 2h 3h NT) | Día2(...) | Día3(...) | Nota Asist | Examen | Nota Final
-- Celdas EDITABLES: solo las de cámara (1h/2h/3h) -> símbolos F/A/M/C/T (vacío = presente; sufijo J = justificada).
-- Celdas NO editables (se traen solas): NT (de la transcripción), Examen (del módulo), Nota Asist y Nota Final (calculadas).
+- Celdas EDITABLES: las de cámara (1h/2h/3h) -> símbolos F/A/M/C/T (vacío = presente; sufijo J = justificada);
+  y la celda NT de cada día (0 a 18) -> se trae sola de la transcripción revisada, pero también se puede
+  digitar/corregir directo ahí (sección 4), igual que la nota de Forum en Diplomado (sección 5.1).
+- Celdas NO editables (se calculan): Examen (del módulo, salvo que no haya envío real — sección 5),
+  Nota Asist y Nota Final.
 - Entrada rápida: Tab / Enter / flechas entre celdas, como hoja de cálculo.
 - Selector de numDias (1, 2 o 3) por curso.
 - Nota Asist y Nota Final se recalculan EN VIVO en el navegador con cada cambio de celda (cámara, modo o
@@ -360,16 +385,24 @@ POST   /api/students                 crear (ADMIN)
 PATCH  /api/students/:id             editar (ADMIN)
 POST   /api/students/import          importar CSV (ADMIN); valida duplicados por codigo, correo y DNI
 
-TRANSCRIPCIÓN / NT
-PATCH  /api/summaries/:id/review     ADMIN: marca revisado y fija notaTranscripcion (NT 0-18).
+TRANSCRIPCIÓN / NT (todos ADMIN-only; PROFESOR no tiene acceso — decisión 2026-09-17)
+GET    /api/courses/:id/summaries          panel "Revisar transcripciones": alumnos que ya subieron
+                                            transcripción en las primeras 3 sesiones del curso + qué
+                                            días subieron.
+GET    /api/courses/:id/summaries/:studentId  detalle por día (1/2/3 = orden de sesión) de un alumno:
+                                            archivos subidos, notaTranscripcion actual, estado.
+PATCH  /api/summaries/:id/review           marca revisado y fija notaTranscripcion (NT 0-18) de una
+                                            entrega puntual (mismo campo que la celda NT de la grilla).
    -> la NT NUNCA se devuelve en respuestas dirigidas al rol ESTUDIANTE.
 
 GRILLA SEMANAL / NOTAS
-GET    /api/courses/:id/grades-sheet  filas con celdas de cámara editables + NT (de transcripción)
-                                      + examen (del módulo) + notas calculadas.
+GET    /api/courses/:id/grades-sheet  filas con celdas de cámara editables + NT (de transcripción,
+                                      también editable) + examen (del módulo) + notas calculadas.
 POST   /api/courses/:id/grades-sheet  upsert de una fila { estudianteId, modo, numDias, celdasCamara,
-                                      notaForumManual?, notaExamenNormManual?, notaExamenRecupManual? }
-   -> el backend toma NT de las transcripciones del día, examen del módulo,
+                                      notaForumManual?, notaExamenNormManual?, notaExamenRecupManual?,
+                                      ntDia1Manual?, ntDia2Manual?, ntDia3Manual? }
+   -> el backend toma NT de las transcripciones del día (salvo que este POST traiga ntDiaNManual, en
+      cuyo caso corrige antes la EntregaResumen de la sesión de ese día), examen del módulo,
       recalcula notaAsistencia (sección 3) y notaFinal (sección 6), y guarda.
    -> el frontend ya no lo llama desde un botón "Guardar" por fila: lo llama una vez por alumno,
       en paralelo, tanto al hacer clic en "Guardar notas" como en "Mandar notas" (ver sección 7).

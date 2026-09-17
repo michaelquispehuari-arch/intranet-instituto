@@ -99,6 +99,7 @@ export default function NotasSheetPage() {
   const [modos, setModos] = useState<Record<string, ModoEstudio>>({});
   const [forumGradeEdits, setForumGradeEdits] = useState<Record<string, string>>({});
   const [examenManualEdits, setExamenManualEdits] = useState<Record<string, { norm?: string; recup?: string }>>({});
+  const [ntEdits, setNtEdits] = useState<Record<string, { d1?: string; d2?: string; d3?: string }>>({});
   const [publishing, setPublishing] = useState(false);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -124,6 +125,7 @@ export default function NotasSheetPage() {
         const initModos: Record<string, ModoEstudio> = {};
         const initForumGrades: Record<string, string> = {};
         const initExamenManual: Record<string, { norm?: string; recup?: string }> = {};
+        const initNt: Record<string, { d1?: string; d2?: string; d3?: string }> = {};
         d.filas.forEach((f) => {
           initEdits[f.estudianteId] = { ...f.celdasCamara };
           initModos[f.estudianteId] = f.modo;
@@ -133,12 +135,18 @@ export default function NotasSheetPage() {
               norm: !f.examenNormAuto && f.notaExamenNorm !== null ? String(f.notaExamenNorm) : "",
               recup: !f.examenRecupAuto && f.notaExamenRecup !== null ? String(f.notaExamenRecup) : "",
             };
+            initNt[f.estudianteId] = {
+              d1: f.ntDia1 !== null ? String(f.ntDia1) : "",
+              d2: f.ntDia2 !== null ? String(f.ntDia2) : "",
+              d3: f.ntDia3 !== null ? String(f.ntDia3) : "",
+            };
           }
         });
         setEdits(initEdits);
         setModos(initModos);
         setForumGradeEdits(initForumGrades);
         setExamenManualEdits(initExamenManual);
+        setNtEdits(initNt);
       }
     } else if (rol === "PROFESOR") {
       const r = await fetch(`/api/backend/courses/${cursoId}/grades`);
@@ -162,6 +170,7 @@ export default function NotasSheetPage() {
         const incluirNotaForum = data.tipo === "DIPLOMADO";
         const raw = forumGradeEdits[fila.estudianteId];
         const examenManual = examenManualEdits[fila.estudianteId] ?? {};
+        const nt = ntEdits[fila.estudianteId] ?? {};
         const toNumOrNull = (v: string | undefined) => (v !== undefined && v !== "" ? Number(v) : null);
         const r = await fetch(`/api/backend/courses/${cursoId}/grades-sheet`, {
           method: "POST",
@@ -174,6 +183,9 @@ export default function NotasSheetPage() {
             ...(incluirNotaForum ? { notaForumManual: raw !== undefined && raw !== "" ? Number(raw) : null } : {}),
             ...(data.tipo !== "DIPLOMADO" && !fila.examenNormAuto ? { notaExamenNormManual: toNumOrNull(examenManual.norm) } : {}),
             ...(data.tipo !== "DIPLOMADO" && !fila.examenRecupAuto ? { notaExamenRecupManual: toNumOrNull(examenManual.recup) } : {}),
+            ...(data.tipo !== "DIPLOMADO"
+              ? { ntDia1Manual: toNumOrNull(nt.d1), ntDia2Manual: toNumOrNull(nt.d2), ntDia3Manual: toNumOrNull(nt.d3) }
+              : {}),
           }),
         });
         return r.ok;
@@ -476,12 +488,17 @@ export default function NotasSheetPage() {
           </thead>
           <tbody>
             {data.filas.map((fila) => {
-              const ntVals = [fila.ntDia1, fila.ntDia2, fila.ntDia3];
+              const numOrNull = (v: string | undefined) => (v !== undefined && v !== "" && !isNaN(Number(v)) ? Number(v) : null);
+              const ntActuales = ntEdits[fila.estudianteId] ?? {
+                d1: fila.ntDia1 !== null ? String(fila.ntDia1) : "",
+                d2: fila.ntDia2 !== null ? String(fila.ntDia2) : "",
+                d3: fila.ntDia3 !== null ? String(fila.ntDia3) : "",
+              };
+              const ntVals = [numOrNull(ntActuales.d1), numOrNull(ntActuales.d2), numOrNull(ntActuales.d3)];
               const modoActual = modos[fila.estudianteId] ?? fila.modo;
               const celdasActuales = edits[fila.estudianteId] ?? fila.celdasCamara;
               const forumRaw = forumGradeEdits[fila.estudianteId];
               const examenManual = examenManualEdits[fila.estudianteId] ?? {};
-              const numOrNull = (v: string | undefined) => (v !== undefined && v !== "" && !isNaN(Number(v)) ? Number(v) : null);
               const notaExamenEfectivo =
                 data.tipo === "DIPLOMADO"
                   ? (forumRaw !== undefined && forumRaw !== "" && !isNaN(Number(forumRaw)) ? Number(forumRaw) : 0)
@@ -536,8 +553,28 @@ export default function NotasSheetPage() {
                           </select>
                         </td>
                       ))}
-                      <td key={`nt${di}`} style={{ padding: "4px 6px", textAlign: "center", color: "var(--texto-tenue)", fontSize: 12 }}>
-                        {data.tipo === "DIPLOMADO" ? "—" : (ntVals[di] !== null ? ntVals[di] : "—")}
+                      <td key={`nt${di}`} style={{ padding: "2px 2px", textAlign: "center" }}>
+                        {data.tipo === "DIPLOMADO" ? (
+                          <span style={{ color: "var(--texto-tenue)", fontSize: 12 }}>—</span>
+                        ) : (
+                          <input
+                            type="number"
+                            min={0}
+                            max={18}
+                            step={0.5}
+                            title={t("cursoNotas.admin.legend.ntDescripcion")}
+                            placeholder={t("cursoNotas.admin.ntPlaceholder")}
+                            value={ntActuales[(["d1", "d2", "d3"] as const)[di]] ?? ""}
+                            onChange={(e) => {
+                              const campo = (["d1", "d2", "d3"] as const)[di];
+                              setNtEdits((prev) => ({
+                                ...prev,
+                                [fila.estudianteId]: { ...ntActuales, [campo]: e.target.value },
+                              }));
+                            }}
+                            style={{ width: 44, textAlign: "center", border: "0.5px solid var(--borde)", borderRadius: 4, padding: "2px 2px", fontSize: 12 }}
+                          />
+                        )}
                       </td>
                     </>
                   ))}

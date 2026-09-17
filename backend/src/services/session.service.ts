@@ -195,6 +195,10 @@ export async function upsertSessionAttendance(
 }
 
 export async function listSummaries(sessionId: string, user: AuthUser) {
+  if (user.rol !== Rol.ADMIN) {
+    throw new ForbiddenError();
+  }
+
   const session = await prisma.sesion.findUnique({
     where: { id: sessionId },
     select: { id: true, cursoId: true },
@@ -204,14 +208,6 @@ export async function listSummaries(sessionId: string, user: AuthUser) {
     throw new NotFoundError("Sesion no encontrada");
   }
 
-  if (user.rol === Rol.ESTUDIANTE) {
-    throw new ForbiddenError();
-  }
-
-  if (user.rol === Rol.PROFESOR) {
-    await ensureProfessorOwnsCourse(session.cursoId, user.id);
-  }
-
   return prisma.entregaResumen.findMany({
     where: { sesionId: sessionId },
     include: {
@@ -219,6 +215,114 @@ export async function listSummaries(sessionId: string, user: AuthUser) {
     },
     orderBy: { estudiante: { apellido: "asc" } },
   });
+}
+
+// Lista, para el panel "Revisar transcripciones" del ADMIN, los alumnos que ya
+// subieron al menos una transcripcion en las primeras 3 sesiones del curso
+// (mismas sesiones que ve el alumno en su pestaña de Transcripcion). El
+// PROFESOR no tiene acceso a esta correccion, solo el ADMIN.
+export async function listSummarySubmitters(courseId: string, user: AuthUser) {
+  if (user.rol !== Rol.ADMIN) {
+    throw new ForbiddenError();
+  }
+
+  const curso = await prisma.curso.findUnique({
+    where: { id: courseId },
+    select: { id: true, tipo: true },
+  });
+  if (!curso) throw new NotFoundError("Curso no encontrado");
+  if (curso.tipo === TipoCurso.DIPLOMADO) {
+    throw new ForbiddenError("Este curso no maneja transcripciones");
+  }
+
+  const sesiones = await prisma.sesion.findMany({
+    where: { cursoId: courseId },
+    orderBy: { orden: "asc" },
+    take: 3,
+    select: { id: true, orden: true },
+  });
+  const diaPorSesion = new Map(sesiones.map((s) => [s.id, s.orden]));
+
+  const entregas = await prisma.entregaResumen.findMany({
+    where: { sesionId: { in: sesiones.map((s) => s.id) }, entregadoEn: { not: null } },
+    include: {
+      estudiante: { select: { id: true, nombre: true, apellido: true, email: true } },
+    },
+    orderBy: { estudiante: { apellido: "asc" } },
+  });
+
+  const porEstudiante = new Map<string, { estudiante: typeof entregas[number]["estudiante"]; dias: number[] }>();
+  for (const e of entregas) {
+    const dia = diaPorSesion.get(e.sesionId);
+    if (dia === undefined) continue;
+    const actual = porEstudiante.get(e.estudianteId);
+    if (actual) {
+      actual.dias.push(dia);
+    } else {
+      porEstudiante.set(e.estudianteId, { estudiante: e.estudiante, dias: [dia] });
+    }
+  }
+
+  return Array.from(porEstudiante.values()).map((v) => ({
+    ...v,
+    dias: v.dias.sort((a, b) => a - b),
+  }));
+}
+
+// Entregas de transcripcion de un alumno (dia 1/2/3 = orden de sesion) para
+// que el ADMIN las revise y coloque la nota (NT) desde el panel de correccion.
+export async function getStudentSummaries(courseId: string, studentId: string, user: AuthUser) {
+  if (user.rol !== Rol.ADMIN) {
+    throw new ForbiddenError();
+  }
+
+  const curso = await prisma.curso.findUnique({
+    where: { id: courseId },
+    select: { id: true, tipo: true },
+  });
+  if (!curso) throw new NotFoundError("Curso no encontrado");
+  if (curso.tipo === TipoCurso.DIPLOMADO) {
+    throw new ForbiddenError("Este curso no maneja transcripciones");
+  }
+
+  const sesiones = await prisma.sesion.findMany({
+    where: { cursoId: courseId },
+    orderBy: { orden: "asc" },
+    take: 3,
+    select: { id: true, orden: true, titulo: true },
+  });
+
+  const entregas = await prisma.entregaResumen.findMany({
+    where: { sesionId: { in: sesiones.map((s) => s.id) }, estudianteId: studentId },
+    select: { id: true, sesionId: true, urlR2: true, entregadoEn: true, notaTranscripcion: true, estado: true },
+  });
+  const entregaPorSesion = new Map(entregas.map((e) => [e.sesionId, e]));
+
+  return sesiones
+    .map((s) => {
+      const e = entregaPorSesion.get(s.id);
+      if (!e) return null;
+      let archivosCount = 0;
+      if (e.urlR2) {
+        try {
+          const parsed = JSON.parse(e.urlR2);
+          archivosCount = Array.isArray(parsed) ? parsed.length : 1;
+        } catch {
+          archivosCount = 1;
+        }
+      }
+      return {
+        id: e.id,
+        dia: s.orden,
+        titulo: s.titulo,
+        archivosCount,
+        entregadoEn: e.entregadoEn,
+        notaTranscripcion: e.notaTranscripcion,
+        estado: e.estado,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => a.dia - b.dia);
 }
 
 export async function requireSummaries(
@@ -349,7 +453,7 @@ export async function selfSubmitSummary(sesionId: string, user: AuthUser) {
 }
 
 export async function reviewSummary(summaryId: string, notaTranscripcion: number | null | undefined, user: AuthUser) {
-  if (user.rol !== Rol.ADMIN && user.rol !== Rol.PROFESOR) {
+  if (user.rol !== Rol.ADMIN) {
     throw new ForbiddenError();
   }
 

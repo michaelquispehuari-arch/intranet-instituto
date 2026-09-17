@@ -75,7 +75,10 @@ EJEMPLO (confirmar que es así)
 QUÉ FALTA
 - En la vista del ALUMNO (dentro de su curso) debe existir "Subir mi transcripción".
 - Al subir, el alumno SELECCIONA el día: Día 1 / Día 2 / Día 3 del curso (= la sesión correspondiente).
-- ADMIN y PROFESOR ven lo que el alumno subió y le colocan la NOTA (NT).
+- Solo ADMIN ve lo que el alumno subió y le coloca la NOTA (NT). PROFESOR NO tiene acceso a esta
+  revisión ni a la grilla de notas (decisión actualizada 2026-09-17; el spec original de este
+  documento incluía a PROFESOR en la revisión, se restringió solo a ADMIN — ver detalle actualizado
+  en `REGISTRO_Y_CALCULO_NOTAS.md` secciones 4, 7 y 8).
 - La NT NO es visible para el alumno (solo ve que entregó / que fue revisado).
 
 REGLA CRÍTICA: NO crear variables nuevas. Reutilizar lo que YA existe y que ya estaba enlazado al cálculo.

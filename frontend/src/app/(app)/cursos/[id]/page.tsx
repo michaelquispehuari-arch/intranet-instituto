@@ -83,6 +83,8 @@ type MySummary = {
 type ForumStatus = { id: string; dia: number; archivosCount: number; entregadoEn: string; revisado: boolean };
 type ForumSubmitter = { estudiante: { id: string; nombre: string; apellido: string; email: string }; dias: number[] };
 type ForumSubmission = { id: string; dia: number; archivosCount: number; entregadoEn: string; nota: number | null; revisadoEn: string | null };
+type SummarySubmitter = { estudiante: { id: string; nombre: string; apellido: string; email: string }; dias: number[] };
+type StudentSummaryItem = { id: string; dia: number; titulo: string; archivosCount: number; entregadoEn: string; notaTranscripcion: number | null; estado: string };
 type RecorderState = "inactivo" | "grabando" | "pausado" | "procesando" | "listo";
 
 type Tab = "sesiones" | "material" | "examenes" | "notas" | "alumnos" | "transcripcion" | "forums";
@@ -140,6 +142,12 @@ export default function CourseWorkspacePage() {
   const [studentForumSubmissions, setStudentForumSubmissions] = useState<ForumSubmission[] | null>(null);
   const [forumGradeDrafts, setForumGradeDrafts] = useState<Record<string, string>>({});
   const [savingForumGrade, setSavingForumGrade] = useState<string | null>(null);
+  const [summarySubmitters, setSummarySubmitters] = useState<SummarySubmitter[] | null>(null);
+  const [summarySubmittersLoaded, setSummarySubmittersLoaded] = useState(false);
+  const [selectedSummaryStudent, setSelectedSummaryStudent] = useState<SummarySubmitter["estudiante"] | null>(null);
+  const [studentSummaries, setStudentSummaries] = useState<StudentSummaryItem[] | null>(null);
+  const [summaryGradeDrafts, setSummaryGradeDrafts] = useState<Record<string, string>>({});
+  const [savingSummaryGrade, setSavingSummaryGrade] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -532,6 +540,59 @@ export default function CourseWorkspacePage() {
     }
   }
 
+  async function loadSummarySubmitters() {
+    if (summarySubmittersLoaded) return;
+    const r = await fetch(`/api/backend/courses/${id}/summaries`);
+    if (r.ok) {
+      const data = await r.json() as SummarySubmitter[];
+      setSummarySubmitters(Array.isArray(data) ? data : []);
+    } else {
+      setSummarySubmitters([]);
+    }
+    setSummarySubmittersLoaded(true);
+  }
+
+  async function openSummaryStudent(estudiante: SummarySubmitter["estudiante"]) {
+    setSelectedSummaryStudent(estudiante);
+    setStudentSummaries(null);
+    const r = await fetch(`/api/backend/courses/${id}/summaries/${estudiante.id}`);
+    if (r.ok) {
+      const data = await r.json() as StudentSummaryItem[];
+      setStudentSummaries(Array.isArray(data) ? data : []);
+    } else {
+      setStudentSummaries([]);
+    }
+  }
+
+  async function viewSummaryFiles(entregaId: string) {
+    const res = await fetch(`/api/backend/summaries/${entregaId}/files`);
+    if (res.ok) {
+      const d = await res.json() as { urls: Array<{ filename: string; url: string }> };
+      d.urls.forEach((u) => window.open(u.url, "_blank", "noopener"));
+    }
+  }
+
+  async function saveSummaryGrade(entregaId: string) {
+    const raw = summaryGradeDrafts[entregaId];
+    const notaTranscripcion = raw !== undefined && raw !== "" ? Number(raw) : null;
+    setSavingSummaryGrade(entregaId);
+    const r = await fetch(`/api/backend/summaries/${entregaId}/review`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notaTranscripcion }),
+    });
+    setSavingSummaryGrade(null);
+    if (r.ok) {
+      const updated = await r.json() as { notaTranscripcion: number | null; estado: string };
+      setStudentSummaries((prev) =>
+        prev ? prev.map((s) => (s.id === entregaId ? { ...s, notaTranscripcion: updated.notaTranscripcion, estado: updated.estado } : s)) : prev,
+      );
+    } else {
+      const d = await r.json().catch(() => ({})) as { message?: string };
+      alert(d.message ?? t("cursoDetalle.transcripcion.revisar.saveError"));
+    }
+  }
+
   async function saveSessionRecording(sesionId: string) {
     setSavingRecordingId(sesionId);
     const enlaceGrabacion = recordingDrafts[sesionId] ?? "";
@@ -597,7 +658,7 @@ export default function CourseWorkspacePage() {
     ...(esDiplomado ? [] : [{ key: "examenes" as const, label: t("cursoDetalle.tabs.examenes"), roles: ["ADMIN", "PROFESOR", "ESTUDIANTE"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
     { key: "notas", label: t("cursoDetalle.tabs.notas"), roles: ["ADMIN", "PROFESOR"] },
     { key: "alumnos", label: t("cursoDetalle.tabs.alumnos"), roles: ["ADMIN", "PROFESOR"] },
-    ...(esDiplomado ? [] : [{ key: "transcripcion" as const, label: t("cursoDetalle.tabs.transcripcion"), roles: ["ESTUDIANTE"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
+    ...(esDiplomado ? [] : [{ key: "transcripcion" as const, label: t("cursoDetalle.tabs.transcripcion"), roles: ["ESTUDIANTE", "ADMIN"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }]),
     ...(esDiplomado ? [{ key: "forums" as const, label: t("cursoDetalle.tabs.forums"), roles: ["ADMIN"] as Array<"ADMIN" | "PROFESOR" | "ESTUDIANTE"> }] : []),
   ];
   const tabs = allTabs.filter((t) => !rol || t.roles.includes(rol as "ADMIN" | "PROFESOR" | "ESTUDIANTE"));
@@ -609,7 +670,8 @@ export default function CourseWorkspacePage() {
       loadMateriales();
       if (esDiplomado && rol === "ESTUDIANTE") loadMyForums();
     }
-    if (key === "transcripcion") loadMySummaries();
+    if (key === "transcripcion" && rol === "ESTUDIANTE") loadMySummaries();
+    if (key === "transcripcion" && rol === "ADMIN") loadSummarySubmitters();
     if (key === "forums") loadForumSubmitters();
     if (key === "notas" && rol === "PROFESOR") loadProfNotas();
   }
@@ -1448,6 +1510,99 @@ export default function CourseWorkspacePage() {
                   </article>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "transcripcion" && rol === "ADMIN" && (
+        <div>
+          {!selectedSummaryStudent ? (
+            <div>
+              <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>{t("cursoDetalle.transcripcion.revisar.heading")}</h2>
+              {!summarySubmittersLoaded && <p style={{ color: "var(--texto-tenue)" }}>{t("cursoDetalle.loading")}</p>}
+              {summarySubmittersLoaded && summarySubmitters && summarySubmitters.length === 0 && (
+                <div className="card">
+                  <div className="empty-state">
+                    <div className="empty-state-icon">📄</div>
+                    <p className="empty-state-title">{t("cursoDetalle.transcripcion.revisar.emptyTitle")}</p>
+                    <p>{t("cursoDetalle.transcripcion.revisar.emptyDesc")}</p>
+                  </div>
+                </div>
+              )}
+              {summarySubmittersLoaded && summarySubmitters && summarySubmitters.length > 0 && (
+                <div className="session-list">
+                  {summarySubmitters.map((s) => (
+                    <article key={s.estudiante.id} className="session-card">
+                      <div className="session-info">
+                        <div className="session-title">{s.estudiante.nombre} {s.estudiante.apellido}</div>
+                        <div className="session-chips" style={{ marginTop: 6 }}>
+                          {s.dias.length > 0 && <span className="chip chip-capturas">{t("cursoDetalle.transcripcion.revisar.submittedChip")}</span>}
+                        </div>
+                      </div>
+                      <button className="btn btn-primary" onClick={() => openSummaryStudent(s.estudiante)}>
+                        {t("cursoDetalle.transcripcion.revisar.review")}
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                onClick={() => { setSelectedSummaryStudent(null); setStudentSummaries(null); }}
+                style={{ fontSize: 13, color: "var(--texto-tenue)", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 12 }}
+              >
+                {t("cursoDetalle.transcripcion.revisar.backToList")}
+              </button>
+              <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>
+                {selectedSummaryStudent.nombre} {selectedSummaryStudent.apellido}
+              </h2>
+              {studentSummaries === null && <p style={{ color: "var(--texto-tenue)" }}>{t("cursoDetalle.loading")}</p>}
+              {studentSummaries !== null && (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {studentSummaries.map((s) => (
+                    <div
+                      key={s.id}
+                      style={{ padding: "12px 16px", border: "0.5px solid var(--borde)", borderRadius: 8, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
+                    >
+                      <div style={{ flex: 1, minWidth: 160 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 2 }}>{t("cursoDetalle.transcripcion.dayLabel", { numero: s.dia, titulo: s.titulo })}</div>
+                        <div style={{ fontSize: 12, color: "var(--texto-tenue)" }}>
+                          {s.archivosCount !== 1
+                            ? t("cursoDetalle.transcripcion.revisar.filesCountOther", { count: s.archivosCount })
+                            : t("cursoDetalle.transcripcion.revisar.filesCountOne", { count: s.archivosCount })} · {new Date(s.entregadoEn).toLocaleDateString(INTL_LOCALES[locale])}
+                        </div>
+                      </div>
+                      <button type="button" className="btn btn-secondary" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => viewSummaryFiles(s.id)}>
+                        {t("cursoDetalle.transcripcion.revisar.viewFiles", { count: s.archivosCount })}
+                      </button>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <input
+                          type="number"
+                          min={0}
+                          max={18}
+                          step={0.5}
+                          placeholder={t("cursoDetalle.transcripcion.revisar.gradePlaceholder")}
+                          value={summaryGradeDrafts[s.id] ?? (s.notaTranscripcion ?? "")}
+                          onChange={(e) => setSummaryGradeDrafts((p) => ({ ...p, [s.id]: e.target.value }))}
+                          style={{ width: 90, border: "0.5px solid var(--borde)", borderRadius: 6, padding: "4px 8px", fontSize: 12 }}
+                        />
+                        <button
+                          className="btn btn-primary"
+                          style={{ fontSize: 12, padding: "4px 10px" }}
+                          disabled={savingSummaryGrade === s.id}
+                          onClick={() => saveSummaryGrade(s.id)}
+                        >
+                          {savingSummaryGrade === s.id ? t("cursoDetalle.transcripcion.revisar.savingShort") : t("cursoDetalle.transcripcion.revisar.saveGrade")}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
