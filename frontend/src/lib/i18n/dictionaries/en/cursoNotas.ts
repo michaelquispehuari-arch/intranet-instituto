@@ -56,8 +56,9 @@ export const cursoNotas: typeof cursoNotasEs = {
     examManualTitle: "No real submission: manual grade (CSV or by hand)",
     normPlaceholder: "Norm",
     recPlaceholder: "Retake",
+    ntPlaceholder: "NT",
     footerDiplomado: "Forum grade = grade entered when reviewing the Weekly Forum in Grade forums, replaces the exam grade (if the student already submitted their forum, it's only edited there). If they submitted nothing, the grade can be entered directly here · Final = ⌊(Attend + Forum grade) / 2⌋",
-    footerRegular: "NT = transcript grade (entered by reviewer) · Exam. = module exam grade · Final = ⌊(Attend + Exam) / 2⌋",
+    footerRegular: "NT = transcript grade (max. 18): it's entered when reviewing the student's transcript in the Transcript tab and appears here automatically, or it can be typed/corrected directly in this cell · Exam. = module exam grade · Final = ⌊(Attend + Exam) / 2⌋",
     footerActions: '"Save grades" saves the sheet to the database without publishing it (the teacher can\'t see it yet) · "Send grades" saves and also publishes the grades for the teacher.',
   },
 };

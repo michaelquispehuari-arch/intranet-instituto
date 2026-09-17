@@ -54,8 +54,9 @@ export const cursoNotas = {
     examManualTitle: "Sin envío real: nota manual (CSV o a mano)",
     normPlaceholder: "Norm",
     recPlaceholder: "Rec",
+    ntPlaceholder: "NT",
     footerDiplomado: "Nota de Forum = nota puesta al revisar el Forum de la semana en Corregir forums, reemplaza a la nota de examen (si el alumno ya subió su forum, solo se edita ahí). Si no subió nada, se puede poner la nota directo aquí · Final = ⌊(Asist + Nota de Forum) / 2⌋",
-    footerRegular: "NT = nota de transcripción (puesta por revisor) · Exam. = nota del examen del módulo · Final = ⌊(Asist + Exam) / 2⌋",
+    footerRegular: "NT = nota de transcripción (máx. 18): se coloca al revisar la transcripción del alumno en la pestaña Transcripción y aparece aquí automáticamente, o se puede digitar/corregir directo en esta celda · Exam. = nota del examen del módulo · Final = ⌊(Asist + Exam) / 2⌋",
     footerActions: '"Guardar notas" guarda la grilla en la base de datos sin publicarla (el profesor no la ve todavía) · "Mandar notas" guarda y además publica las notas para el profesor.',
   },
 };

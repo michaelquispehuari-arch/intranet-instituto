@@ -23,12 +23,12 @@ sessionDetailRoutes.get("/:id", sessionController.getById);
 sessionDetailRoutes.patch("/:id", requireRole(Rol.ADMIN, Rol.PROFESOR), sessionController.update);
 sessionDetailRoutes.get("/:id/attendance", sessionController.listAttendance);
 sessionDetailRoutes.post("/:id/attendance", requireRole(Rol.ADMIN), sessionController.upsertAttendance);
-sessionDetailRoutes.get("/:id/summaries", sessionController.listSummaries);
+sessionDetailRoutes.get("/:id/summaries", requireRole(Rol.ADMIN), sessionController.listSummaries);
 sessionDetailRoutes.post("/:id/summaries/require", requireRole(Rol.ADMIN), sessionController.requireSummaries);
 sessionDetailRoutes.post("/:id/summaries/self-submit", requireRole(Rol.ESTUDIANTE), sessionController.selfSubmitSummary);
 sessionDetailRoutes.post("/:id/summaries/self-upload", requireRole(Rol.ESTUDIANTE), uploadMaterialFile.array("files", 10), sessionController.selfUploadSummary);
 
 // /api/summaries/:id
 summaryRoutes.patch("/:id/deadline", requireRole(Rol.ADMIN), sessionController.updateSummaryDeadline);
-summaryRoutes.patch("/:id/review", requireRole(Rol.ADMIN, Rol.PROFESOR), sessionController.reviewSummary);
+summaryRoutes.patch("/:id/review", requireRole(Rol.ADMIN), sessionController.reviewSummary);
 summaryRoutes.get("/:id/files", sessionController.getSummaryDownloadUrls);

@@ -5,6 +5,11 @@ export const courseIdParamSchema = z.object({
   id: z.string().min(1),
 });
 
+export const courseStudentIdParamSchema = z.object({
+  id: z.string().min(1),
+  studentId: z.string().min(1),
+});
+
 export const sessionIdParamSchema = z.object({
   id: z.string().min(1),
 });

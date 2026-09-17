@@ -315,6 +315,9 @@ export async function upsertGradeRow(
     notaForumManual?: number | null;
     notaExamenNormManual?: number | null;
     notaExamenRecupManual?: number | null;
+    ntDia1Manual?: number | null;
+    ntDia2Manual?: number | null;
+    ntDia3Manual?: number | null;
   },
   user: AuthUser,
 ) {
@@ -331,6 +334,44 @@ export async function upsertGradeRow(
   });
 
   const esDiplomado = curso.tipo === TipoCurso.DIPLOMADO;
+
+  // El NT tambien se puede digitar/corregir directo en la grilla, no solo desde
+  // el panel "Revisar transcripciones": ambos caminos escriben en la misma
+  // EntregaResumen (por sesion = dia), igual que la nota de Forum en Diplomado.
+  if (!esDiplomado) {
+    const ntManualPorDia: [1 | 2 | 3, number | null | undefined][] = [
+      [1, input.ntDia1Manual],
+      [2, input.ntDia2Manual],
+      [3, input.ntDia3Manual],
+    ];
+    const diasConEdicion = ntManualPorDia.filter(([, v]) => v !== undefined) as [1 | 2 | 3, number | null][];
+    if (diasConEdicion.length > 0) {
+      for (const [, v] of diasConEdicion) {
+        if (v !== null && v > 18) {
+          throw new ValidationError("La nota de transcripcion para justificar una falta no puede superar 18.");
+        }
+      }
+      const sesionesNT = await prisma.sesion.findMany({
+        where: { cursoId: courseId },
+        orderBy: { orden: "asc" },
+        take: 3,
+        select: { id: true, orden: true },
+      });
+      const sesionIdPorDia = new Map(sesionesNT.map((s) => [s.orden, s.id]));
+      await Promise.all(
+        diasConEdicion.map(([dia, v]) => {
+          const sesionId = sesionIdPorDia.get(dia);
+          if (!sesionId) return null;
+          return prisma.entregaResumen.upsert({
+            where: { sesionId_estudianteId: { sesionId, estudianteId: input.estudianteId } },
+            create: { sesionId, estudianteId: input.estudianteId, notaTranscripcion: v, estado: "REVISADO" },
+            update: { notaTranscripcion: v, estado: "REVISADO" },
+          });
+        }),
+      );
+    }
+  }
+
   const ntMap: Record<number, number | null> = esDiplomado ? {} : await fetchNTForCourse(input.estudianteId, courseId);
 
   const registroExistente = esDiplomado ? null : await prisma.registroSemanal.findUnique({

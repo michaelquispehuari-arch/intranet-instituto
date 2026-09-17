@@ -24,3 +24,5 @@ courseRoutes.post("/:id/grades-sheet/import", requireRole(Rol.ADMIN), gradesShee
 courseRoutes.post("/:id/grades/publish", requireRole(Rol.ADMIN), gradesSheetController.publishGrades);
 courseRoutes.get("/:id/grades", requireRole(Rol.PROFESOR), gradesSheetController.getPublishedGrades);
 courseRoutes.get("/:id/summaries/mine", requireRole(Rol.ESTUDIANTE), sessionController.getMySummariesForCourse);
+courseRoutes.get("/:id/summaries", requireRole(Rol.ADMIN), sessionController.listSummarySubmitters);
+courseRoutes.get("/:id/summaries/:studentId", requireRole(Rol.ADMIN), sessionController.getStudentSummaries);
