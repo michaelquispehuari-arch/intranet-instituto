@@ -76,8 +76,11 @@ ACTUALIZACIÓN 2026-10-08 — SOLO INICIO Y CIERRE (la ventana de ingreso ya no 
   frontend/.../cursos/[id]/page.tsx (enVentanaIngreso). La columna Examen.ingresoHastaMin sigue en
   la BD con default 10 pero ya no se lee ni se valida. Para reactivarla basta descomentar esos bloques.
 - Exámenes ya creados: también dejan de tener ventana (se entra hasta el cierre), sin migración.
-- Tope de duracionMinutos (tiempo hasta el cierre): subió de 300 min (5 h) a 1440 min (24 h), en el
-  schema del backend (max 1440) y en el input del formulario (max=1440).
+- Tope de duracionMinutos (tiempo hasta el cierre): subió de 300 min (5 h) a 10080 min (7 días) en el
+  schema del backend.
+- El formulario ya no pide "Duración (min)": se eligen "Inicio del examen" y "Fin del examen (cierre)" con
+  calendario y la duración se calcula (fin − inicio) antes de enviar. Ambas fechas son obligatorias.
+  El input manual de minutos quedó comentado en create-exam-form.tsx. No hay columna ni endpoint nuevo.
 ```
 
 ---
