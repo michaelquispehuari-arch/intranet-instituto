@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/LanguageContext";
 import { INTL_LOCALES } from "@/lib/i18n/types";
 import type { ExamResults } from "../../types";
+import { AdminAnswerList } from "./admin-answer-list";
 
 function formatScore(value: number | null) {
   return value === null ? "–" : value.toFixed(2);
@@ -141,26 +142,14 @@ export function ResultsContent({ examId, role, studentId, notAvailable, beforeCl
                 </span>
               )}
             </div>
-            <div className="stack compact-stack">
-              {sub.respuestas.map((answer) => (
-                <div className="answer-row" key={answer.id}>
-                  <strong>{answer.pregunta.texto}</strong>
-                  <p>{t("exams.answerValue", { respuesta: answer.respuesta })}</p>
-                  {answer.estadoCalificacion === "PENDIENTE" ? (
-                    <p style={{ color: "var(--amber-action)" }}>{t("exams.pendingManualGrading")}</p>
-                  ) : answer.esCorrecta ? (
-                    <p className="success-text">{t("exams.correctPoints", { puntaje: answer.puntajeObtenido })}</p>
-                  ) : (
-                    <p className="error">
-                      {t("exams.incorrectPoints", { puntaje: answer.puntajeObtenido })}
-                      {answer.pregunta.respuestaCorrecta
-                        ? ` ${t("exams.correctAnswerSuffix", { respuesta: answer.pregunta.respuestaCorrecta })}`
-                        : ""}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
+            {/* ADMIN califica las respuestas abiertas aqui; PROFESOR solo las ve (el backend exige ADMIN). */}
+            <AdminAnswerList
+              key={sub.id}
+              examId={examId}
+              answers={sub.respuestas}
+              esSustitutorio={data.exam.esSustitutorio ?? false}
+              canGrade={role === "ADMIN"}
+            />
           </section>
         </div>
       );

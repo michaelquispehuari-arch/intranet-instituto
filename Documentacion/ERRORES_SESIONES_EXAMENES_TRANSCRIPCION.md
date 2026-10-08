@@ -65,6 +65,19 @@ EJEMPLO (confirmar que es así)
 
 (Esto reemplaza la nota anterior de "la duración cuenta desde que inicia": ahora el cierre es global,
  definido por disponibleDesde + duracionMinutos.)
+
+ACTUALIZACIÓN 2026-10-08 — SOLO INICIO Y CIERRE (la ventana de ingreso ya no se usa)
+- La "ventana de ingreso" (ingresoHastaMin / ingresoHasta) quedó DESACTIVADA. Ahora el alumno puede
+  entrar en cualquier momento entre disponibleDesde y el cierre; el reloj sigue siendo una cuenta
+  regresiva hasta el cierre global.
+- No se borró: está COMENTADO (con nota) en backend/src/schemas/exam.schema.ts (campo + refine),
+  backend/src/services/exam.service.ts (getIngresoHasta y el chequeo de canEnterExam),
+  frontend/.../exams/create/create-exam-form.tsx (campo, validación y payload) y
+  frontend/.../cursos/[id]/page.tsx (enVentanaIngreso). La columna Examen.ingresoHastaMin sigue en
+  la BD con default 10 pero ya no se lee ni se valida. Para reactivarla basta descomentar esos bloques.
+- Exámenes ya creados: también dejan de tener ventana (se entra hasta el cierre), sin migración.
+- Tope de duracionMinutos (tiempo hasta el cierre): subió de 300 min (5 h) a 1440 min (24 h), en el
+  schema del backend (max 1440) y en el input del formulario (max=1440).
 ```
 
 ---
@@ -104,7 +117,7 @@ VERIFICAR
 ```text
 [ ] Una sesión guarda link de YouTube + título + fecha/hora sin "datos inválidos".
 [ ] El profesor solo ve sesiones (no edita); el admin sí edita.
-[ ] El examen respeta: ventana de ingreso (disponibleDesde..ingresoHasta) y cierre global (disponibleDesde+duración).
+[ ] El examen respeta: inicio (disponibleDesde) y cierre global (disponibleDesde+duración). La ventana de ingreso está desactivada (ver actualización 2026-10-08).
 [ ] El reloj del alumno cuenta hasta el cierre; quien entra tarde tiene menos tiempo.
 [ ] El resultado solo se ve tras el cierre; antes muestra "Resultado disponible a partir de HH:MM".
 [ ] El alumno sube su transcripción eligiendo Día 1/2/3; el revisor pone NT oculta para el alumno.

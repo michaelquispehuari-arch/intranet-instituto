@@ -28,20 +28,25 @@ export const createExamSchema = z
     titulo: z.string().trim().min(3).max(150),
     descripcion: z.string().trim().max(500).optional(),
     cursoId: z.string().min(1),
-    duracionMinutos: z.number().int().min(1).max(300),
+    // Tiempo entre el inicio y el cierre del examen. Antes el tope era 300 min (5 h);
+    // se subio a 1440 (24 h) para permitir examenes que cierran al dia siguiente.
+    duracionMinutos: z.number().int().min(1).max(1440),
     disponibleDesde: z.coerce.date().optional(),
-    ingresoHastaMin: z.number().int().min(1).max(299).default(10),
+    // VENTANA DE INGRESO DESACTIVADA: ya no se usa, el alumno puede entrar desde el inicio
+    // hasta el cierre. Se deja comentada por si algun dia se necesita volver a limitar el
+    // ingreso (la columna Examen.ingresoHastaMin sigue en la BD con default 10).
+    // ingresoHastaMin: z.number().int().min(1).max(299).default(10),
     revelarRespuestas: z.boolean().default(true),
     esSustitutorio: z.boolean().default(false),
     preguntas: z.array(questionSchema).min(1).max(100),
-  })
-  .refine(
-    (exam) => exam.ingresoHastaMin < exam.duracionMinutos,
-    {
-      message: "El tiempo de ingreso debe ser menor que la duración total",
-      path: ["ingresoHastaMin"],
-    },
-  );
+  });
+  // .refine(
+  //   (exam) => exam.ingresoHastaMin < exam.duracionMinutos,
+  //   {
+  //     message: "El tiempo de ingreso debe ser menor que la duración total",
+  //     path: ["ingresoHastaMin"],
+  //   },
+  // );
 
 export const submitExamSchema = z.object({
   respuestas: z

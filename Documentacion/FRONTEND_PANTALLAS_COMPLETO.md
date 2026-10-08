@@ -443,9 +443,9 @@ Tabla por estudiante: nombre + email
 |-------|------|-----------|
 | Título | text | 3–150 caracteres, required |
 | Curso | select | opciones de `/api/courses`, required |
-| Duración total (min) | number | 2–300, default=30, required |
-| Inicio de ingreso | datetime-local | opcional |
-| Ventana de ingreso (min) | number | 1–299, default=10; < duración total |
+| Duración hasta el cierre (min) | number | 2–1440 (24 h), default=30, required |
+| Inicio del examen | datetime-local | opcional |
+| ~~Ventana de ingreso (min)~~ | — | Desactivada (comentada en el código desde 2026-10-08); solo se maneja inicio y cierre |
 | Descripción | textarea | 0–500 caracteres |
 
 ### Preguntas (sección dinámica)
@@ -526,6 +526,17 @@ Cada pregunta tiene:
   - PENDIENTE: "Pendiente de calificación manual" (amarillo)
   - Correcta: "Correcta · {puntos} pts" (verde)
   - Incorrecta: "Incorrecta · {puntos} pts · Correcta: {respuesta_correcta}" (rojo)
+- **Calificar respuestas abiertas (solo ADMIN, exámenes NO sustitutorios; 2026-10-08):**
+  - Bajo cada respuesta ABIERTA aparece la casilla "Nota (máx. {puntaje de la pregunta})" y al final un
+    único botón **"Guardar notas"** → PATCH `/api/backend/exams/{id}/grade-open` (componente `admin-answer-list.tsx`).
+  - Casilla vacía = la respuesta sigue PENDIENTE (no se envía). Las preguntas de opción múltiple/V-F no llevan casilla.
+  - El backend recalcula `ExamenEnvio.puntajeTotal` (nota auto + notas manuales) y por eso la grilla de notas
+    del curso lo muestra de inmediato (la grilla lee `puntajeTotal` vía `fetchExamNotes`).
+  - PROFESOR ve las respuestas pero no la casilla (el endpoint exige ADMIN).
+  - Exámenes sustitutorios: no se muestra la casilla; se califican en **Sustitutorios** y "Marcar revisado"
+    es lo que fija el total y `notaExamenRecup` (flujo sin cambios).
+  - Backend (`gradeOpenAnswers`): rechaza respuestas de otro examen (404) y notas mayores al puntaje de la
+    pregunta (400); ignora respuestas que no sean ABIERTA.
 
 ### Vista ESTUDIANTE
 - Badge: "Mi resultado" · "Puntaje total: {puntos}"
