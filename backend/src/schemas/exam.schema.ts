@@ -28,9 +28,9 @@ export const createExamSchema = z
     titulo: z.string().trim().min(3).max(150),
     descripcion: z.string().trim().max(500).optional(),
     cursoId: z.string().min(1),
-    // Tiempo entre el inicio y el cierre del examen. Antes el tope era 300 min (5 h);
-    // se subio a 1440 (24 h) para permitir examenes que cierran al dia siguiente.
-    duracionMinutos: z.number().int().min(1).max(1440),
+    // Tiempo entre el inicio y el cierre del examen. El formulario lo calcula a partir de las
+    // fechas de inicio y fin elegidas. Antes el tope era 300 min (5 h); ahora 10080 (7 dias).
+    duracionMinutos: z.number().int().min(1).max(10080),
     disponibleDesde: z.coerce.date().optional(),
     // VENTANA DE INGRESO DESACTIVADA: ya no se usa, el alumno puede entrar desde el inicio
     // hasta el cierre. Se deja comentada por si algun dia se necesita volver a limitar el

@@ -443,8 +443,8 @@ Tabla por estudiante: nombre + email
 |-------|------|-----------|
 | Título | text | 3–150 caracteres, required |
 | Curso | select | opciones de `/api/courses`, required |
-| Duración hasta el cierre (min) | number | 2–1440 (24 h), default=30, required |
-| Inicio del examen | datetime-local | opcional |
+| Inicio del examen | datetime-local | required |
+| Fin del examen (cierre) | datetime-local | required, posterior al inicio (mín. 2 min, máx. 7 días). Muestra "Duración: X h Y min". El formulario calcula `duracionMinutos = fin − inicio` al enviar; el backend sigue guardando solo `disponibleDesde` + `duracionMinutos` |
 | ~~Ventana de ingreso (min)~~ | — | Desactivada (comentada en el código desde 2026-10-08); solo se maneja inicio y cierre |
 | Descripción | textarea | 0–500 caracteres |
 

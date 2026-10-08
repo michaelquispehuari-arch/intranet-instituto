@@ -26,12 +26,25 @@ const emptyQuestion = (): QuestionForm => ({
   puntaje: 1,
 });
 
+const MIN_DURATION_MIN = 2;
+const MAX_DURATION_MIN = 10080; // 7 dias; debe coincidir con duracionMinutos.max en exam.schema.ts
+
+function minutesBetween(start: string, end: string): number | null {
+  if (!start || !end) return null;
+  const diff = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60_000);
+  return Number.isNaN(diff) ? null : diff;
+}
+
 export function CreateExamForm({ courses }: CreateExamFormProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const [questions, setQuestions] = useState<QuestionForm[]>([emptyQuestion()]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [inicio, setInicio] = useState("");
+  const [fin, setFin] = useState("");
+  // El backend guarda "duracionMinutos"; aqui se deriva de inicio y fin.
+  const duracionMinutos = minutesBetween(inicio, fin);
 
   function updateQuestion(index: number, value: Partial<QuestionForm>) {
     setQuestions((current) =>
@@ -105,7 +118,17 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
 
     const formData = new FormData(event.currentTarget);
     const toISOLocal = (v: string) => (v ? new Date(v).toISOString() : undefined);
-    const duracionMinutos = Number(formData.get("duracionMinutos") ?? 0);
+
+    if (duracionMinutos === null || duracionMinutos < MIN_DURATION_MIN) {
+      setError(t("exams.endBeforeStartError"));
+      setIsSubmitting(false);
+      return;
+    }
+    if (duracionMinutos > MAX_DURATION_MIN) {
+      setError(t("exams.durationTooLongError"));
+      setIsSubmitting(false);
+      return;
+    }
     // Ventana de ingreso desactivada: ya no se pide ni se valida. Se deja comentada por si se reactiva.
     // const ingresoHastaMin = Number(formData.get("ingresoHastaMin") ?? 10);
     //
@@ -121,7 +144,7 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
       cursoId: String(formData.get("cursoId") ?? ""),
       duracionMinutos,
       // ingresoHastaMin, // Ventana de ingreso desactivada
-      disponibleDesde: toISOLocal(String(formData.get("disponibleDesde") ?? "")),
+      disponibleDesde: toISOLocal(inicio),
       preguntas: questions.map((question) => ({
         texto: question.texto,
         tipo: question.tipo,
@@ -172,15 +195,41 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
           </select>
         </label>
 
+        {/* Se elige inicio y fin con calendario; la duracion en minutos se calcula sola al enviar.
+            El campo manual "Duracion (min)" se comento por ser incomodo para tiempos largos:
         <label className="field">
           <span>{t("exams.durationLabel")}</span>
           <input name="duracionMinutos" type="number" min={2} max={1440} defaultValue={30} required
             title={t("exams.durationHint")} />
         </label>
+        */}
 
         <label className="field">
           <span>{t("exams.startLabel")}</span>
-          <input name="disponibleDesde" type="datetime-local" />
+          <input
+            name="disponibleDesde"
+            type="datetime-local"
+            required
+            value={inicio}
+            onChange={(event) => setInicio(event.target.value)}
+          />
+        </label>
+
+        <label className="field">
+          <span>{t("exams.endLabel")}</span>
+          <input
+            name="disponibleHasta"
+            type="datetime-local"
+            required
+            min={inicio || undefined}
+            value={fin}
+            onChange={(event) => setFin(event.target.value)}
+          />
+          {duracionMinutos !== null && duracionMinutos >= MIN_DURATION_MIN ? (
+            <small style={{ color: "var(--texto-tenue)" }}>
+              {t("exams.durationPreview", { horas: Math.floor(duracionMinutos / 60), minutos: duracionMinutos % 60 })}
+            </small>
+          ) : null}
         </label>
 
         {/* Ventana de ingreso desactivada: solo se maneja inicio y cierre del examen. Comentada por si se reactiva.
