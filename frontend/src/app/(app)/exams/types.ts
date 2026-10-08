@@ -71,6 +71,7 @@ export type ExamResults = {
     descripcion: string | null;
     duracionMinutos: number;
     cierreEn?: string | null;
+    esSustitutorio?: boolean;
     curso: {
       id: string;
       nombre: string;

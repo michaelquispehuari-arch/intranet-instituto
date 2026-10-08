@@ -1226,9 +1226,10 @@ export default function CourseWorkspacePage() {
                 const now = new Date();
                 const desde = exam.disponibleDesde ? new Date(exam.disponibleDesde) : null;
                 const cierre = desde ? new Date(desde.getTime() + exam.duracionMinutos * 60_000) : null;
-                const ingresoHasta = desde ? new Date(desde.getTime() + exam.ingresoHastaMin * 60_000) : null;
+                // Ventana de ingreso desactivada: el alumno puede entrar desde el inicio hasta el cierre.
+                // const ingresoHasta = desde ? new Date(desde.getTime() + exam.ingresoHastaMin * 60_000) : null;
                 const disponible = exam.publicadoEn && desde && desde <= now && cierre && cierre > now;
-                const enVentanaIngreso = disponible && ingresoHasta && ingresoHasta > now;
+                // const enVentanaIngreso = disponible && ingresoHasta && ingresoHasta > now;
                 const vencido = cierre && cierre < now;
                 const estadoKey = !exam.publicadoEn ? "borrador" : vencido ? "vencido" : disponible ? "enCurso" : "pendiente";
                 const estado = t(`cursoDetalle.examenes.estado.${estadoKey}`);
@@ -1251,7 +1252,7 @@ export default function CourseWorkspacePage() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                      {rol === "ESTUDIANTE" && enVentanaIngreso && (
+                      {rol === "ESTUDIANTE" && disponible && (
                         <Link className="btn btn-primary" href={`/exams/${exam.id}`}>
                           {t("cursoDetalle.examenes.takeExam")}
                         </Link>

@@ -286,6 +286,10 @@ Reglas:
 
 ```text
 - notaExamenNorm  = nota del envío del examen NORMAL del curso (ExamenEnvio.puntajeTotal en escala 0-20).
+  Si el examen tiene preguntas ABIERTA, el ADMIN las califica en Exámenes → Resultados → alumno → "Ver examen"
+  (casilla por pregunta + "Guardar notas"); al guardar, el backend recalcula puntajeTotal y la grilla lo
+  refleja sin pasos extra. Nota: la grilla usa puntajeTotal tal cual (no lo escala), así que el puntaje de
+  las preguntas del examen debe sumar 20.
 - notaExamenRecup = nota del envío del examen SUSTITUTORIO (esSustitutorio = true), si existe.
 - El envío real del módulo de exámenes SIEMPRE tiene prioridad ("AUTO"): si existe, es de solo lectura en
   la grilla y no se puede editar ni sobreescribir a mano ni por CSV.

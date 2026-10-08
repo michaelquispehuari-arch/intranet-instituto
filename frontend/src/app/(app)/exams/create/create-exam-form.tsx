@@ -106,20 +106,21 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
     const formData = new FormData(event.currentTarget);
     const toISOLocal = (v: string) => (v ? new Date(v).toISOString() : undefined);
     const duracionMinutos = Number(formData.get("duracionMinutos") ?? 0);
-    const ingresoHastaMin = Number(formData.get("ingresoHastaMin") ?? 10);
-
-    if (ingresoHastaMin >= duracionMinutos) {
-      setError(t("exams.entryTimeError"));
-      setIsSubmitting(false);
-      return;
-    }
+    // Ventana de ingreso desactivada: ya no se pide ni se valida. Se deja comentada por si se reactiva.
+    // const ingresoHastaMin = Number(formData.get("ingresoHastaMin") ?? 10);
+    //
+    // if (ingresoHastaMin >= duracionMinutos) {
+    //   setError(t("exams.entryTimeError"));
+    //   setIsSubmitting(false);
+    //   return;
+    // }
 
     const payload = {
       titulo: String(formData.get("titulo") ?? ""),
       descripcion: String(formData.get("descripcion") ?? "") || undefined,
       cursoId: String(formData.get("cursoId") ?? ""),
       duracionMinutos,
-      ingresoHastaMin,
+      // ingresoHastaMin, // Ventana de ingreso desactivada
       disponibleDesde: toISOLocal(String(formData.get("disponibleDesde") ?? "")),
       preguntas: questions.map((question) => ({
         texto: question.texto,
@@ -173,7 +174,8 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
 
         <label className="field">
           <span>{t("exams.durationLabel")}</span>
-          <input name="duracionMinutos" type="number" min={2} max={300} defaultValue={30} required />
+          <input name="duracionMinutos" type="number" min={2} max={1440} defaultValue={30} required
+            title={t("exams.durationHint")} />
         </label>
 
         <label className="field">
@@ -181,11 +183,13 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
           <input name="disponibleDesde" type="datetime-local" />
         </label>
 
+        {/* Ventana de ingreso desactivada: solo se maneja inicio y cierre del examen. Comentada por si se reactiva.
         <label className="field">
           <span>{t("exams.entryWindowLabel")}</span>
           <input name="ingresoHastaMin" type="number" min={1} max={299} defaultValue={10} required
             title={t("exams.entryWindowHint")} />
         </label>
+        */}
 
         <label className="field full-row">
           <span>{t("exams.descriptionLabel")}</span>

@@ -1,6 +1,6 @@
 import { Rol, TipoPregunta, EstadoCalificacion } from "@prisma/client";
 import type { AuthUser } from "../types/auth.js";
-import { ForbiddenError, HttpError, NotFoundError } from "../utils/http-error.js";
+import { ForbiddenError, HttpError, NotFoundError, ValidationError } from "../utils/http-error.js";
 import { prisma } from "../utils/prisma.js";
 import type { CreateExamInput, SubmitExamInput, GradeOpenInput } from "../schemas/exam.schema.js";
 import { sendExamPublishedEmail } from "./email.service.js";
@@ -269,6 +269,7 @@ export async function getExamResults(examId: string, user: AuthUser) {
       titulo: exam.titulo,
       descripcion: exam.descripcion,
       duracionMinutos: exam.duracionMinutos,
+      esSustitutorio: exam.esSustitutorio,
       curso: {
         id: exam.curso.id,
         nombre: exam.curso.nombre,
@@ -292,7 +293,7 @@ export async function createExam(input: CreateExamInput, user: AuthUser) {
       descripcion: input.descripcion,
       cursoId: input.cursoId,
       duracionMinutos: input.duracionMinutos,
-      ingresoHastaMin: input.ingresoHastaMin,
+      // ingresoHastaMin: input.ingresoHastaMin, // Ventana de ingreso desactivada (ver exam.schema.ts)
       disponibleDesde: input.disponibleDesde,
       revelarRespuestas: input.esSustitutorio ? false : input.revelarRespuestas,
       esSustitutorio: input.esSustitutorio,
@@ -592,10 +593,12 @@ function getCierre(exam: { disponibleDesde: Date | null; duracionMinutos: number
   return new Date(exam.disponibleDesde.getTime() + exam.duracionMinutos * 60_000);
 }
 
-function getIngresoHasta(exam: { disponibleDesde: Date | null; ingresoHastaMin: number }): Date | null {
-  if (!exam.disponibleDesde) return null;
-  return new Date(exam.disponibleDesde.getTime() + exam.ingresoHastaMin * 60_000);
-}
+// VENTANA DE INGRESO DESACTIVADA: antes limitaba la entrada de alumnos nuevos a los primeros
+// `ingresoHastaMin` minutos. Ahora se puede entrar hasta el cierre. Comentada por si se reactiva.
+// function getIngresoHasta(exam: { disponibleDesde: Date | null; ingresoHastaMin: number }): Date | null {
+//   if (!exam.disponibleDesde) return null;
+//   return new Date(exam.disponibleDesde.getTime() + exam.ingresoHastaMin * 60_000);
+// }
 
 function isExamAvailable(exam: {
   activo: boolean;
@@ -616,13 +619,13 @@ function canEnterExam(exam: {
   activo: boolean;
   publicadoEn: Date | null;
   disponibleDesde: Date | null;
-  ingresoHastaMin: number;
+  // ingresoHastaMin: number; // Ventana de ingreso desactivada
   duracionMinutos: number;
   curso: { activo: boolean };
 }) {
   if (!isExamAvailable(exam)) return false;
-  const ingresoHasta = getIngresoHasta(exam);
-  if (ingresoHasta && ingresoHasta < new Date()) return false;
+  // const ingresoHasta = getIngresoHasta(exam);
+  // if (ingresoHasta && ingresoHasta < new Date()) return false;
   return true;
 }
 
@@ -643,28 +646,76 @@ export async function gradeOpenAnswers(examId: string, input: GradeOpenInput, us
 
   const exam = await prisma.examen.findUnique({
     where: { id: examId },
-    select: { id: true },
+    select: { id: true, esSustitutorio: true },
   });
 
   if (!exam) {
     throw new NotFoundError("Examen no encontrado");
   }
 
-  const results = await Promise.all(
-    input.calificaciones.map(({ respuestaId, puntajeManual }) =>
-      prisma.respuestaEstudiante.update({
-        where: { id: respuestaId },
-        data: {
-          puntajeManual,
-          puntajeObtenido: puntajeManual,
-          esCorrecta: puntajeManual > 0,
-          estadoCalificacion: EstadoCalificacion.CALIFICADA,
-        },
-      }),
-    ),
+  // Cada respuesta debe pertenecer a este examen, y la nota no puede superar el puntaje de su pregunta.
+  const answers = await prisma.respuestaEstudiante.findMany({
+    where: { id: { in: input.calificaciones.map((c) => c.respuestaId) } },
+    select: {
+      id: true,
+      envioId: true,
+      envio: { select: { examenId: true } },
+      pregunta: { select: { tipo: true, puntaje: true } },
+    },
+  });
+  const answerById = new Map(answers.map((a) => [a.id, a]));
+
+  for (const { respuestaId, puntajeManual } of input.calificaciones) {
+    const answer = answerById.get(respuestaId);
+    if (!answer || answer.envio.examenId !== examId) {
+      throw new NotFoundError("Respuesta no encontrada en este examen");
+    }
+    if (puntajeManual > answer.pregunta.puntaje) {
+      throw new ValidationError(`La nota no puede superar el puntaje de la pregunta (${answer.pregunta.puntaje})`);
+    }
+  }
+
+  // Solo se califican a mano las respuestas ABIERTA; las demas ya tienen nota automatica y se
+  // ignoran (antes un envio con todas las respuestas ponia en 0 las opciones multiples).
+  const toGrade = input.calificaciones.filter(
+    ({ respuestaId }) => answerById.get(respuestaId)?.pregunta.tipo === TipoPregunta.ABIERTA,
   );
 
-  return results;
+  return prisma.$transaction(async (tx) => {
+    const results = [];
+    for (const { respuestaId, puntajeManual } of toGrade) {
+      results.push(
+        await tx.respuestaEstudiante.update({
+          where: { id: respuestaId },
+          data: {
+            puntajeManual,
+            puntajeObtenido: puntajeManual,
+            esCorrecta: puntajeManual > 0,
+            estadoCalificacion: EstadoCalificacion.CALIFICADA,
+          },
+        }),
+      );
+    }
+
+    // Examen normal: el puntaje total del envio es lo que lee la grilla de notas (fetchExamNotes),
+    // asi que se recalcula aqui. Sustitutorio: lo recalcula reviewSubmission al marcar "revisado"
+    // (ademas escribe notaExamenRecup en el registro semanal), por eso no se toca.
+    if (!exam.esSustitutorio) {
+      const envioIds = [...new Set(toGrade.map(({ respuestaId }) => answerById.get(respuestaId)!.envioId))];
+      for (const envioId of envioIds) {
+        const { _sum } = await tx.respuestaEstudiante.aggregate({
+          where: { envioId },
+          _sum: { puntajeObtenido: true },
+        });
+        await tx.examenEnvio.update({
+          where: { id: envioId },
+          data: { puntajeTotal: _sum.puntajeObtenido ?? 0 },
+        });
+      }
+    }
+
+    return results;
+  });
 }
 
 export async function reviewSubmission(examId: string, submissionId: string, user: AuthUser) {
