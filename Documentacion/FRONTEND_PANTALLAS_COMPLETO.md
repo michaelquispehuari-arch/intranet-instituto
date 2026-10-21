@@ -417,7 +417,7 @@ Tabla por estudiante: nombre + email
 - Si ADMIN/PROFESOR: botón **"+ Nuevo examen"** → `/exams/create`
 
 ### Cada examen (card)
-- Estado badge · Título · Descripción
+- Estado badge · badge **"Recuperación"** si `esRecuperacion` · Título · Descripción
 - Metadata: Curso · Duración · Preguntas · Publicado
 
 | Botón | Roles | Acción |
@@ -443,6 +443,7 @@ Tabla por estudiante: nombre + email
 |-------|------|-----------|
 | Título | text | 3–150 caracteres, required |
 | Curso | select | opciones de `/api/courses`, required |
+| Tipo de examen (2026-10-20) | select | **Examen normal** (default, columna Norm de la grilla) / **Examen de recuperación** (`esRecuperacion = true`, columna Rec). El backend rechaza la recuperación si el curso no tiene antes un examen normal activo. Si el alumno rinde ambos, la grilla los promedia redondeando (ver REGISTRO_Y_CALCULO_NOTAS.md §5-6) |
 | Inicio del examen | datetime-local | required |
 | Fin del examen (cierre) | datetime-local | required, posterior al inicio (mín. 2 min, máx. 7 días). Muestra "Duración: X h Y min". El formulario calcula `duracionMinutos = fin − inicio` al enviar; el backend sigue guardando solo `disponibleDesde` + `duracionMinutos` |
 | ~~Ventana de ingreso (min)~~ | — | Desactivada (comentada en el código desde 2026-10-08); solo se maneja inicio y cierre |
@@ -533,8 +534,8 @@ Cada pregunta tiene:
   - El backend recalcula `ExamenEnvio.puntajeTotal` (nota auto + notas manuales) y por eso la grilla de notas
     del curso lo muestra de inmediato (la grilla lee `puntajeTotal` vía `fetchExamNotes`).
   - PROFESOR ve las respuestas pero no la casilla (el endpoint exige ADMIN).
-  - Exámenes sustitutorios: no se muestra la casilla; se califican en **Sustitutorios** y "Marcar revisado"
-    es lo que fija el total y `notaExamenRecup` (flujo sin cambios).
+  - Vale igual para el examen normal y el de recuperación (los dos son "NO sustitutorios").
+    Los sustitutorios están deshabilitados desde 2026-10-20 (sección 20).
   - Backend (`gradeOpenAnswers`): rechaza respuestas de otro examen (404) y notas mayores al puntaje de la
     pregunta (400); ignora respuestas que no sean ABIERTA.
 
@@ -711,46 +712,16 @@ Columnas: Cód. · Apellidos · Nombres · Email · DNI · Teléfono · Estado �
 
 ## 20. SUSTITUTORIOS
 
-**URL:** `/sustitutorios` · **Roles:** ADMIN
+**URL:** `/sustitutorios` · **Roles:** ADMIN · **Estado: DESHABILITADO (2026-10-20)**
 
-**Backend:** `GET /api/backend/exams` · `GET /api/backend/substitutions/eligible` · `GET /api/backend/exams/{id}/results` · `PATCH /api/backend/exams/{id}/grade-open` · `PATCH /api/backend/exams/{id}/submissions/{submissionId}/review`
-
-### Header
-- Eyebrow: "Administración" · Título: "Exámenes Sustitutorios"
-- Subtítulo: "Gestiona exámenes de recuperación y califica los envíos."
-
-### Tabs
-| Tab | Contenido |
-|-----|-----------|
-| Exámenes | Lista y calificación de envíos |
-| Alumnos elegibles | Estudiantes sin examen rendido |
-
----
-
-### Tab: EXÁMENES — Layout dos columnas
-
-**Sidebar izquierdo:**
-- Título: "{count} examen(es) sustitutorio(s)"
-- Botón **"+ Crear"** → `/exams/create`
-- Lista de botones (uno por examen): nombre · "{curso} · {count} envío(s)" · badge rojo si no publicado
-
-**Panel principal (al seleccionar examen):**
-- Título: "{titulo} — {count} envío(s)"
-- Cada envío (card):
-  - **Header:** Nombre del estudiante · Email · Fecha/hora · Badge "{puntos} pts" · "✓ Todo calificado" si aplica
-  - **Body:** Por cada respuesta:
-    - Título de pregunta · Respuesta (preformatted) · Input número "Nota (0–{maxPuntos}):" · Texto verde "Guardado: {nota}" si ya calificada
-  - **Footer:**
-    - Botón **"Guardar calificación"** → PATCH `/api/backend/exams/{id}/grade-open`
-    - Botón **"Marcar como revisado"** (disabled hasta que todas estén calificadas) → PATCH `.../submissions/{submissionId}/review` → muestra `notaExamenRecup`
-    - Mensaje de feedback (verde si éxito, rojo si error)
-
----
-
-### Tab: ALUMNOS ELEGIBLES
-- Título: "Alumnos elegibles ({count})"
-- Lista: nombre · email · badge rojo "{count} curso(s) jalado(s)"
-- Empty state si no hay elegibles
+- Ya no aparece en el menú lateral ni en el Inicio del ADMIN. Si se entra por URL, muestra solo
+  "Módulo deshabilitado" con un aviso de que el examen de recuperación ahora se crea desde
+  **Exámenes → Nuevo examen → Tipo de examen**.
+- Los sustitutorios quedaron desenlazados de los cursos y de la grilla de notas; el módulo se rehará con
+  otra lógica. Detalle técnico en [REGISTRO_Y_CALCULO_NOTAS.md](./REGISTRO_Y_CALCULO_NOTAS.md), sección 5.2.
+- La pantalla anterior (tabs Exámenes / Alumnos elegibles, "Marcar como revisado" que escribía
+  `notaExamenRecup`) ya no se documenta aquí porque dejó de funcionar así; su código quedó como
+  `SustitutoriosPageLegacy` en `frontend/src/app/(app)/sustitutorios/page.tsx`, sin usar.
 
 ---
 

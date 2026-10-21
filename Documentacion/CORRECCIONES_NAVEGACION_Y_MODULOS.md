@@ -80,8 +80,9 @@ VENTANA DE ACCESO Y DURACIÓN
 - Si sale del examen, puede reingresar mientras no expire su tiempo (progreso en Redis).
 - Al cerrar el plazo y con revelarRespuestas activo: ve su nota y las respuestas correctas.
 - La NOTA del examen va AUTOMÁTICAMENTE al registro de notas de la cuenta ADMIN (la grilla donde se calcula todo):
-    examen normal     -> notaExamenNorm
-    examen sustitutorio-> notaExamenRecup
+    examen normal          -> notaExamenNorm
+    examen de recuperación -> notaExamenRecup   (desde 2026-10-20; antes era el sustitutorio, hoy deshabilitado)
+    si rindió ambos se promedian (redondeado); si rindió uno, se usa ese.
   (ver REGISTRO_Y_CALCULO_NOTAS.md, secciones 5 y 6).
 - Verificar que todas las direcciones/enlaces estén bien conectados.
 ```

@@ -37,7 +37,10 @@ export const createExamSchema = z
     // ingreso (la columna Examen.ingresoHastaMin sigue en la BD con default 10).
     // ingresoHastaMin: z.number().int().min(1).max(299).default(10),
     revelarRespuestas: z.boolean().default(true),
-    esSustitutorio: z.boolean().default(false),
+    // SUSTITUTORIO DESHABILITADO (2026-10-20): ya no se acepta desde la API; createExam lo fuerza a false.
+    // esSustitutorio: z.boolean().default(false),
+    // true = examen de recuperacion (columna RECUP. de la grilla). Requiere un examen normal previo en el curso.
+    esRecuperacion: z.boolean().default(false),
     preguntas: z.array(questionSchema).min(1).max(100),
   });
   // .refine(

@@ -145,6 +145,7 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
       duracionMinutos,
       // ingresoHastaMin, // Ventana de ingreso desactivada
       disponibleDesde: toISOLocal(inicio),
+      esRecuperacion: formData.get("tipoExamen") === "RECUPERACION",
       preguntas: questions.map((question) => ({
         texto: question.texto,
         tipo: question.tipo,
@@ -193,6 +194,15 @@ export function CreateExamForm({ courses }: CreateExamFormProps) {
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="field">
+          <span>{t("exams.examTypeLabel")}</span>
+          <select name="tipoExamen" defaultValue="NORMAL" title={t("exams.examTypeHint")}>
+            <option value="NORMAL">{t("exams.examTypeNormal")}</option>
+            <option value="RECUPERACION">{t("exams.examTypeRecovery")}</option>
+          </select>
+          <small style={{ color: "var(--texto-tenue)" }}>{t("exams.examTypeHint")}</small>
         </label>
 
         {/* Se elige inicio y fin con calendario; la duracion en minutos se calcula sola al enviar.

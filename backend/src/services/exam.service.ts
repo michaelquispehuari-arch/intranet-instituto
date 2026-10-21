@@ -19,6 +19,7 @@ const examListSelect = {
   activo: true,
   creadoEn: true,
   esSustitutorio: true,
+  esRecuperacion: true,
   revelarRespuestas: true,
   curso: {
     select: {
@@ -287,6 +288,18 @@ export async function createExam(input: CreateExamInput, user: AuthUser) {
   }
   await ensureCourseAllowsExams(input.cursoId);
 
+  // La recuperacion complementa al examen normal del curso (se promedian en la grilla),
+  // asi que no tiene sentido crearla si el curso todavia no tiene uno normal activo.
+  if (input.esRecuperacion) {
+    const examenNormal = await prisma.examen.findFirst({
+      where: { cursoId: input.cursoId, activo: true, esRecuperacion: false, esSustitutorio: false },
+      select: { id: true },
+    });
+    if (!examenNormal) {
+      throw new ValidationError("Primero crea el examen normal de este curso; luego podrás crear el de recuperación.");
+    }
+  }
+
   return prisma.examen.create({
     data: {
       titulo: input.titulo,
@@ -295,8 +308,10 @@ export async function createExam(input: CreateExamInput, user: AuthUser) {
       duracionMinutos: input.duracionMinutos,
       // ingresoHastaMin: input.ingresoHastaMin, // Ventana de ingreso desactivada (ver exam.schema.ts)
       disponibleDesde: input.disponibleDesde,
-      revelarRespuestas: input.esSustitutorio ? false : input.revelarRespuestas,
-      esSustitutorio: input.esSustitutorio,
+      revelarRespuestas: input.revelarRespuestas,
+      // SUSTITUTORIO DESHABILITADO (2026-10-20): ningun examen nuevo puede ser sustitutorio.
+      esSustitutorio: false,
+      esRecuperacion: input.esRecuperacion,
       preguntas: {
         create: input.preguntas.map((question, index) => ({
           texto: question.texto,
@@ -748,14 +763,15 @@ export async function reviewSubmission(examId: string, submissionId: string, use
   const maxScore = exam.preguntas.reduce((sum, q) => sum + q.puntaje, 0);
   const notaExamenRecup = maxScore > 0 ? Math.round((totalScore / maxScore) * 20 * 100) / 100 : 0;
 
-  await prisma.$transaction([
-    prisma.examenEnvio.update({ where: { id: submissionId }, data: { puntajeTotal: totalScore } }),
-    prisma.registroSemanal.upsert({
-      where: { estudianteId_cursoId: { estudianteId: submission.estudianteId, cursoId: exam.cursoId } },
-      update: { notaExamenRecup },
-      create: { estudianteId: submission.estudianteId, cursoId: exam.cursoId, notaExamenRecup },
-    }),
-  ]);
+  // SUSTITUTORIO DESENLAZADO DE LA GRILLA (2026-10-20): antes tambien escribia notaExamenRecup en el
+  // RegistroSemanal del curso; ahora la columna RECUP. es del examen de recuperacion (esRecuperacion),
+  // asi que el sustitutorio ya no toca el registro de notas.
+  // prisma.registroSemanal.upsert({
+  //   where: { estudianteId_cursoId: { estudianteId: submission.estudianteId, cursoId: exam.cursoId } },
+  //   update: { notaExamenRecup },
+  //   create: { estudianteId: submission.estudianteId, cursoId: exam.cursoId, notaExamenRecup },
+  // }),
+  await prisma.examenEnvio.update({ where: { id: submissionId }, data: { puntajeTotal: totalScore } });
 
   return { notaExamenRecup, submissionId };
 }

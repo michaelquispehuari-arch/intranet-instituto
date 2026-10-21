@@ -222,7 +222,12 @@ model Examen {
   activo            Boolean   @default(true)
   creadoEn          DateTime  @default(now())
   revelarRespuestas Boolean   @default(true)
+  // SUSTITUTORIO DESHABILITADO (2026-10-20): ya no se crean ni alimentan la grilla de notas.
+  // La columna se conserva para no perder datos; el modulo se rehara con otra logica.
   esSustitutorio    Boolean   @default(false)
+  // Examen de recuperacion del mismo curso (ej. el del jueves). Alimenta la columna RECUP. de la
+  // grilla; el normal (false) alimenta NORM. Ver Documentacion/REGISTRO_Y_CALCULO_NOTAS.md seccion 5.
+  esRecuperacion    Boolean   @default(false)
 
   curso     Curso         @relation(fields: [cursoId], references: [id])
   preguntas Pregunta[]

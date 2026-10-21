@@ -7,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Home, BookOpen, BarChart3, Users, GraduationCap,
-  RefreshCw, Settings, FileText, Menu, X, LogOut,
+  Settings, FileText, Menu, X, LogOut, // RefreshCw: icono de Sustitutorios (deshabilitado)
   type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n/LanguageContext";
@@ -32,7 +32,8 @@ const navItems: NavItem[] = [
     labelKeyByRole: { ESTUDIANTE: "nav.misNotas" } },
   { href: "/estudiantes",    labelKey: "nav.estudiantes",    Icon: Users,         roles: ["ADMIN"] },
   { href: "/profesores",     labelKey: "nav.profesores",     Icon: GraduationCap, roles: ["ADMIN"] },
-  { href: "/sustitutorios",  labelKey: "nav.sustitutorios",  Icon: RefreshCw,     roles: ["ADMIN"] },
+  // SUSTITUTORIOS DESHABILITADO (2026-10-20): se quito del menu; el modulo se rehara con otra logica.
+  // { href: "/sustitutorios",  labelKey: "nav.sustitutorios",  Icon: RefreshCw,     roles: ["ADMIN"] },
   { href: "/configuracion",  labelKey: "nav.configuracion",  Icon: Settings,      roles: ["ADMIN"] },
 ];
 

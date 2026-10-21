@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {
-  BookOpen, BarChart3, Users, GraduationCap, RefreshCw,
+  BookOpen, BarChart3, Users, GraduationCap, // RefreshCw: icono de Sustitutorios (deshabilitado)
   Settings, FileText, Video, ArrowRight, CalendarDays,
   CheckCircle2,
 } from "lucide-react";
@@ -34,7 +34,8 @@ const adminItems = [
   { href: "/exams",          navKey: "nav.examenes",       descKey: "inicio.admin.itemDesc.examenes",       Icon: FileText },
   { href: "/estudiantes",    navKey: "nav.estudiantes",    descKey: "inicio.admin.itemDesc.estudiantes",    Icon: Users },
   { href: "/profesores",     navKey: "nav.profesores",     descKey: "inicio.admin.itemDesc.profesores",     Icon: GraduationCap },
-  { href: "/sustitutorios",  navKey: "nav.sustitutorios",  descKey: "inicio.admin.itemDesc.sustitutorios",  Icon: RefreshCw },
+  // SUSTITUTORIOS DESHABILITADO (2026-10-20): se quito del Inicio; el modulo se rehara con otra logica.
+  // { href: "/sustitutorios",  navKey: "nav.sustitutorios",  descKey: "inicio.admin.itemDesc.sustitutorios",  Icon: RefreshCw },
   { href: "/configuracion",  navKey: "nav.configuracion",  descKey: "inicio.admin.itemDesc.configuracion",  Icon: Settings },
 ] as const;
 

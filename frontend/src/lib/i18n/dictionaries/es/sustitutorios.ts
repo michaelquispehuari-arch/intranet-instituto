@@ -2,6 +2,8 @@ export const sustitutorios = {
   eyebrow: "Administración",
   title: "Exámenes Sustitutorios",
   subtitle: "Gestiona exámenes de recuperación y califica los envíos.",
+  disabledTitle: "Módulo deshabilitado",
+  disabledDescription: "Los sustitutorios ya no están enlazados a los cursos ni a la grilla de notas. El examen de recuperación ahora se crea desde Exámenes → Nuevo examen → Tipo de examen.",
   tabs: {
     exams: "Exámenes",
     eligibleStudents: "Alumnos elegibles",

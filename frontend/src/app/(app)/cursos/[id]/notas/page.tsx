@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { notaAsistencia13 } from "@/lib/nota-asistencia";
+import { notaAsistencia13, notaExamenCombinada } from "@/lib/nota-asistencia";
 import { parseGradesCsv } from "@/lib/grades-csv";
 import { useTranslation } from "@/lib/i18n/LanguageContext";
 import { INTL_LOCALES } from "@/lib/i18n/types";
@@ -502,9 +502,10 @@ export default function NotasSheetPage() {
               const notaExamenEfectivo =
                 data.tipo === "DIPLOMADO"
                   ? (forumRaw !== undefined && forumRaw !== "" && !isNaN(Number(forumRaw)) ? Number(forumRaw) : 0)
-                  : (fila.examenRecupAuto ? fila.notaExamenRecup : numOrNull(examenManual.recup))
-                    ?? (fila.examenNormAuto ? fila.notaExamenNorm : numOrNull(examenManual.norm))
-                    ?? 0;
+                  : notaExamenCombinada(
+                      fila.examenNormAuto ? fila.notaExamenNorm : numOrNull(examenManual.norm),
+                      fila.examenRecupAuto ? fila.notaExamenRecup : numOrNull(examenManual.recup),
+                    );
               const preview = calcularPreview(modoActual, celdasActuales, numDias, ntVals, notaExamenEfectivo);
               const notaFinal = preview.notaFinal;
               const chip = chipClase(notaFinal);

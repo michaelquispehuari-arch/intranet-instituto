@@ -4,6 +4,8 @@ export const sustitutorios: typeof sustitutoriosEs = {
   eyebrow: "관리",
   title: "보강 시험",
   subtitle: "보강 시험을 관리하고 제출물을 채점합니다.",
+  disabledTitle: "모듈 비활성화됨",
+  disabledDescription: "보강 시험은 더 이상 과목이나 성적표와 연결되지 않습니다. 재시험은 이제 시험 → 새 시험 → 시험 유형에서 만듭니다.",
   tabs: {
     exams: "시험",
     eligibleStudents: "응시 가능 학생",

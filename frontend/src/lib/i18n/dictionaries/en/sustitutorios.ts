@@ -4,6 +4,8 @@ export const sustitutorios: typeof sustitutoriosEs = {
   eyebrow: "Administration",
   title: "Makeup Exams",
   subtitle: "Manage makeup exams and grade submissions.",
+  disabledTitle: "Module disabled",
+  disabledDescription: "Makeup exams are no longer linked to courses or to the grade sheet. The recovery exam is now created from Exams → New exam → Exam type.",
   tabs: {
     exams: "Exams",
     eligibleStudents: "Eligible students",
