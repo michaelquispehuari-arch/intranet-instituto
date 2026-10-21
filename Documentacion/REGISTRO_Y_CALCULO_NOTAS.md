@@ -107,7 +107,7 @@ model RegistroSemanal {
   celdas          Json     // 12 celdas: d1c1,d1c2,d1c3,d1NT, d2c1,d2c2,d2c3,d2NT, d3c1,d3c2,d3c3,d3NT
   notaAsistencia  Float?   // CALCULADA por el backend
   notaExamenNorm  Float?   // AUTO: del envío de examen normal
-  notaExamenRecup Float?   // AUTO: del envío de examen sustitutorio
+  notaExamenRecup Float?   // AUTO: del envío del examen de RECUPERACIÓN (Examen.esRecuperacion)
   notaFinal       Float?   // CALCULADA por el backend (entera)
   actualizadoEn   DateTime @updatedAt
 
@@ -290,7 +290,16 @@ Reglas:
   (casilla por pregunta + "Guardar notas"); al guardar, el backend recalcula puntajeTotal y la grilla lo
   refleja sin pasos extra. Nota: la grilla usa puntajeTotal tal cual (no lo escala), así que el puntaje de
   las preguntas del examen debe sumar 20.
-- notaExamenRecup = nota del envío del examen SUSTITUTORIO (esSustitutorio = true), si existe.
+- notaExamenRecup = nota del envío del examen de RECUPERACIÓN del mismo curso (Examen.esRecuperacion = true).
+  Cada curso regular tiene DOS exámenes por semana: el NORMAL (ej. miércoles, columna Norm) y el de
+  RECUPERACIÓN (ej. jueves, columna Rec). Se elige al crear el examen: Exámenes → Nuevo examen →
+  "Tipo de examen" (desplegable Normal / Recuperación). El backend rechaza crear una recuperación si el
+  curso no tiene antes un examen normal activo (`createExam` en `backend/src/services/exam.service.ts`).
+  Cualquier alumno inscrito puede rendir la recuperación (no hay requisito de haber jalado el normal).
+  Su puntaje se usa tal cual lo arma el profesor con las preguntas (puede tener tope 16, por ejemplo).
+- Si hay más de un examen del mismo tipo en el curso, manda el ÚLTIMO envío del alumno (`enviadoEn` más
+  reciente); el otro se ignora en la grilla (sigue visible en Exámenes → Resultados).
+- Los exámenes SUSTITUTORIOS (esSustitutorio) ya NO entran a la grilla (ver 5.2).
 - El envío real del módulo de exámenes SIEMPRE tiene prioridad ("AUTO"): si existe, es de solo lectura en
   la grilla y no se puede editar ni sobreescribir a mano ni por CSV.
 - Si NO hay envío real, el campo queda editable ("MANUAL"): se puede escribir a mano en la grilla o traer
@@ -302,8 +311,31 @@ Reglas:
   notaExamenNorm/Recup = AUTO ?? MANUAL ?? null.
 - La grilla expone `examenNormAuto` / `examenRecupAuto` (booleanos) para que el frontend sepa si cada
   campo está bloqueado (AUTO) o editable (MANUAL).
-- nota de examen usada = RECUP si existe; si no, NORM; si no hay ninguna, 0. (Confirmado con el cliente:
-  NO es promedio de NORM y RECUP, aunque una hoja del cliente pueda sugerirlo — RECUP reemplaza a NORM.)
+- nota de examen usada (regla del cliente vigente desde 2026-10-20, ver sección 6):
+    solo NORM            -> NORM
+    solo RECUP           -> RECUP
+    NORM y RECUP         -> promedio de ambos, REDONDEADO al entero (15 y 12 -> 13.5 -> 14)
+    ninguno              -> 0
+  Vale igual para valores AUTO o MANUAL (primero se resuelve cada columna con AUTO ?? MANUAL).
+  HISTORIAL: antes de 2026-10-20 la regla era "RECUP reemplaza a NORM" (sin promedio) y RECUP venía del
+  sustitutorio. Las notas ya PUBLICADAS con la regla vieja no cambian solas (notaFinalPublicada es una
+  copia); solo cambian si el ADMIN vuelve a "Guardar notas"/"Mandar notas" de ese curso.
+```
+
+### 5.2 Sustitutorios: DESHABILITADOS (2026-10-20)
+
+```text
+- El módulo de sustitutorios quedó desenlazado de los cursos y de la grilla de notas; se rehará con
+  otra lógica más adelante. Lo que reemplaza a la documentación anterior:
+    - Ya no se pueden crear exámenes sustitutorios (`esSustitutorio` se quitó de `createExamSchema` y
+      `createExam` lo guarda siempre en false). La columna `Examen.esSustitutorio` sigue en la BD.
+    - `fetchExamNotes` (grilla) filtra `esSustitutorio: false`: un sustitutorio no llena ninguna columna.
+    - `reviewSubmission` ya no escribe `notaExamenRecup` en RegistroSemanal (código comentado con nota).
+    - `/sustitutorios` se quitó del menú lateral y del Inicio del ADMIN; si se entra por URL muestra
+      "Módulo deshabilitado". La pantalla vieja quedó en el mismo archivo como `SustitutoriosPageLegacy`
+      (sin usar) como referencia.
+    - Backend `/api/substitutions` (listar elegibles / habilitar) sigue existiendo pero ninguna pantalla
+      lo llama.
 ```
 
 ### 5.1 NOTA DE FORUM (cursos tipo DIPLOMADO — reemplaza la nota de examen)
@@ -331,11 +363,18 @@ Reglas:
 ## 6. NOTA FINAL (siempre entera)
 
 ```text
-notaExamen = notaExamenRecup si existe; si no, notaExamenNorm; si no hay ninguna, 0.
+notaExamen = notaExamenCombinada(NORM, RECUP)
+             // ambos -> Math.round((NORM + RECUP) / 2); uno solo -> ese; ninguno -> 0
 notaFinal  = Math.floor( (notaAsistencia + notaExamen) / 2 )   // SIEMPRE entera, truncada hacia abajo
 aprobado   = notaFinal >= 11   (notaAprobatoria)
 
-Verificado contra la hoja del cliente: los .5 caen hacia abajo (16.5 -> 16, 13.5 -> 13).
+Ojo, son dos redondeos distintos a propósito:
+- promedio de exámenes: se REDONDEA (13.5 -> 14), pedido del cliente 2026-10-20.
+- nota final: se TRUNCA (16.5 -> 16, 13.5 -> 13), verificado contra la hoja del cliente.
+Ejemplo: asistencia 18, NORM 15, RECUP 12 -> examen 14 -> final ⌊(18 + 14) / 2⌋ = 16.
+
+`notaExamenCombinada` vive en `backend/src/utils/nota-asistencia.ts` (autoridad) y tiene una copia en
+`frontend/src/lib/nota-asistencia.ts` para la vista previa en vivo de la grilla: si se cambia, cambiar ambas.
 ```
 
 ---
@@ -475,7 +514,8 @@ MATCHING DE ALUMNOS (`importGradesSheet` en `backend/src/services/grades-sheet.s
 [x] Importación CSV funciona con el formato del cliente (sin duplicar por código/correo/DNI; DNI opcional).
 [ ] La grilla semanal reproduce la hoja; solo las celdas de cámara son editables.
 [ ] La NT se trae de la nota de transcripción puesta por el revisor y NO es visible para el alumno.
-[ ] La nota de examen se trae del módulo (NORM normal, RECUP sustitutorio); examen vacío = 0.
+[x] La nota de examen se trae del módulo (NORM examen normal, RECUP examen de recuperación; si hay
+    ambos se promedian redondeando); examen vacío = 0.
 [ ] La nota de asistencia coincide con la fórmula oficial (probar con filas reales de la hoja del cliente).
 [ ] La nota final es ENTERA y truncada hacia abajo; coincide con la hoja.
 [x] El backend es la autoridad de lo que se guarda; el frontend además muestra una vista previa en

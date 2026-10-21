@@ -1,7 +1,7 @@
 import { ModoEstudio, Prisma, Rol, TipoCurso } from "@prisma/client";
 import { prisma } from "../utils/prisma.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/http-error.js";
-import { notaAsistencia13 } from "../utils/nota-asistencia.js";
+import { notaAsistencia13, notaExamenCombinada } from "../utils/nota-asistencia.js";
 import { ensureNoOtherBloqueEnProgreso } from "./bloque.service.js";
 import type { AuthUser } from "../types/auth.js";
 
@@ -21,15 +21,18 @@ function buildRow(modo: ModoEstudio, celdas: Record<string, unknown>): (string |
   ];
 }
 
+// NORM. = examen normal del curso; RECUP. = examen de recuperacion (esRecuperacion) del mismo curso.
+// Los sustitutorios quedan fuera de la grilla (modulo deshabilitado 2026-10-20). Si hubiera mas de un
+// examen del mismo tipo, manda el ultimo envio (orderBy enviadoEn desc).
 async function fetchExamNotes(estudianteId: string, cursoId: string) {
   const envios = await prisma.examenEnvio.findMany({
     where: {
       estudianteId,
       completado: true,
       puntajeTotal: { not: null },
-      examen: { cursoId },
+      examen: { cursoId, esSustitutorio: false },
     },
-    include: { examen: { select: { esSustitutorio: true } } },
+    include: { examen: { select: { esRecuperacion: true } } },
     orderBy: { enviadoEn: "desc" },
   });
 
@@ -37,9 +40,9 @@ async function fetchExamNotes(estudianteId: string, cursoId: string) {
   let notaExamenRecup: number | null = null;
 
   for (const e of envios) {
-    if (e.examen.esSustitutorio && notaExamenRecup === null) {
+    if (e.examen.esRecuperacion && notaExamenRecup === null) {
       notaExamenRecup = e.puntajeTotal;
-    } else if (!e.examen.esSustitutorio && notaExamenNorm === null) {
+    } else if (!e.examen.esRecuperacion && notaExamenNorm === null) {
       notaExamenNorm = e.puntajeTotal;
     }
     if (notaExamenNorm !== null && notaExamenRecup !== null) break;
@@ -96,7 +99,7 @@ async function fetchForumEntrega(estudianteId: string, cursoId: string) {
 function computeNotas(modo: ModoEstudio, celdas: Record<string, unknown>, numDias: 1 | 2 | 3, notaExamenNorm: number | null, notaExamenRecup: number | null) {
   const row = buildRow(modo, celdas);
   const notaAsistencia = notaAsistencia13(row, numDias);
-  const notaExamen = notaExamenRecup ?? notaExamenNorm ?? 0;
+  const notaExamen = notaExamenCombinada(notaExamenNorm, notaExamenRecup);
   const notaFinal = Math.floor((notaAsistencia + notaExamen) / 2);
   return { notaAsistencia, notaFinal };
 }

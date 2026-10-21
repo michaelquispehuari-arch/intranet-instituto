@@ -22,7 +22,27 @@ function allAnswersGraded(submission: ExamResults["submissions"][0]) {
   return submission.respuestas.every((r) => r.estadoCalificacion !== "PENDIENTE");
 }
 
+// SUSTITUTORIOS DESHABILITADO (2026-10-20): el modulo quedo desenlazado de los cursos y de la grilla
+// de notas (la columna RECUP. ahora es del examen de recuperacion). Esta ruta solo muestra un aviso;
+// la pantalla anterior se conserva abajo como referencia para cuando se rehaga con otra logica.
 export default function SustitutoriosPage() {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <div className="page-header">
+        <span className="page-eyebrow">{t("sustitutorios.eyebrow")}</span>
+        <h1 className="page-title">{t("sustitutorios.title")}</h1>
+      </div>
+      <div className="card empty-state">
+        <p className="empty-state-title">{t("sustitutorios.disabledTitle")}</p>
+        <p>{t("sustitutorios.disabledDescription")}</p>
+      </div>
+    </div>
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function SustitutoriosPageLegacy() {
   const { t, locale } = useTranslation();
   const [tab, setTab] = useState<"examenes" | "alumnos">("examenes");
   const [exams, setExams] = useState<ExamListItem[]>([]);

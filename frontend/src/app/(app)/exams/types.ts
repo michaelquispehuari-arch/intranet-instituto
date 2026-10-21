@@ -10,6 +10,7 @@ export type ExamListItem = {
   activo: boolean;
   creadoEn: string;
   esSustitutorio: boolean;
+  esRecuperacion: boolean;
   revelarRespuestas: boolean;
   curso: {
     id: string;

@@ -105,6 +105,9 @@ export function ExamsContent({ role, canManageExams, exams, loadError, publishEx
                   </div>
                   <div className="session-chips" style={{ marginTop: 6 }}>
                     <span className={`chip ${estado.chipClass}`}>{t(`exams.state.${estado.state}`)}</span>
+                    {exam.esRecuperacion && (
+                      <span className="chip chip-resumen">{t("exams.recoveryChip")}</span>
+                    )}
                     {exam._count.envios > 0 && (
                       <span className="chip chip-grabacion">{t("exams.submissionsCount", { count: exam._count.envios })}</span>
                     )}

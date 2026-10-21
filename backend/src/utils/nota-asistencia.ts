@@ -1,5 +1,16 @@
 type Celda = string | number | null | undefined;
 
+// Nota de examen que entra a la nota final (regla del cliente, 2026-10-20):
+// solo normal -> normal; solo recuperacion -> recuperacion;
+// ambos -> promedio redondeado al entero (13.5 -> 14); ninguno -> 0.
+// Copia en frontend/src/lib/nota-asistencia.ts: si cambia, cambiar ambas.
+export function notaExamenCombinada(notaExamenNorm: number | null, notaExamenRecup: number | null): number {
+  if (notaExamenNorm !== null && notaExamenRecup !== null) {
+    return Math.round((notaExamenNorm + notaExamenRecup) / 2);
+  }
+  return notaExamenRecup ?? notaExamenNorm ?? 0;
+}
+
 export function notaAsistencia13(row: Celda[], numDias: 1 | 2 | 3): number {
   const tipoClase = normalizar(String(row[0] ?? ""));
   const valores = new Array(9).fill(0);
